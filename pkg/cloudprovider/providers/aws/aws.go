@@ -1,0 +1,109 @@
+package aws
+
+import (
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/golang/glog"
+	"io"
+	cp "k8s.io/kubernetes/pkg/cloudprovider"
+	"kubeup.com/archon/pkg/cloudprovider"
+)
+
+const ProviderName = "aws"
+
+// Used in k8s annotations and labels
+const AnnotationPrefix = "aws.archon.kubeup.com/"
+
+// Node name as a tag on aws instance
+const NameKey = AnnotationPrefix + "name"
+
+func init() {
+	cloudprovider.RegisterCloudProvider(ProviderName, func(config io.Reader) (cloudprovider.Interface, error) {
+		creds := credentials.NewChainCredentials(
+			[]credentials.Provider{
+				&credentials.EnvProvider{},
+				&credentials.SharedCredentialsProvider{},
+			})
+		aws := newAWSSDKProvider(creds)
+		return newAWSCloud(config, aws)
+	})
+}
+
+type awsCloud struct {
+	ec2 EC2
+
+	region string
+}
+
+func newAWSCloud(config io.Reader, service *awsSDKProvider) (cloudprovider.Interface, error) {
+	metadata, err := service.Metadata()
+	if err != nil {
+		return nil, fmt.Errorf("error creating AWS metadata client: %v", err)
+	}
+
+	cfg, err := readAWSCloudConfig(config, metadata)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read AWS cloud provider config file: %v", err)
+	}
+
+	zone := cfg.Global.Zone
+	if len(zone) <= 1 {
+		return nil, fmt.Errorf("invalid AWS zone in config file: %s", zone)
+	}
+
+	regionName, err := azToRegion(zone)
+	if err != nil {
+		return nil, err
+	}
+
+	if !cfg.Global.DisableStrictZoneCheck {
+		valid := isRegionValid(regionName)
+		if !valid {
+			return nil, fmt.Errorf("not a valid AWS zone (unknown region): %s", zone)
+		}
+	} else {
+		glog.Warningf("Strict AWS zone checking is disabled.  Proceeding with zone: %s", zone)
+	}
+
+	ec2, err := service.Compute(regionName)
+	if err != nil {
+		return nil, fmt.Errorf("error creating AWS EC2 client: %v", err)
+	}
+
+	return &awsCloud{
+		ec2:    ec2,
+		region: regionName,
+	}, nil
+}
+
+func (p *awsCloud) ProviderName() string {
+	return ProviderName
+}
+
+func (p *awsCloud) Archon() (cloudprovider.ArchonInterface, bool) {
+	return p, true
+}
+
+func (p *awsCloud) Instances() (cp.Instances, bool) {
+	return nil, false
+}
+
+func (p *awsCloud) Clusters() (cp.Clusters, bool) {
+	return nil, false
+}
+
+func (p *awsCloud) LoadBalancer() (cp.LoadBalancer, bool) {
+	return nil, false
+}
+
+func (p *awsCloud) Routes() (cp.Routes, bool) {
+	return nil, false
+}
+
+func (p *awsCloud) Zones() (cp.Zones, bool) {
+	return nil, false
+}
+
+func (p *awsCloud) ScrubDNS(nameservers, searches []string) (nsOut, srchOut []string) {
+	return nil, nil
+}

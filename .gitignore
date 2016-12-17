@@ -1,0 +1,3 @@
+*.swp
+cmd/archon-controller/archon-controller
+vendor/k8s.io/kubernetes/docs
