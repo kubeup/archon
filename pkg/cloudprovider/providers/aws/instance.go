@@ -6,6 +6,7 @@ import (
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/golang/glog"
+	"k8s.io/kubernetes/pkg/api/unversioned"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/userdata"
 	"kubeup.com/archon/pkg/util"
@@ -22,18 +23,8 @@ var StateMap = map[string]cluster.InstancePhase{
 	ec2.InstanceStateNameStopped:      cluster.InstanceFailed,
 }
 
-type InstanceOptions struct {
-	UseEIP          bool `k8s:"use-eip"`
-	CustomPrivateIP bool `k8s:"custom-private-ip"`
-}
-
 type EIP struct {
 	AllocationID string `k8s:"eip-allocation-id"`
-	IP           string `k8s:"eip-ip"`
-}
-
-type PrivateIP struct {
-	IP string `k8s:"private-ip"`
 }
 
 func instanceToStatus(i *ec2.Instance) *cluster.InstanceStatus {
@@ -43,16 +34,17 @@ func instanceToStatus(i *ec2.Instance) *cluster.InstanceStatus {
 		phase = cluster.InstanceUnknown
 	}
 	return &cluster.InstanceStatus{
-		Phase:      phase,
-		PrivateIP:  destring(i.PrivateIpAddress),
-		PublicIP:   destring(i.PublicIpAddress),
-		InstanceID: destring(i.InstanceId),
+		Phase:             phase,
+		PrivateIP:         destring(i.PrivateIpAddress),
+		PublicIP:          destring(i.PublicIpAddress),
+		InstanceID:        destring(i.InstanceId),
+		CreationTimestamp: unversioned.NewTime(detime(i.LaunchTime)),
 	}
 }
 
 func (p *awsCloud) ListInstances(clusterName string, network *cluster.Network, selector map[string]string) (names []string, statuses []*cluster.InstanceStatus, err error) {
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(network.Annotations, &awsnetwork, AnnotationPrefix)
+	err = util.MapToStruct(network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -96,7 +88,7 @@ func (p *awsCloud) ListInstances(clusterName string, network *cluster.Network, s
 
 func (p *awsCloud) GetInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AnnotationPrefix)
+	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -126,7 +118,7 @@ func (p *awsCloud) getInstance(awsnetwork AWSNetwork, instanceID string) (status
 
 func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AnnotationPrefix)
+	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -154,52 +146,46 @@ func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance
 }
 
 func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
-	options := InstanceOptions{}
+	options := cluster.InstanceOptions{}
 	if instance.Labels != nil {
-		err = util.MapToStruct(instance.Labels, &options, AnnotationPrefix)
+		err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
 		if err != nil {
 			return
 		}
 	}
 
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AnnotationPrefix)
+	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
 
 	networkSpec := cluster.NetworkSpec{}
-	err = util.MapToStruct(instance.Annotations, &networkSpec, AnnotationPrefix)
+	err = util.MapToStruct(instance.Annotations, &networkSpec, cluster.AnnotationPrefix)
 	if err != nil {
 		return
 	}
 
 	eip := EIP{}
-	privateIP := PrivateIP{}
 	awsPrivateIP := (*string)(nil)
 	ifSpecs := ([]*ec2.InstanceNetworkInterfaceSpecification)(nil)
 
-	if options.CustomPrivateIP {
-		err = util.MapToStruct(instance.Annotations, &privateIP, AnnotationPrefix)
-		if err != nil {
+	if options.PreallocatePrivateIP {
+		if instance.Status.PrivateIP == "" {
+			err = fmt.Errorf("custom private IP is not provided.")
 			return
 		}
 
-		if privateIP.IP == "" {
-			err = fmt.Errorf("Custom private IP is not provided.")
-			return
-		}
-
-		awsPrivateIP = aws.String(privateIP.IP)
+		awsPrivateIP = aws.String(instance.Status.PrivateIP)
 	}
 
-	if options.UseEIP {
-		err = util.MapToStruct(instance.Annotations, &eip, AnnotationPrefix)
+	if options.PreallocatePublicIP {
+		err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 		if err != nil {
 			return
 		}
 
-		if eip.AllocationID == "" || eip.IP == "" {
+		if eip.AllocationID == "" {
 			err = fmt.Errorf("EIP is not provided.")
 			return
 		}
@@ -229,7 +215,7 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 			DeviceIndex:         aws.Int64(0),
 			NetworkInterfaceId:  nif.NetworkInterfaceId,
 		})
-	} else if options.CustomPrivateIP {
+	} else if options.PreallocatePrivateIP {
 		// Add to ifspecs
 		ifSpecs = append(ifSpecs, &ec2.InstanceNetworkInterfaceSpecification{
 			AssociatePublicIpAddress: aws.Bool(true),
@@ -316,7 +302,7 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 
 func (p *awsCloud) EnsureInstanceDeleted(clusterName string, instance *cluster.Instance) (err error) {
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AnnotationPrefix)
+	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}

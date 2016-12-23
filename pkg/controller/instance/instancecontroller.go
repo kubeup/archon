@@ -73,11 +73,12 @@ type instanceCache struct {
 }
 
 type InstanceController struct {
-	cloud       cloudprovider.Interface
-	kubeClient  clientset.Interface
-	clusterName string
-	archon      cloudprovider.ArchonInterface
-	cache       *instanceCache
+	cloud         cloudprovider.Interface
+	kubeClient    clientset.Interface
+	eipController *EIPController
+	clusterName   string
+	archon        cloudprovider.ArchonInterface
+	cache         *instanceCache
 	// A store of services, populated by the serviceController
 	instanceStore archoncache.StoreToInstanceLister
 	// Watches changes to all services
@@ -99,9 +100,12 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_controller", kubeClient.Core().RESTClient().GetRateLimiter())
 	}
 
+	eipController := NewEIPController(cloud, kubeClient, clusterName)
+
 	s := &InstanceController{
 		cloud:            cloud,
 		kubeClient:       kubeClient,
+		eipController:    eipController,
 		clusterName:      clusterName,
 		cache:            &instanceCache{instanceMap: make(map[string]*cachedInstance)},
 		eventBroadcaster: broadcaster,
@@ -204,7 +208,25 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 
 	// cache the service, we need the info for service deletion
 	cachedInstance.state = instance
-	err, retry := s.createInstanceIfNeeded(key, instance)
+	err, retry := s.eipController.SyncEIP(key, instance, false)
+	if err != nil {
+		message := "Error syncing eip of instance"
+		if retry {
+			message += " (will retry): "
+		} else {
+			message += " (will not retry): "
+		}
+		message += err.Error()
+		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncEIPFailed", message)
+
+		if retry {
+			return err, cachedInstance.nextRetryDelay()
+		} else {
+			return err, doNotRetry
+		}
+	}
+
+	err, retry = s.createInstanceIfNeeded(key, instance)
 	if err != nil {
 		message := "Error creating instance"
 		if retry {
@@ -215,7 +237,11 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 		message += err.Error()
 		s.eventRecorder.Event(instance, api.EventTypeWarning, "CreatingInstanceFailed", message)
 
-		return err, cachedInstance.nextRetryDelay()
+		if retry {
+			return err, cachedInstance.nextRetryDelay()
+		} else {
+			return err, doNotRetry
+		}
 	}
 	// Always update the cache upon success.
 	// NOTE: Since we update the cached service if and only if we successfully
@@ -263,11 +289,7 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 
 	instance.Dependency = deps
 
-	// Note: It is safe to just call EnsureLoadBalancer.  But, on some clouds that requires a delete & create,
-	// which may involve service interruption.  Also, we would like user-friendly events.
-
-	// Save the state so we can avoid a write if it doesn't change
-	previousState := instance.Status
+	previousState := *cluster.InstanceStatusDeepCopy(&instance.Status)
 
 	glog.V(2).Infof("Ensuring instance %s", key)
 
@@ -485,14 +507,37 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 	instance := cachedInstance.state
 
+	// Instance
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletingInstance", "Deleting instance")
 	err := s.archon.EnsureInstanceDeleted(s.clusterName, instance)
 	if err != nil {
-		message := "Error deleting instance (will retry): " + err.Error()
+		message := "Error deleting instance:"
+		message += err.Error()
 		s.eventRecorder.Event(instance, api.EventTypeWarning, "DeletingInstanceFailed", message)
 		return err, cachedInstance.nextRetryDelay()
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
+
+	// EIP
+	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncEIP", "Releasing eip if needed")
+	err, retry := s.eipController.SyncEIP(s.clusterName, instance, true)
+	if err != nil {
+		message := "Error syncing eip of instance"
+		if retry {
+			message += " (will retry): "
+		} else {
+			message += " (will not retry): "
+		}
+		message += err.Error()
+		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncEIPFailed", message)
+		if retry {
+			return err, cachedInstance.nextRetryDelay()
+		} else {
+			return err, doNotRetry
+		}
+	}
+	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncEIP", "Sync eip done")
+
 	s.cache.delete(key)
 
 	cachedInstance.resetRetryDelay()

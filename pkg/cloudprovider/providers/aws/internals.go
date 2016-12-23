@@ -16,6 +16,7 @@ import (
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	aws_credentials "k8s.io/kubernetes/pkg/credentialprovider/aws"
 	"sync"
+	"time"
 )
 
 type CloudConfig struct {
@@ -167,6 +168,13 @@ func destring(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func detime(t *time.Time) time.Time {
+	if t == nil {
+		return time.Now()
+	}
+	return *t
 }
 
 func isNotExistError(err error) bool {

@@ -30,6 +30,8 @@ type EC2 interface {
 
 	CreateNetworkInterface(input *ec2.CreateNetworkInterfaceInput) (*ec2.CreateNetworkInterfaceOutput, error)
 	AssociateAddress(input *ec2.AssociateAddressInput) (*ec2.AssociateAddressOutput, error)
+	AllocateAddress(input *ec2.AllocateAddressInput) (*ec2.AllocateAddressOutput, error)
+	ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error)
 
 	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
 }
@@ -50,6 +52,14 @@ func (p *awsSdkEC2) RunInstances(input *ec2.RunInstancesInput) (*ec2.Reservation
 
 func (p *awsSdkEC2) CreateNetworkInterface(input *ec2.CreateNetworkInterfaceInput) (*ec2.CreateNetworkInterfaceOutput, error) {
 	return p.ec2.CreateNetworkInterface(input)
+}
+
+func (p *awsSdkEC2) AllocateAddress(input *ec2.AllocateAddressInput) (*ec2.AllocateAddressOutput, error) {
+	return p.ec2.AllocateAddress(input)
+}
+
+func (p *awsSdkEC2) ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error) {
+	return p.ec2.ReleaseAddress(input)
 }
 
 func (p *awsSdkEC2) AssociateAddress(input *ec2.AssociateAddressInput) (*ec2.AssociateAddressOutput, error) {

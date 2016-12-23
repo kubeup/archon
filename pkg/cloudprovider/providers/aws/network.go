@@ -22,7 +22,7 @@ func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (
 		network.Annotations = make(map[string]string)
 	}
 
-	err = util.MapToStruct(network.Annotations, an, AnnotationPrefix)
+	err = util.MapToStruct(network.Annotations, an, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (
 		}
 	}
 
-	err = util.StructToMap(an, network.Annotations, AnnotationPrefix)
+	err = util.StructToMap(an, network.Annotations, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -73,7 +73,7 @@ func (p *awsCloud) EnsureNetworkDeleted(clusterName string, network *cluster.Net
 		network.Annotations = make(map[string]string)
 	}
 
-	err = util.MapToStruct(network.Annotations, an, AnnotationPrefix)
+	err = util.MapToStruct(network.Annotations, an, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -123,7 +123,7 @@ func (p *awsCloud) AddNetworkAnnotation(clusterName string, instance *cluster.In
 		instance.Annotations = make(map[string]string)
 	}
 
-	return util.StructToMap(network.Spec, instance.Annotations, AnnotationPrefix)
+	return util.StructToMap(network.Spec, instance.Annotations, cluster.AnnotationPrefix)
 }
 
 func (p *awsCloud) createVPC(clusterName string, network *cluster.Network) (vpcID string, err error) {

@@ -7,15 +7,16 @@ import (
 	"io"
 	cp "k8s.io/kubernetes/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cloudprovider"
+	"kubeup.com/archon/pkg/cluster"
 )
 
 const ProviderName = "aws"
 
 // Used in k8s annotations and labels
-const AnnotationPrefix = "aws.archon.kubeup.com/"
+var AWSAnnotationPrefix = "aws." + cluster.AnnotationPrefix
 
 // Node name as a tag on aws instance
-const NameKey = AnnotationPrefix + "name"
+var NameKey = AWSAnnotationPrefix + "name"
 
 func init() {
 	cloudprovider.RegisterCloudProvider(ProviderName, func(config io.Reader) (cloudprovider.Interface, error) {

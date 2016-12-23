@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/util/workqueue"
 	"k8s.io/kubernetes/pkg/watch"
+	"kubeup.com/archon/pkg/util"
 )
 
 const (
@@ -220,8 +221,9 @@ func (s *NetworkController) createNetworkIfNeeded(key string, network *cluster.N
 		return nil, notRetryable
 	}
 
-	previousState := network.Status
-	previousAnnotations := network.Annotations
+	previousState := *cluster.NetworkStatusDeepCopy(&network.Status)
+	previousAnnotations := make(map[string]string)
+	util.MapCopy(previousAnnotations, network.Annotations)
 
 	glog.V(2).Infof("Ensuring network %s", key)
 
@@ -237,7 +239,7 @@ func (s *NetworkController) createNetworkIfNeeded(key string, network *cluster.N
 
 	// Write the state if changed
 	// TODO: Be careful here ... what if there were other changes to the service?
-	if previousState != network.Status || !reflect.DeepEqual(previousAnnotations, network.Annotations) {
+	if !reflect.DeepEqual(previousState, network.Status) || !reflect.DeepEqual(previousAnnotations, network.Annotations) {
 		if err := s.persistUpdate(network); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
 		}

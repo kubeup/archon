@@ -50,6 +50,10 @@ func (f *FakeCloud) Archon() (archoncloudprovider.ArchonInterface, bool) {
 	return f, true
 }
 
+func (f *FakeCloud) EIP() (archoncloudprovider.EIPInterface, bool) {
+	return nil, false
+}
+
 func (f *FakeCloud) AddNetworkAnnotation(clustername string, instance *cluster.Instance, network *cluster.Network) error {
 	return nil
 }

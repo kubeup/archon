@@ -96,3 +96,9 @@ func (el *NetworkList) CodecEncodeSelf() {
 
 func (el *NetworkList) CodecDecodeSelf() {
 }
+
+func NetworkStatusDeepCopy(s *NetworkStatus) *NetworkStatus {
+	return &NetworkStatus{
+		Phase: s.Phase,
+	}
+}

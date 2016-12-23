@@ -105,3 +105,36 @@ func StructToMap(in interface{}, out map[string]string, prefix string) (err erro
 
 	return nil
 }
+
+func MapCopy(dst interface{}, src interface{}) (err error) {
+	defer func() {
+		if err2 := recover(); err2 != nil {
+			err = fmt.Errorf("Error: %+v", err2)
+		}
+	}()
+
+	if src == nil {
+		return
+	}
+
+	if dst == nil && src != nil {
+		return fmt.Errorf("Dst is nil but src is not")
+	}
+
+	srct := reflect.TypeOf(src)
+	dstt := reflect.TypeOf(dst)
+	if srct.Kind() != reflect.Map ||
+		dstt.Kind() != reflect.Map ||
+		srct.Key().Kind() != dstt.Key().Kind() ||
+		srct.Elem().Kind() != dstt.Elem().Kind() {
+		return fmt.Errorf("dst and src types don't match")
+	}
+
+	srcv := reflect.ValueOf(src)
+	dstv := reflect.ValueOf(dst)
+	for _, k := range srcv.MapKeys() {
+		dstv.SetMapIndex(k, srcv.MapIndex(k))
+	}
+
+	return
+}

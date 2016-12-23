@@ -5,6 +5,11 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 )
 
+type EIPInterface interface {
+	EnsureEIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
+	EnsureEIPDeleted(clusterName string, instance *cluster.Instance) error
+}
+
 type ArchonInterface interface {
 	EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error)
 	EnsureNetworkDeleted(clusterName string, network *cluster.Network) error
@@ -14,6 +19,8 @@ type ArchonInterface interface {
 	GetInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
 	EnsureInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
 	EnsureInstanceDeleted(clusterName string, instance *cluster.Instance) error
+
+	EIP() (EIPInterface, bool)
 }
 
 type Interface interface {

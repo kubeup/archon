@@ -13,6 +13,13 @@ type InstanceTemplateSpec struct {
 	Spec           InstanceSpec `json:"spec,omitempty"`
 }
 
+type InstanceOptions struct {
+	// A set of provider specific annotations will be set by the eip controller when an eip is automatically allocated
+	PreallocatePublicIP bool `k8s:"preallocate-public-ip"`
+	// If this is set
+	PreallocatePrivateIP bool `k8s:"preallocate-private-ip"`
+}
+
 type InstanceDependency struct {
 	Network Network `json:"network,omitempty"`
 	Users   []User  `json:"users,omitempty"`
@@ -199,5 +206,20 @@ func GetInstanceCondition(status *InstanceStatus, conditionType InstanceConditio
 }
 
 func InstanceStatusEqual(l, r InstanceStatus) bool {
-	return l.Phase == r.Phase
+	return l.Phase == r.Phase && l.PrivateIP == r.PrivateIP && l.PublicIP == l.PublicIP
+}
+
+func InstanceStatusDeepCopy(s *InstanceStatus) *InstanceStatus {
+	ret := &InstanceStatus{
+		Phase:             s.Phase,
+		PrivateIP:         s.PrivateIP,
+		PublicIP:          s.PublicIP,
+		InstanceID:        s.InstanceID,
+		CreationTimestamp: s.CreationTimestamp,
+	}
+	for _, c := range s.Conditions {
+		s.Conditions = append(s.Conditions, c)
+	}
+
+	return ret
 }
