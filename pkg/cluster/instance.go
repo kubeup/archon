@@ -5,43 +5,45 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/meta"
 	"k8s.io/kubernetes/pkg/api/unversioned"
+	"time"
 )
 
 type InstanceTemplateSpec struct {
 	api.ObjectMeta `json:"metadata"`
-	Spec           InstanceSpec
+	Spec           InstanceSpec `json:"spec,omitempty"`
 }
 
 type InstanceDependency struct {
-	Network Network
-	Users   []User
+	Network Network `json:"network,omitempty"`
+	Users   []User  `json:"users,omitempty"`
 }
 
 type Instance struct {
 	unversioned.TypeMeta `json:",inline"`
 	api.ObjectMeta       `json:"metadata"`
-	Spec                 InstanceSpec
-	Status               InstanceStatus
+	Spec                 InstanceSpec       `json:"spec,omitempty"`
+	Status               InstanceStatus     `json:"status,omitempty"`
 	Dependency           InstanceDependency `json:"-"`
 }
 
 type InstanceSpec struct {
-	Image        string
-	InstanceType string
-	NetworkName  string
-	Files        []FileSpec
+	Image        string     `json:"image,omitempty"`
+	InstanceType string     `json:"instanceType,omitempty"`
+	NetworkName  string     `json:"networkName,omitempty"`
+	Files        []FileSpec `json:"files,omitempty"`
 	// Secrets      []Secret
-	Configs  []ConfigSpec
-	Users    []api.LocalObjectReference
-	Hostname string
+	Configs  []ConfigSpec               `json:"configs,omitempty"`
+	Users    []api.LocalObjectReference `json:"users,omitempty"`
+	Hostname string                     `json:"hostname,omitempty"`
 }
 
 type InstanceStatus struct {
-	Phase             InstancePhase
-	PrivateIP         string
-	PublicIP          string
-	InstanceID        string
-	CreationTimestamp unversioned.Time `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
+	Phase             InstancePhase       `json:"phase,omitempty"`
+	Conditions        []InstanceCondition `json:"conditions,omitempty"`
+	PrivateIP         string              `json:"privateIP,omitempty"`
+	PublicIP          string              `json:"publicIP,omitempty"`
+	InstanceID        string              `json:"instanceID,omitempty"`
+	CreationTimestamp unversioned.Time    `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
 }
 
 type InstancePhase string
@@ -52,6 +54,35 @@ const (
 	InstanceFailed  InstancePhase = "Failed"
 	InstanceUnknown InstancePhase = "Unknown"
 )
+
+type InstanceConditionType string
+
+// These are valid conditions of pod.
+const (
+	// InstanceScheduled represents status of the scheduling process for this pod.
+	InstanceScheduled InstanceConditionType = "InstanceScheduled"
+	// InstanceReady means the pod is able to service requests and should be added to the
+	// load balancing pools of all matching services.
+	InstanceReady InstanceConditionType = "Ready"
+	// InstanceInitialized means that all init containers in the pod have started successfully.
+	InstanceInitialized InstanceConditionType = "Initialized"
+	// InstanceReasonUnschedulable reason in InstanceScheduled InstanceCondition means that the scheduler
+	// can't schedule the pod right now, for example due to insufficient resources in the cluster.
+	InstanceReasonUnschedulable = "Unschedulable"
+)
+
+type InstanceCondition struct {
+	Type   InstanceConditionType `json:"type"`
+	Status api.ConditionStatus   `json:"status"`
+	// +optional
+	LastProbeTime unversioned.Time `json:"lastProbeTime,omitempty"`
+	// +optional
+	LastTransitionTime unversioned.Time `json:"lastTransitionTime,omitempty"`
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// +optional
+	Message string `json:"message,omitempty"`
+}
 
 type InstanceList struct {
 	unversioned.TypeMeta `json:",inline"`
@@ -115,4 +146,58 @@ func (el *InstanceList) CodecEncodeSelf() {
 }
 
 func (el *InstanceList) CodecDecodeSelf() {
+}
+
+// IsInstanceAvailable returns true if a instance is available; false otherwise.
+// Precondition for an available instance is that it must be ready. On top
+// of that, there are two cases when a instance can be considered available:
+// 1. minReadySeconds == 0, or
+// 2. LastTransitionTime (is set) + minReadySeconds < current time
+func IsInstanceAvailable(instance *Instance, minReadySeconds int32, now unversioned.Time) bool {
+	if !IsInstanceReady(instance) {
+		return false
+	}
+
+	c := GetInstanceReadyCondition(instance.Status)
+	minReadySecondsDuration := time.Duration(minReadySeconds) * time.Second
+	if minReadySeconds == 0 || !c.LastTransitionTime.IsZero() && c.LastTransitionTime.Add(minReadySecondsDuration).Before(now.Time) {
+		return true
+	}
+	return false
+}
+
+// IsInstanceReady returns true if a instance is ready; false otherwise.
+func IsInstanceReady(instance *Instance) bool {
+	return IsInstanceReadyConditionTrue(instance.Status)
+}
+
+// IsInstanceReady retruns true if a instance is ready; false otherwise.
+func IsInstanceReadyConditionTrue(status InstanceStatus) bool {
+	condition := GetInstanceReadyCondition(status)
+	return condition != nil && condition.Status == api.ConditionTrue
+}
+
+// Extracts the instance ready condition from the given status and returns that.
+// Returns nil if the condition is not present.
+func GetInstanceReadyCondition(status InstanceStatus) *InstanceCondition {
+	_, condition := GetInstanceCondition(&status, InstanceReady)
+	return condition
+}
+
+// GetInstanceCondition extracts the provided condition from the given status and returns that.
+// Returns nil and -1 if the condition is not present, and the index of the located condition.
+func GetInstanceCondition(status *InstanceStatus, conditionType InstanceConditionType) (int, *InstanceCondition) {
+	if status == nil {
+		return -1, nil
+	}
+	for i := range status.Conditions {
+		if status.Conditions[i].Type == conditionType {
+			return i, &status.Conditions[i]
+		}
+	}
+	return -1, nil
+}
+
+func InstanceStatusEqual(l, r InstanceStatus) bool {
+	return l.Phase == r.Phase
 }

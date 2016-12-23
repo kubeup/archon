@@ -9,6 +9,7 @@ import (
 type ArchonInterface interface {
 	RESTClient() restclient.Interface
 	InstancesGetter
+	InstanceGroupsGetter
 	NetworksGetter
 	UsersGetter
 }
@@ -20,6 +21,10 @@ type ArchonClient struct {
 
 func (c *ArchonClient) Instances(namespace string) InstanceInterface {
 	return newInstances(c, namespace)
+}
+
+func (c *ArchonClient) InstanceGroups(namespace string) InstanceGroupInterface {
+	return newInstanceGroups(c, namespace)
 }
 
 func (c *ArchonClient) Networks(namespace string) NetworkInterface {

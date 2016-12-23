@@ -31,11 +31,13 @@ import (
 	"strconv"
 	"time"
 
+	"kubeup.com/archon/cmd/archon-controller/app/options"
 	archonclientset "kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	_ "kubeup.com/archon/pkg/cloudprovider/providers/aws"
 	_ "kubeup.com/archon/pkg/cloudprovider/providers/fake"
 	"kubeup.com/archon/pkg/controller/instance"
+	"kubeup.com/archon/pkg/controller/instancegroup"
 	"kubeup.com/archon/pkg/controller/network"
 
 	"k8s.io/kubernetes/pkg/api"
@@ -50,7 +52,7 @@ import (
 	"k8s.io/kubernetes/pkg/controller/informers"
 	"k8s.io/kubernetes/pkg/healthz"
 	"k8s.io/kubernetes/pkg/util/configz"
-	"kubeup.com/archon/cmd/archon-controller/app/options"
+	"k8s.io/kubernetes/pkg/util/wait"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -194,6 +196,10 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 	} else {
 		instanceController.Run(5)
 	}
+
+	glog.Infof("Starting InstanceGroup controller")
+	go instancegroup.NewInstanceGroupController(kubeClient, 1, 10, false).Run(3, wait.NeverStop)
+	time.Sleep(wait.Jitter(s.ControllerStartInterval.Duration, ControllerStartJitter))
 
 	networkController, err := network.New(cloud, kubeClient, s.ClusterName)
 	if err != nil {

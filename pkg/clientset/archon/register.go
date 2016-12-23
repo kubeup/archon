@@ -24,8 +24,12 @@ var SchemeGroupVersion = unversioned.GroupVersion{Group: GroupName, Version: Gro
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
+		&cluster.User{},
+		&cluster.UserList{},
 		&cluster.Instance{},
 		&cluster.InstanceList{},
+		&cluster.InstanceGroup{},
+		&cluster.InstanceGroupList{},
 		&cluster.Network{},
 		&cluster.NetworkList{},
 		&api.ListOptions{},

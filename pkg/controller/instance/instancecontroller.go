@@ -283,7 +283,7 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 
 	// Write the state if changed
 	// TODO: Be careful here ... what if there were other changes to the service?
-	if previousState != instance.Status {
+	if cluster.InstanceStatusEqual(previousState, instance.Status) {
 		if err := s.persistUpdate(instance); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
 		}

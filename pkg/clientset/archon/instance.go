@@ -21,6 +21,7 @@ type InstanceInterface interface {
 	Delete(name string) error
 	Get(name string) (*cluster.Instance, error)
 	List(api.ListOptions) (*cluster.InstanceList, error)
+	Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error)
 	Watch(api.ListOptions) (watch.Interface, error)
 }
 
@@ -115,4 +116,18 @@ func (c *instances) Watch(options api.ListOptions) (watch.Interface, error) {
 		Namespace(c.ns).
 		Resource("instances").
 		Watch()
+}
+
+// Patch applies the patch and returns the patched replicaSet.
+func (c *instances) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error) {
+	result = &cluster.Instance{}
+	err = c.client.Patch(pt).
+		Namespace(c.ns).
+		Resource("instances").
+		SubResource(subresources...).
+		Name(name).
+		Body(data).
+		Do().
+		Into(result)
+	return
 }
