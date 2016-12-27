@@ -115,7 +115,7 @@ func NewInstanceGroupController(kubeClient clientset.Interface, burstReplicas in
 		},
 		burstReplicas: burstReplicas,
 		expectations:  controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectations()),
-		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "replicaset"),
+		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instancegroup"),
 		garbageCollectorEnabled: garbageCollectorEnabled,
 	}
 

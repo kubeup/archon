@@ -206,7 +206,7 @@ func GetInstanceCondition(status *InstanceStatus, conditionType InstanceConditio
 }
 
 func InstanceStatusEqual(l, r InstanceStatus) bool {
-	return l.Phase == r.Phase && l.PrivateIP == r.PrivateIP && l.PublicIP == l.PublicIP
+	return l.Phase == r.Phase && l.PrivateIP == r.PrivateIP && l.PublicIP == r.PublicIP && l.InstanceID == r.InstanceID
 }
 
 func InstanceStatusDeepCopy(s *InstanceStatus) *InstanceStatus {

@@ -201,6 +201,44 @@ func (s *InstanceController) init() error {
 	return nil
 }
 
+func (s *InstanceController) ensureDependency(key string, instance *cluster.Instance) (error, *cluster.InstanceDependency) {
+	err, _ := s.eipController.SyncEIP(key, instance, false)
+	if err != nil {
+		return fmt.Errorf("Failed to sync eip %s: %v", key, err), nil
+	}
+	// Check Network availability before creating instance
+	network, err := s.kubeClient.Archon().Networks(instance.Namespace).Get(instance.Spec.NetworkName)
+
+	if err != nil {
+		return fmt.Errorf("Failed to get network %s: %v", instance.Spec.NetworkName, err), nil
+	}
+
+	if network.Status.Phase != cluster.NetworkRunning {
+		return fmt.Errorf("Network is not ready %s: %v", instance.Spec.NetworkName, network.Status.Phase), nil
+	}
+
+	err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
+	if err != nil {
+		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
+	}
+
+	users := make([]cluster.User, 0)
+
+	for _, u := range instance.Spec.Users {
+		user, err := s.kubeClient.Archon().Users(instance.Namespace).Get(u.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to get user resource %s: %v", u.Name, err), nil
+		}
+		users = append(users, *user)
+	}
+
+	deps := &cluster.InstanceDependency{
+		Network: *network,
+		Users:   users,
+	}
+	return err, deps
+}
+
 // Returns an error if processing the service update failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
@@ -208,25 +246,8 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 
 	// cache the service, we need the info for service deletion
 	cachedInstance.state = instance
-	err, retry := s.eipController.SyncEIP(key, instance, false)
-	if err != nil {
-		message := "Error syncing eip of instance"
-		if retry {
-			message += " (will retry): "
-		} else {
-			message += " (will not retry): "
-		}
-		message += err.Error()
-		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncEIPFailed", message)
 
-		if retry {
-			return err, cachedInstance.nextRetryDelay()
-		} else {
-			return err, doNotRetry
-		}
-	}
-
-	err, retry = s.createInstanceIfNeeded(key, instance)
+	err, retry := s.createInstanceIfNeeded(key, instance)
 	if err != nil {
 		message := "Error creating instance"
 		if retry {
@@ -256,38 +277,17 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 // Returns whatever error occurred along with a boolean indicator of whether it
 // should be retried.
 func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluster.Instance) (error, bool) {
-	// Check Network availability before creating instance
-	network, err := s.kubeClient.Archon().Networks(instance.Namespace).Get(instance.Spec.NetworkName)
+	// We will not recreate an instance
+	if instance.Status.InstanceID != "" {
+		return nil, notRetryable
+	}
 
+	err, deps := s.ensureDependency(key, instance)
 	if err != nil {
-		return fmt.Errorf("Failed to get network %s: %v", instance.Spec.NetworkName, err), retryable
+		return fmt.Errorf("Failed to ensure all dependencies %s: %v", key, err), retryable
 	}
 
-	if network.Status.Phase != cluster.NetworkRunning {
-		return fmt.Errorf("Network is not ready %s: %v", instance.Spec.NetworkName, network.Status.Phase), retryable
-	}
-
-	err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
-	if err != nil {
-		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), retryable
-	}
-
-	users := make([]cluster.User, 0)
-
-	for _, u := range instance.Spec.Users {
-		user, err := s.kubeClient.Archon().Users(instance.Namespace).Get(u.Name)
-		if err != nil {
-			return fmt.Errorf("Failed to get user resource %s: %v", u.Name, err), retryable
-		}
-		users = append(users, *user)
-	}
-
-	deps := cluster.InstanceDependency{
-		Network: *network,
-		Users:   users,
-	}
-
-	instance.Dependency = deps
+	instance.Dependency = *deps
 
 	previousState := *cluster.InstanceStatusDeepCopy(&instance.Status)
 

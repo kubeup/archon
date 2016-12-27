@@ -44,7 +44,7 @@ func updateInstanceGroupStatus(c archon.InstanceGroupInterface, ig cluster.Insta
 
 	// deep copy to avoid mutation now.
 	// TODO this method need some work.  Retry on conflict probably, though I suspect this is stomping status to something it probably shouldn't
-	copyObj, err := api.Scheme.DeepCopy(ig)
+	copyObj, err := archon.Scheme.DeepCopy(ig)
 	if err != nil {
 		return err
 	}
