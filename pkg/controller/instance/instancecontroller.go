@@ -58,6 +58,9 @@ const (
 	notRetryable = false
 
 	doNotRetry = time.Duration(0)
+
+	ResourceStatusKey = "archon.kubeup.com/status"
+	ResourceTypeKey   = "archon.kubeup.com/type"
 )
 
 type cachedInstance struct {
@@ -73,12 +76,13 @@ type instanceCache struct {
 }
 
 type InstanceController struct {
-	cloud         cloudprovider.Interface
-	kubeClient    clientset.Interface
-	eipController *EIPController
-	clusterName   string
-	archon        cloudprovider.ArchonInterface
-	cache         *instanceCache
+	cloud              cloudprovider.Interface
+	kubeClient         clientset.Interface
+	eipController      *EIPController
+	certificateControl CertificateControlInterface
+	clusterName        string
+	archon             cloudprovider.ArchonInterface
+	cache              *instanceCache
 	// A store of services, populated by the serviceController
 	instanceStore archoncache.StoreToInstanceLister
 	// Watches changes to all services
@@ -91,7 +95,7 @@ type InstanceController struct {
 
 // New returns a new service controller to keep cloud provider service resources
 // (like load balancers) in sync with the registry.
-func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string) (*InstanceController, error) {
+func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, caCertFile, caKeyFile string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
 	recorder := broadcaster.NewRecorder(api.EventSource{Component: "instance-controller"})
@@ -102,15 +106,21 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 
 	eipController := NewEIPController(cloud, kubeClient, clusterName)
 
+	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &InstanceController{
-		cloud:            cloud,
-		kubeClient:       kubeClient,
-		eipController:    eipController,
-		clusterName:      clusterName,
-		cache:            &instanceCache{instanceMap: make(map[string]*cachedInstance)},
-		eventBroadcaster: broadcaster,
-		eventRecorder:    recorder,
-		workingQueue:     workqueue.NewDelayingQueue(),
+		cloud:              cloud,
+		kubeClient:         kubeClient,
+		eipController:      eipController,
+		certificateControl: certControl,
+		clusterName:        clusterName,
+		cache:              &instanceCache{instanceMap: make(map[string]*cachedInstance)},
+		eventBroadcaster:   broadcaster,
+		eventRecorder:      recorder,
+		workingQueue:       workqueue.NewDelayingQueue(),
 	}
 	s.instanceStore.Indexer, s.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
@@ -126,11 +136,11 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: s.enqueueInstance,
 			UpdateFunc: func(old, cur interface{}) {
-				// oldSvc, ok1 := old.(*cluster.Instance)
-				// curSvc, ok2 := cur.(*cluster.Instance)
-				// if ok1 && ok2 && s.needsUpdate(oldSvc, curSvc) {
-				// s.enqueueInstance(cur)
-				// }
+				oldInstance, ok1 := old.(*cluster.Instance)
+				curInstance, ok2 := cur.(*cluster.Instance)
+				if ok1 && ok2 && s.needsUpdate(oldInstance, curInstance) {
+					s.enqueueInstance(cur)
+				}
 			},
 			DeleteFunc: s.enqueueInstance,
 		},
@@ -222,6 +232,30 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
 	}
 
+	secrets := make([]api.Secret, 0)
+
+	for _, n := range instance.Spec.Secrets {
+		secret, err := s.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err), nil
+		}
+		if status, ok := secret.Annotations[ResourceStatusKey]; ok {
+			if status != "Ready" {
+				switch secret.Annotations[ResourceTypeKey] {
+				case "csr":
+					err = s.certificateControl.GenerateCertificate(secret, instance)
+					if err != nil {
+						return fmt.Errorf("Failed to generate certificate %s: %v", n.Name, err), nil
+					}
+					_, err = s.kubeClient.Core().Secrets(instance.Namespace).Update(secret)
+				default:
+					return fmt.Errorf("Secret resource %s is not ready", n.Name), nil
+				}
+			}
+		}
+		secrets = append(secrets, *secret)
+	}
+
 	users := make([]cluster.User, 0)
 
 	for _, u := range instance.Spec.Users {
@@ -234,6 +268,7 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 
 	deps := &cluster.InstanceDependency{
 		Network: *network,
+		Secrets: secrets,
 		Users:   users,
 	}
 	return err, deps
@@ -278,7 +313,7 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 // should be retried.
 func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluster.Instance) (error, bool) {
 	// We will not recreate an instance
-	if instance.Status.InstanceID != "" {
+	if instance.Status.InstanceID != "" || instance.Status.Phase == cluster.InstanceInitializing {
 		return nil, notRetryable
 	}
 
@@ -425,7 +460,10 @@ func (s *instanceCache) delete(instanceName string) {
 }
 
 func (s *InstanceController) needsUpdate(oldInstance *cluster.Instance, newInstance *cluster.Instance) bool {
-	return true
+	if newInstance.Status.Phase == cluster.InstancePending && (oldInstance.Status.Phase == "" || oldInstance.Status.Phase == cluster.InstanceInitializing) {
+		return true
+	}
+	return false
 }
 
 // Computes the next retry, using exponential backoff

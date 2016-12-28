@@ -11,6 +11,7 @@ import (
 type InstanceTemplateSpec struct {
 	api.ObjectMeta `json:"metadata"`
 	Spec           InstanceSpec `json:"spec,omitempty"`
+	Secrets        []api.Secret `json:"secrets,omitempty"`
 }
 
 type InstanceOptions struct {
@@ -21,8 +22,9 @@ type InstanceOptions struct {
 }
 
 type InstanceDependency struct {
-	Network Network `json:"network,omitempty"`
-	Users   []User  `json:"users,omitempty"`
+	Network Network      `json:"network,omitempty"`
+	Secrets []api.Secret `json:"secrets,omitempty"`
+	Users   []User       `json:"users,omitempty"`
 }
 
 type Instance struct {
@@ -34,14 +36,14 @@ type Instance struct {
 }
 
 type InstanceSpec struct {
-	Image        string     `json:"image,omitempty"`
-	InstanceType string     `json:"instanceType,omitempty"`
-	NetworkName  string     `json:"networkName,omitempty"`
-	Files        []FileSpec `json:"files,omitempty"`
-	// Secrets      []Secret
-	Configs  []ConfigSpec               `json:"configs,omitempty"`
-	Users    []api.LocalObjectReference `json:"users,omitempty"`
-	Hostname string                     `json:"hostname,omitempty"`
+	Image        string                     `json:"image,omitempty"`
+	InstanceType string                     `json:"instanceType,omitempty"`
+	NetworkName  string                     `json:"networkName,omitempty"`
+	Files        []FileSpec                 `json:"files,omitempty"`
+	Secrets      []api.LocalObjectReference `json:"secrets,omitempty"`
+	Configs      []ConfigSpec               `json:"configs,omitempty"`
+	Users        []api.LocalObjectReference `json:"users,omitempty"`
+	Hostname     string                     `json:"hostname,omitempty"`
 }
 
 type InstanceStatus struct {
@@ -49,6 +51,7 @@ type InstanceStatus struct {
 	Conditions        []InstanceCondition `json:"conditions,omitempty"`
 	PrivateIP         string              `json:"privateIP,omitempty"`
 	PublicIP          string              `json:"publicIP,omitempty"`
+	ElasticIP         string              `json:"elasticIP,omitempty"`
 	InstanceID        string              `json:"instanceID,omitempty"`
 	CreationTimestamp unversioned.Time    `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
 }
@@ -56,10 +59,11 @@ type InstanceStatus struct {
 type InstancePhase string
 
 const (
-	InstancePending InstancePhase = "Pending"
-	InstanceRunning InstancePhase = "Running"
-	InstanceFailed  InstancePhase = "Failed"
-	InstanceUnknown InstancePhase = "Unknown"
+	InstanceInitializing InstancePhase = "Initializing"
+	InstancePending      InstancePhase = "Pending"
+	InstanceRunning      InstancePhase = "Running"
+	InstanceFailed       InstancePhase = "Failed"
+	InstanceUnknown      InstancePhase = "Unknown"
 )
 
 type InstanceConditionType string

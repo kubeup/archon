@@ -6,17 +6,12 @@ import (
 )
 
 type ConfigSpec struct {
-	Name  string
-	Items []*ConfigItem
-}
-
-type ConfigItem struct {
-	Name  string
-	Value string
+	Name string            `json:"name,omitempty"`
+	Data map[string]string `json:"data,omitempty"`
 }
 
 type Config struct {
 	unversioned.TypeMeta `json:",inline"`
 	Metadata             api.ObjectMeta `json:"metadata"`
-	Spec                 ConfigSpec
+	Spec                 ConfigSpec     `json:"spec"`
 }

@@ -1,47 +1,16 @@
 package userdata
 
 import (
-	"bytes"
-	"github.com/Masterminds/sprig"
 	"github.com/coreos/yaml"
 	"kubeup.com/archon/cloudinit"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/render"
 	"strings"
-	"text/template"
 )
-
-type Renderer interface {
-	Render(file *cluster.FileSpec) (string, error)
-}
-
-type tmplRender struct {
-	Configs map[string]cluster.ConfigSpec
-}
-
-func (r *tmplRender) Render(file *cluster.FileSpec) (string, error) {
-	t, err := template.New(file.Name).Funcs(sprig.TxtFuncMap()).Parse(file.Template)
-	s := bytes.NewBufferString("")
-	err = t.Execute(s, r.Configs)
-	if err != nil {
-		return "", err
-	}
-	return s.String(), nil
-}
-
-func newRenderer(instance *cluster.Instance) (r *tmplRender, err error) {
-	r = &tmplRender{
-		Configs: make(map[string]cluster.ConfigSpec),
-	}
-
-	for _, c := range instance.Spec.Configs {
-		r.Configs[c.Name] = c
-	}
-	return
-}
 
 func Generate(instance *cluster.Instance) ([]byte, error) {
 	result := &cloudinit.CloudConfig{}
-	renderer, err := newRenderer(instance)
+	renderer, err := render.NewInstanceRenderer(instance)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +25,7 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 			RawFilePermissions: t.RawFilePermissions,
 		}
 		if t.Content == "" {
-			f.Content, err = renderer.Render(&t)
+			f.Content, err = renderer.Render(t.Name, t.Template)
 			if err != nil {
 				return nil, err
 			}

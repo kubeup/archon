@@ -190,7 +190,7 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 		glog.Fatalf("Cloud provider could not be initialized: %v", err)
 	}
 
-	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName)
+	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.ClusterSigningCertFile, s.ClusterSigningKeyFile)
 	if err != nil {
 		glog.Errorf("Failed to start instance controller: %v", err)
 	} else {

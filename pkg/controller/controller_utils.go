@@ -148,10 +148,19 @@ func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object ru
 	return desiredAnnotations, nil
 }
 
+func getSecretName(controllerName, alias string) string {
+	// use the dash (if the name isn't too long) to make the pod name a bit prettier
+	name := fmt.Sprintf("%s-%s", controllerName, alias)
+	if len(validation.NameIsDNSSubdomain(name, true)) != 0 {
+		name = controllerName
+	}
+	return name
+}
+
 func getInstancesPrefix(controllerName string) string {
 	// use the dash (if the name isn't too long) to make the pod name a bit prettier
 	prefix := fmt.Sprintf("%s-", controllerName)
-	if len(validation.ValidatePodName(prefix, true)) != 0 {
+	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
 		prefix = controllerName
 	}
 	return prefix
@@ -220,6 +229,57 @@ func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObjec
 	return instance, nil
 }
 
+func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *api.OwnerReference) ([]*api.Secret, error) {
+	secrets := make([]*api.Secret, 0)
+	for _, secret := range template.Secrets {
+		accessor, err := meta.Accessor(parentObject)
+		if err != nil {
+			return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
+		}
+
+		if secret.Name != "" {
+			secret.Annotations["archon.kubeup.com/alias"] = secret.Name
+		}
+		alias := secret.Annotations["archon.kubeup.com/alias"]
+		if alias != "" {
+			secret.ObjectMeta.Name = getSecretName(accessor.GetName(), alias)
+		} else {
+			return nil, fmt.Errorf("secret has no name or alias: %v", secret)
+		}
+
+		if controllerRef != nil {
+			secret.OwnerReferences = append(secret.OwnerReferences, *controllerRef)
+		}
+		secrets = append(secrets, &secret)
+	}
+
+	return secrets, nil
+}
+
+func (r RealInstanceControl) createSecrets(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) ([]*api.Secret, error) {
+	secretTemplates, err := GetSecretsFromTemplate(template, object, controllerRef)
+	if err != nil {
+		return nil, err
+	}
+	secrets := make([]*api.Secret, 0)
+	for _, secret := range secretTemplates {
+		if newSecret, err := r.KubeClient.Core().Secrets(namespace).Create(secret); err != nil {
+			r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
+			return nil, fmt.Errorf("unable to create secrets: %v", err)
+		} else {
+			secrets = append(secrets, newSecret)
+			accessor, err := meta.Accessor(object)
+			if err != nil {
+				glog.Errorf("parentObject does not have ObjectMeta, %v", err)
+			} else {
+				glog.V(4).Infof("Controller %v created secret %v", accessor.GetName(), newSecret.Name)
+				r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created secret: %v", newSecret.Name)
+			}
+		}
+	}
+	return secrets, nil
+}
+
 func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) error {
 	instance, err := GetInstanceFromTemplate(template, object, controllerRef)
 	if err != nil {
@@ -228,6 +288,9 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 	if labels.Set(instance.Labels).AsSelectorPreValidated().Empty() {
 		return fmt.Errorf("unable to create instances, no labels")
 	}
+	if len(template.Secrets) > 0 {
+		instance.Status.Phase = cluster.InstanceInitializing
+	}
 	if newInstance, err := r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
 		return fmt.Errorf("unable to create instances: %v", err)
@@ -235,10 +298,24 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		accessor, err := meta.Accessor(object)
 		if err != nil {
 			glog.Errorf("parentObject does not have ObjectMeta, %v", err)
-			return nil
+		} else {
+			glog.V(4).Infof("Controller %v created pod %v", accessor.GetName(), newInstance.Name)
+			r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created pod: %v", newInstance.Name)
 		}
-		glog.V(4).Infof("Controller %v created pod %v", accessor.GetName(), newInstance.Name)
-		r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created pod: %v", newInstance.Name)
+		secrets, err := r.createSecrets(namespace, template, newInstance, nil)
+		if err != nil {
+			return fmt.Errorf("unable to create secrets for instance %s", newInstance.Name)
+		}
+		if len(secrets) > 0 {
+			for _, s := range secrets {
+				newInstance.Spec.Secrets = append(newInstance.Spec.Secrets, api.LocalObjectReference{Name: s.Name})
+			}
+			newInstance.Status.Phase = cluster.InstancePending
+			_, err = r.KubeClient.Archon().Instances(namespace).Update(newInstance)
+			if err != nil {
+				return fmt.Errorf("unable to save secrets dependency for instance %s", newInstance.Name)
+			}
+		}
 	}
 	return nil
 }
