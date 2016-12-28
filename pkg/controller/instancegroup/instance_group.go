@@ -73,6 +73,7 @@ func getIGKind() unversioned.GroupVersionKind {
 type InstanceGroupController struct {
 	kubeClient      clientset.Interface
 	instanceControl archoncontroller.InstanceControlInterface
+	namespace       string
 
 	// A ReplicaSet is temporarily suspended after creating/deleting these many replicas.
 	// It resumes normal action after observing the watch events for them.
@@ -99,7 +100,7 @@ type InstanceGroupController struct {
 }
 
 // NewInstanceGroupController configures a replica set controller with the specified event recorder
-func NewInstanceGroupController(kubeClient clientset.Interface, burstReplicas int, lookupCacheSize int, garbageCollectorEnabled bool) *InstanceGroupController {
+func NewInstanceGroupController(kubeClient clientset.Interface, namespace string, burstReplicas int, lookupCacheSize int, garbageCollectorEnabled bool) *InstanceGroupController {
 	if kubeClient != nil && kubeClient.Core().RESTClient().GetRateLimiter() != nil {
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_group_controller", kubeClient.Core().RESTClient().GetRateLimiter())
 	}
@@ -113,6 +114,7 @@ func NewInstanceGroupController(kubeClient clientset.Interface, burstReplicas in
 			KubeClient: kubeClient,
 			Recorder:   eventBroadcaster.NewRecorder(api.EventSource{Component: "instance-group-controller"}),
 		},
+		namespace:     namespace,
 		burstReplicas: burstReplicas,
 		expectations:  controller.NewUIDTrackingControllerExpectations(controller.NewControllerExpectations()),
 		queue:         workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "instancegroup"),
@@ -122,10 +124,10 @@ func NewInstanceGroupController(kubeClient clientset.Interface, burstReplicas in
 	rsc.instanceStore.Indexer, rsc.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
-				return rsc.kubeClient.Archon().Instances(api.NamespaceAll).List(options)
+				return rsc.kubeClient.Archon().Instances(namespace).List(options)
 			},
 			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				return rsc.kubeClient.Archon().Instances(api.NamespaceAll).Watch(options)
+				return rsc.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},
 		&cluster.Instance{},
@@ -141,10 +143,10 @@ func NewInstanceGroupController(kubeClient clientset.Interface, burstReplicas in
 	rsc.instanceGroupStore.Indexer, rsc.instanceGroupController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
-				return rsc.kubeClient.Archon().InstanceGroups(api.NamespaceAll).List(options)
+				return rsc.kubeClient.Archon().InstanceGroups(namespace).List(options)
 			},
 			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				return rsc.kubeClient.Archon().InstanceGroups(api.NamespaceAll).Watch(options)
+				return rsc.kubeClient.Archon().InstanceGroups(namespace).Watch(options)
 			},
 		},
 		&cluster.InstanceGroup{},

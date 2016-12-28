@@ -81,6 +81,7 @@ type InstanceController struct {
 	eipController      *EIPController
 	certificateControl CertificateControlInterface
 	clusterName        string
+	namespace          string
 	archon             cloudprovider.ArchonInterface
 	cache              *instanceCache
 	// A store of services, populated by the serviceController
@@ -95,7 +96,7 @@ type InstanceController struct {
 
 // New returns a new service controller to keep cloud provider service resources
 // (like load balancers) in sync with the registry.
-func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, caCertFile, caKeyFile string) (*InstanceController, error) {
+func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace, caCertFile, caKeyFile string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
 	recorder := broadcaster.NewRecorder(api.EventSource{Component: "instance-controller"})
@@ -117,6 +118,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		eipController:      eipController,
 		certificateControl: certControl,
 		clusterName:        clusterName,
+		namespace:          namespace,
 		cache:              &instanceCache{instanceMap: make(map[string]*cachedInstance)},
 		eventBroadcaster:   broadcaster,
 		eventRecorder:      recorder,
@@ -125,10 +127,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	s.instanceStore.Indexer, s.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
-				return s.kubeClient.Archon().Instances(api.NamespaceAll).List(options)
+				return s.kubeClient.Archon().Instances(namespace).List(options)
 			},
 			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				return s.kubeClient.Archon().Instances(api.NamespaceAll).Watch(options)
+				return s.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},
 		&cluster.Instance{},

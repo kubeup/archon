@@ -23,6 +23,7 @@ package options
 import (
 	"time"
 
+	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
@@ -38,6 +39,7 @@ type CMServer struct {
 
 	Master     string
 	Kubeconfig string
+	Namespace  string
 }
 
 // NewCMServer creates a new CMServer with a default config.
@@ -98,6 +100,7 @@ func NewCMServer() *CMServer {
 			ClusterSigningCertFile:  "/etc/kubernetes/ca/ca.pem",
 			ClusterSigningKeyFile:   "/etc/kubernetes/ca/ca.key",
 		},
+		Namespace: api.NamespaceAll,
 	}
 	s.LeaderElection.LeaderElect = true
 	return &s
@@ -124,6 +127,7 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&s.NodeSyncPeriod.Duration, "node-sync-period", s.NodeSyncPeriod.Duration, ""+
 		"The period for syncing nodes from cloudprovider. Longer periods will result in "+
 		"fewer calls to cloud provider, but may delay addition of new nodes to cluster.")
+	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "The namespace that the controller will work in. Empty for all namespaces")
 	fs.DurationVar(&s.ResourceQuotaSyncPeriod.Duration, "resource-quota-sync-period", s.ResourceQuotaSyncPeriod.Duration, "The period for syncing quota usage status in the system")
 	fs.DurationVar(&s.NamespaceSyncPeriod.Duration, "namespace-sync-period", s.NamespaceSyncPeriod.Duration, "The period for syncing namespace life-cycle updates")
 	fs.DurationVar(&s.PVClaimBinderSyncPeriod.Duration, "pvclaimbinder-sync-period", s.PVClaimBinderSyncPeriod.Duration, "The period for syncing persistent volumes and persistent volume claims")

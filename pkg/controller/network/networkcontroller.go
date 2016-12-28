@@ -62,6 +62,7 @@ type NetworkController struct {
 	cloud       cloudprovider.Interface
 	kubeClient  clientset.Interface
 	clusterName string
+	namespace   string
 	archon      cloudprovider.ArchonInterface
 	cache       *networkCache
 	// A store of services, populated by the serviceController
@@ -76,7 +77,7 @@ type NetworkController struct {
 
 // New returns a new service controller to keep cloud provider service resources
 // (like load balancers) in sync with the registry.
-func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string) (*NetworkController, error) {
+func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string, namespace string) (*NetworkController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
 	recorder := broadcaster.NewRecorder(api.EventSource{Component: "network-controller"})
@@ -89,6 +90,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cloud:            cloud,
 		kubeClient:       kubeClient,
 		clusterName:      clusterName,
+		namespace:        namespace,
 		cache:            &networkCache{networkMap: make(map[string]*cachedNetwork)},
 		eventBroadcaster: broadcaster,
 		eventRecorder:    recorder,
@@ -97,10 +99,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	s.networkStore, s.networkController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
-				return s.kubeClient.Archon().Networks(api.NamespaceAll).List()
+				return s.kubeClient.Archon().Networks(namespace).List()
 			},
 			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
-				return s.kubeClient.Archon().Networks(api.NamespaceAll).Watch()
+				return s.kubeClient.Archon().Networks(namespace).Watch()
 			},
 		},
 		&cluster.Network{},

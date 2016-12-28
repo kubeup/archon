@@ -185,12 +185,14 @@ func Run(s *options.CMServer) error {
 func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface, kubeconfig *restclient.Config, stop <-chan struct{}, recorder record.EventRecorder) error {
 	sharedInformers := informers.NewSharedInformerFactory(clientset.NewForConfigOrDie(restclient.AddUserAgent(kubeconfig, "shared-informers")), ResyncPeriod(s)())
 
+	glog.Infof("Starting controllers in namespace: %s", s.Namespace)
+
 	cloud, err := cloudprovider.InitCloudProvider(s.CloudProvider, s.CloudConfigFile)
 	if err != nil {
 		glog.Fatalf("Cloud provider could not be initialized: %v", err)
 	}
 
-	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.ClusterSigningCertFile, s.ClusterSigningKeyFile)
+	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.Namespace, s.ClusterSigningCertFile, s.ClusterSigningKeyFile)
 	if err != nil {
 		glog.Errorf("Failed to start instance controller: %v", err)
 	} else {
@@ -198,10 +200,10 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 	}
 
 	glog.Infof("Starting InstanceGroup controller")
-	go instancegroup.NewInstanceGroupController(kubeClient, 1, 10, false).Run(3, wait.NeverStop)
+	go instancegroup.NewInstanceGroupController(kubeClient, s.Namespace, 1, 10, false).Run(3, wait.NeverStop)
 	time.Sleep(wait.Jitter(s.ControllerStartInterval.Duration, ControllerStartJitter))
 
-	networkController, err := network.New(cloud, kubeClient, s.ClusterName)
+	networkController, err := network.New(cloud, kubeClient, s.ClusterName, s.Namespace)
 	if err != nil {
 		glog.Errorf("Failed to start network controller: %v", err)
 	} else {
