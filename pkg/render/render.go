@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"github.com/Masterminds/sprig"
+	"k8s.io/kubernetes/pkg/api"
 	"kubeup.com/archon/pkg/cluster"
 	"text/template"
 )
@@ -19,6 +20,7 @@ type InstanceRenderer struct {
 	Configs map[string]map[string]string
 	Secrets map[string]map[string][]byte
 	Status  cluster.InstanceStatus
+	Meta    api.ObjectMeta
 }
 
 func (r *InstanceRenderer) Render(name, tpl string) (string, error) {
@@ -36,6 +38,7 @@ func NewInstanceRenderer(instance *cluster.Instance) (r *InstanceRenderer, err e
 		Configs: make(map[string]map[string]string),
 		Secrets: make(map[string]map[string][]byte),
 		Status:  instance.Status,
+		Meta:    instance.ObjectMeta,
 	}
 
 	for _, c := range instance.Spec.Configs {

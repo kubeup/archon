@@ -151,7 +151,7 @@ func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object ru
 func getSecretName(controllerName, alias string) string {
 	// use the dash (if the name isn't too long) to make the pod name a bit prettier
 	name := fmt.Sprintf("%s-%s", controllerName, alias)
-	if len(validation.NameIsDNSSubdomain(name, true)) != 0 {
+	if len(validation.NameIsDNSSubdomain(name, false)) != 0 {
 		name = controllerName
 	}
 	return name

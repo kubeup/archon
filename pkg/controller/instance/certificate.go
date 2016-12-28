@@ -3,14 +3,15 @@ package instance
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/cloudflare/cfssl/cli/genkey"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/csr"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/validation"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/render"
+	"net"
 )
 
 const (
@@ -39,6 +40,25 @@ func NewCertificateControl(caCertFile, caKeyFile string) (*CertificateControl, e
 	return cc, nil
 }
 
+func isValidHostname(name string) bool {
+	if len(validation.NameIsDNSSubdomain(name, false)) == 0 {
+		return true
+	}
+	if ip := net.ParseIP(name); ip != nil {
+		return true
+	}
+	return false
+}
+
+func validator(req *csr.CertificateRequest) error {
+	for _, host := range req.Hosts {
+		if isValidHostname(host) == false {
+			return fmt.Errorf("Invalid hostname for csr: %s", host)
+		}
+	}
+	return nil
+}
+
 func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *cluster.Instance) error {
 	csrTemplate := secret.Annotations[CSRKey]
 	if len(csrTemplate) == 0 {
@@ -60,7 +80,7 @@ func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *
 		return fmt.Errorf("Failed to unmarshal csr: %v", err)
 	}
 
-	g := &csr.Generator{Validator: genkey.Validator}
+	g := &csr.Generator{Validator: validator}
 	csrBytes, key, err := g.ProcessRequest(csrReq)
 	if err != nil {
 		return fmt.Errorf("Failed to process csr request: %v", err)
