@@ -15,6 +15,7 @@ import (
 	"io"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	aws_credentials "k8s.io/kubernetes/pkg/credentialprovider/aws"
+	"os"
 	"sync"
 	"time"
 )
@@ -128,6 +129,10 @@ func readAWSCloudConfig(config io.Reader, metadata EC2Metadata) (*CloudConfig, e
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if cfg.Global.Zone == "" {
+		cfg.Global.Zone = os.Getenv("AWS_ZONE")
 	}
 
 	if cfg.Global.Zone == "" {

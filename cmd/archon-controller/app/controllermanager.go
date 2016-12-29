@@ -158,7 +158,7 @@ func Run(s *options.CMServer) error {
 	rl := resourcelock.EndpointsLock{
 		EndpointsMeta: api.ObjectMeta{
 			Namespace: "kube-system",
-			Name:      "archon-controller",
+			Name:      s.ControllerName,
 		},
 		Client: kubeClient,
 		LockConfig: resourcelock.ResourceLockConfig{
@@ -192,6 +192,7 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 		glog.Fatalf("Cloud provider could not be initialized: %v", err)
 	}
 
+	glog.Infof("Starting Instance controller")
 	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.Namespace, s.ClusterSigningCertFile, s.ClusterSigningKeyFile)
 	if err != nil {
 		glog.Errorf("Failed to start instance controller: %v", err)
@@ -203,6 +204,7 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 	go instancegroup.NewInstanceGroupController(kubeClient, s.Namespace, 1, 10, false).Run(3, wait.NeverStop)
 	time.Sleep(wait.Jitter(s.ControllerStartInterval.Duration, ControllerStartJitter))
 
+	glog.Infof("Starting Network controller")
 	networkController, err := network.New(cloud, kubeClient, s.ClusterName, s.Namespace)
 	if err != nil {
 		glog.Errorf("Failed to start network controller: %v", err)

@@ -123,7 +123,24 @@ func (p *awsCloud) AddNetworkAnnotation(clusterName string, instance *cluster.In
 		instance.Annotations = make(map[string]string)
 	}
 
-	return util.StructToMap(network.Spec, instance.Annotations, cluster.AnnotationPrefix)
+	// Network Spec
+	err := util.StructToMap(network.Spec, instance.Annotations, cluster.AnnotationPrefix)
+	if err != nil {
+		return err
+	}
+
+	// AWS Network
+	if network.Annotations == nil {
+		return fmt.Errorf("AWS network is not ready")
+	}
+
+	awsnetwork := AWSNetwork{}
+	err = util.MapToStruct(network.Annotations, &awsnetwork, AWSAnnotationPrefix)
+	if err != nil {
+		return err
+	}
+
+	return util.StructToMap(awsnetwork, instance.Annotations, AWSAnnotationPrefix)
 }
 
 func (p *awsCloud) createVPC(clusterName string, network *cluster.Network) (vpcID string, err error) {

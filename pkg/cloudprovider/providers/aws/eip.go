@@ -9,6 +9,10 @@ import (
 	"kubeup.com/archon/pkg/util"
 )
 
+type EIP struct {
+	AllocationID string `k8s:"eip-allocation-id"`
+}
+
 func (p *awsCloud) EIP() (cloudprovider.EIPInterface, bool) {
 	return p, true
 }
@@ -25,7 +29,7 @@ func (p *awsCloud) EnsureEIP(clusterName string, instance *cluster.Instance) (st
 	}
 
 	if options.PreallocatePublicIP && instance.Annotations != nil {
-		err = util.MapToStruct(instance.Annotations, &eip, cluster.AnnotationPrefix)
+		err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 		if err != nil {
 			return
 		}
@@ -44,7 +48,7 @@ func (p *awsCloud) EnsureEIP(clusterName string, instance *cluster.Instance) (st
 		return
 	}
 
-	eip.AllocationID = *resp.AllocationId
+	eip.AllocationID = destring(resp.AllocationId)
 	if instance.Annotations == nil {
 		instance.Annotations = make(map[string]string)
 	}
@@ -55,14 +59,19 @@ func (p *awsCloud) EnsureEIP(clusterName string, instance *cluster.Instance) (st
 		return
 	}
 
-	status.PublicIP = *resp.PublicIp
+	status = &instance.Status
+	status.PublicIP = destring(resp.PublicIp)
 
 	return
 }
 
 func (p *awsCloud) EnsureEIPDeleted(clusterName string, instance *cluster.Instance) (err error) {
+	if instance.Annotations == nil {
+		return
+	}
+
 	eip := EIP{}
-	err = util.MapToStruct(instance.Annotations, &eip, cluster.AnnotationPrefix)
+	err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 	if err != nil {
 		return
 	}
@@ -88,9 +97,9 @@ func (p *awsCloud) EnsureEIPDeleted(clusterName string, instance *cluster.Instan
 			err = fmt.Errorf("Error allocating EIP: %s", err.Error())
 			return
 		}
-	}
 
-	instance.Status.PublicIP = ""
+		instance.Status.PublicIP = ""
+	}
 
 	return nil
 }

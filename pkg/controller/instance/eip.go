@@ -17,12 +17,14 @@ type EIPController struct {
 }
 
 func NewEIPController(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string) *EIPController {
-	archon, _ := cloud.Archon()
-	return &EIPController{
+	c := &EIPController{
 		clusterName: clusterName,
 		kubeClient:  kubeClient,
-		archon:      archon,
 	}
+	if cloud != nil {
+		c.archon, _ = cloud.Archon()
+	}
+	return c
 }
 
 func (ec *EIPController) SyncEIP(key string, instance *cluster.Instance, deleting bool) (err error, retryable bool) {
@@ -53,7 +55,7 @@ func (ec *EIPController) SyncEIP(key string, instance *cluster.Instance, deletin
 	util.MapCopy(previousAnnotations, instance.Annotations)
 
 	if options.PreallocatePublicIP == false || deleting {
-		glog.V(2).Infof("Deleting EIP %s", key)
+		glog.V(2).Infof("Deleting EIP %s if needed", key)
 		err = eip.EnsureEIPDeleted(ec.clusterName, instance)
 	} else if options.PreallocatePublicIP {
 		glog.V(2).Infof("Ensuring EIP %s", key)
@@ -65,12 +67,16 @@ func (ec *EIPController) SyncEIP(key string, instance *cluster.Instance, deletin
 		return
 	}
 
-	if !deleting && (!reflect.DeepEqual(previousAnnotations, instance.Annotations) || cluster.InstanceStatusEqual(previousStatus, instance.Status)) {
+	if !deleting && (!reflect.DeepEqual(previousAnnotations, instance.Annotations) || !cluster.InstanceStatusEqual(previousStatus, instance.Status)) {
 		// Persist instance
-		_, err = ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
-		if err != nil {
+		glog.Infof("updating %+v %+v, %+v %+v", previousAnnotations, instance.Annotations, previousStatus, instance.Status)
+		glog.Infof("updating %v , %v", reflect.DeepEqual(previousAnnotations, instance.Annotations), cluster.InstanceStatusEqual(previousStatus, instance.Status))
+		ret, err2 := ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
+		if err2 != nil {
 			err = fmt.Errorf("Not able to persist instance after EIP update: %s", err.Error())
 			retryable = false
+		} else {
+			*instance = *ret
 		}
 	}
 

@@ -29,6 +29,7 @@ type EC2 interface {
 	DeleteSubnet(input *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error)
 
 	CreateNetworkInterface(input *ec2.CreateNetworkInterfaceInput) (*ec2.CreateNetworkInterfaceOutput, error)
+	DeleteNetworkInterface(input *ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error)
 	AssociateAddress(input *ec2.AssociateAddressInput) (*ec2.AssociateAddressOutput, error)
 	AllocateAddress(input *ec2.AllocateAddressInput) (*ec2.AllocateAddressOutput, error)
 	ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error)
@@ -52,6 +53,10 @@ func (p *awsSdkEC2) RunInstances(input *ec2.RunInstancesInput) (*ec2.Reservation
 
 func (p *awsSdkEC2) CreateNetworkInterface(input *ec2.CreateNetworkInterfaceInput) (*ec2.CreateNetworkInterfaceOutput, error) {
 	return p.ec2.CreateNetworkInterface(input)
+}
+
+func (p *awsSdkEC2) DeleteNetworkInterface(input *ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error) {
+	return p.ec2.DeleteNetworkInterface(input)
 }
 
 func (p *awsSdkEC2) AllocateAddress(input *ec2.AllocateAddressInput) (*ec2.AllocateAddressOutput, error) {

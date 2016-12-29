@@ -23,10 +23,6 @@ var StateMap = map[string]cluster.InstancePhase{
 	ec2.InstanceStateNameStopped:      cluster.InstanceFailed,
 }
 
-type EIP struct {
-	AllocationID string `k8s:"eip-allocation-id"`
-}
-
 func instanceToStatus(i *ec2.Instance) *cluster.InstanceStatus {
 	phase, ok := StateMap[destring(i.State.Name)]
 	if !ok {
@@ -46,6 +42,7 @@ func (p *awsCloud) ListInstances(clusterName string, network *cluster.Network, s
 	awsnetwork := AWSNetwork{}
 	err = util.MapToStruct(network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
+		err = fmt.Errorf("Network is not ready. Can't list instances: %s", err.Error())
 		return
 	}
 
@@ -90,6 +87,7 @@ func (p *awsCloud) GetInstance(clusterName string, instance *cluster.Instance) (
 	awsnetwork := AWSNetwork{}
 	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
+		err = fmt.Errorf("Network is not ready. Can't get instance: %s", err.Error())
 		return
 	}
 
@@ -120,55 +118,76 @@ func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance
 	awsnetwork := AWSNetwork{}
 	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
+		err = fmt.Errorf("Network is not ready. Can't create instance: %s", err.Error())
 		return
 	}
 
-	status2, err := p.getInstance(awsnetwork, instance.Name)
+	if instance.Status.InstanceID != "" {
+		status2 := (*cluster.InstanceStatus)(nil)
+		status2, err = p.getInstance(awsnetwork, instance.Status.InstanceID)
 
-	if err != nil {
-		if err == ErrorNotFound {
-			return p.createInstance(clusterName, instance)
-		}
-		return
-	}
-
-	switch status2.Phase {
-	case cluster.InstanceFailed, cluster.InstanceUnknown:
-		err = p.EnsureInstanceDeleted(clusterName, instance)
 		if err != nil {
+			if err == ErrorNotFound {
+				return p.createInstance(clusterName, instance)
+			}
 			return
 		}
+
+		switch status2.Phase {
+		case cluster.InstanceFailed, cluster.InstanceUnknown:
+			err = p.EnsureInstanceDeleted(clusterName, instance)
+			if err != nil {
+				return
+			}
+			return p.createInstance(clusterName, instance)
+		}
+
+		status = status2
+	} else {
 		return p.createInstance(clusterName, instance)
 	}
 
-	status = status2
 	return
 }
 
 func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
+	nifIDs := []string{}
+	defer func() {
+		// Clean up nifs if create failed
+		if err == nil || len(nifIDs) == 0 {
+			return
+		}
+
+		err = p.deleteNetworkInterfaces(nifIDs)
+	}()
+
 	options := cluster.InstanceOptions{}
 	if instance.Labels != nil {
 		err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
 		if err != nil {
+			err = fmt.Errorf("Can't get instance options: %s", err.Error())
 			return
 		}
 	}
 
 	awsnetwork := AWSNetwork{}
 	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
-	if err != nil {
+	if err != nil || awsnetwork.Subnet == "" || awsnetwork.VPC == "" {
+		err = fmt.Errorf("Can't get network from instance annotations: %+v", err)
 		return
 	}
 
 	networkSpec := cluster.NetworkSpec{}
 	err = util.MapToStruct(instance.Annotations, &networkSpec, cluster.AnnotationPrefix)
 	if err != nil {
+		err = fmt.Errorf("Can't get network from instance annotations: %s", err.Error())
 		return
 	}
 
 	eip := EIP{}
 	awsPrivateIP := (*string)(nil)
 	ifSpecs := ([]*ec2.InstanceNetworkInterfaceSpecification)(nil)
+	subnetID := (*string)(nil)
 
 	if options.PreallocatePrivateIP {
 		if instance.Status.PrivateIP == "" {
@@ -182,6 +201,7 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	if options.PreallocatePublicIP {
 		err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 		if err != nil {
+			err = fmt.Errorf("Can't get eip from instance annotations: %s", err.Error())
 			return
 		}
 
@@ -193,12 +213,13 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		// Create if
 		resp, err := p.ec2.CreateNetworkInterface(&ec2.CreateNetworkInterfaceInput{
 			PrivateIpAddress: awsPrivateIP,
-			SubnetId:         aws.String(networkSpec.Subnet),
+			SubnetId:         aws.String(awsnetwork.Subnet),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("Error creating network interface: %+v", err)
 		}
 		nif := resp.NetworkInterface
+		nifIDs = append(nifIDs, *nif.NetworkInterfaceId)
 
 		// Associate address
 		_, err = p.ec2.AssociateAddress(&ec2.AssociateAddressInput{
@@ -211,10 +232,11 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 
 		// Add to ifspecs
 		ifSpecs = append(ifSpecs, &ec2.InstanceNetworkInterfaceSpecification{
-			DeleteOnTermination: aws.Bool(true),
-			DeviceIndex:         aws.Int64(0),
-			NetworkInterfaceId:  nif.NetworkInterfaceId,
+			//DeleteOnTermination: aws.Bool(true),
+			DeviceIndex:        aws.Int64(0),
+			NetworkInterfaceId: nif.NetworkInterfaceId,
 		})
+
 	} else if options.PreallocatePrivateIP {
 		// Add to ifspecs
 		ifSpecs = append(ifSpecs, &ec2.InstanceNetworkInterfaceSpecification{
@@ -223,12 +245,15 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 			DeleteOnTermination:      aws.Bool(true),
 			DeviceIndex:              aws.Int64(0),
 		})
+	} else {
+		subnetID = aws.String(awsnetwork.Subnet)
 	}
 
-	// TODO: Get from config
 	awsInstanceType := "t2.small"
+	if instance.Spec.InstanceType != "" {
+		awsInstanceType = instance.Spec.InstanceType
+	}
 
-	// TODO: Get userdata
 	u, err := userdata.Generate(instance)
 	if err != nil {
 		return nil, err
@@ -242,13 +267,17 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	image := regionProfile.HVM
+	if instance.Spec.Image != "" {
+		image = instance.Spec.Image
+	}
+
 	params := &ec2.RunInstancesInput{
 		ImageId:      aws.String(image), // Required
 		MaxCount:     aws.Int64(1),      // Required
 		MinCount:     aws.Int64(1),      // Required
 		ClientToken:  aws.String(util.RandNano()),
 		InstanceType: aws.String(awsInstanceType),
-		SubnetId:     aws.String(awsnetwork.Subnet),
+		SubnetId:     subnetID,
 		UserData:     aws.String(s),
 		Placement: &ec2.Placement{
 			AvailabilityZone: aws.String(networkSpec.Zone),
@@ -297,40 +326,23 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	status = instanceToStatus(vps)
+	glog.Infof("New instance created %+v, %+v", vps, status)
 	return
 }
 
 func (p *awsCloud) EnsureInstanceDeleted(clusterName string, instance *cluster.Instance) (err error) {
-	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
-	if err != nil {
-		return
-	}
-
-	status2, err := p.getInstance(awsnetwork, instance.Name)
-	if err == ErrorNotFound {
+	if instance.Status.InstanceID == "" {
 		return nil
 	}
 
-	if err != nil {
-		return
-	}
-
-	vpsId := status2.InstanceID
-	if vpsId == "" {
-		return fmt.Errorf("Unable to get instance id: %+v", status2)
-	}
-
-	return p.deleteInstance(vpsId)
+	return p.deleteInstance(instance.Status.InstanceID)
 }
 
 func (p *awsCloud) deleteInstance(vpsId string) (err error) {
-	params2 := &ec2.TerminateInstancesInput{
-		InstanceIds: []*string{ // Required
-			aws.String(vpsId), // Required
-		},
-	}
-	_, err = p.ec2.TerminateInstances(params2)
+	resp, err := p.ec2.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: []*string{aws.String(vpsId)},
+	})
+
 	if err != nil {
 		if isNotExistError(err) {
 			err = nil
@@ -338,7 +350,48 @@ func (p *awsCloud) deleteInstance(vpsId string) (err error) {
 		return
 	}
 
-	return p.ec2.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+	if len(resp) == 0 {
+		return
+	}
+
+	vps := resp[0]
+	nifs := []string{}
+	for _, nif := range vps.NetworkInterfaces {
+		nifs = append(nifs, destring(nif.NetworkInterfaceId))
+	}
+
+	_, err = p.ec2.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: []*string{aws.String(vpsId)},
 	})
+	if err != nil {
+		if isNotExistError(err) {
+			err = nil
+		}
+		return
+	}
+
+	err = p.ec2.WaitUntilInstanceTerminated(&ec2.DescribeInstancesInput{
+		InstanceIds: []*string{aws.String(vpsId)},
+	})
+	if err != nil {
+		return
+	}
+
+	return p.deleteNetworkInterfaces(nifs)
+}
+
+func (p *awsCloud) deleteNetworkInterfaces(nifs []string) (err error) {
+	for _, nif := range nifs {
+		_, err = p.ec2.DeleteNetworkInterface(&ec2.DeleteNetworkInterfaceInput{
+			NetworkInterfaceId: aws.String(nif),
+		})
+		if err != nil {
+			if isNotExistError(err) {
+				err = nil
+			}
+			return
+		}
+	}
+
+	return
 }

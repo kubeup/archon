@@ -1,5 +1,5 @@
-hash: 962c9b3fcf2fb881f1e849de74cb811fcb61e70ebf1f4bae446da39c818a3845
-updated: 2016-12-17T19:47:31.48585623+08:00
+hash: f95a92ca4a7f02700a45d9262290c8e02d6d68ab5d50d863c183818de7d5454f
+updated: 2016-12-28T23:15:37.096458577+08:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -45,6 +45,29 @@ imports:
   - quantile
 - name: github.com/blang/semver
   version: 31b736133b98f26d5e078ec9eb591666edfd091f
+- name: github.com/cloudflare/cfssl
+  version: db0d0650b6496bfe8061ec56a92edd32d8e75c30
+  subpackages:
+  - api
+  - api/client
+  - auth
+  - certdb
+  - cli
+  - cli/genkey
+  - config
+  - crypto/pkcs7
+  - csr
+  - errors
+  - helpers
+  - helpers/derhelpers
+  - info
+  - initca
+  - log
+  - ocsp/config
+  - signer
+  - signer/local
+  - signer/remote
+  - signer/universal
 - name: github.com/coreos/go-oidc
   version: 5644a2f50e2d2d5ba0b474bc5bc55fea1925936d
   subpackages:
@@ -149,6 +172,14 @@ imports:
   subpackages:
   - jsonpb
   - proto
+- name: github.com/google/certificate-transparency
+  version: af98904302724c29aa6659ca372d41c9687de2b7
+  subpackages:
+  - go
+  - go/asn1
+  - go/client
+  - go/x509
+  - go/x509/pkix
 - name: github.com/google/gofuzz
   version: bbcb9da2d746f8bdbd6a936686a0a6067ada0ec5
 - name: github.com/howeyc/gopass
@@ -175,6 +206,8 @@ imports:
   version: fc2b8d3a73c4867e51861bbdd5ae3c1f0869dd6a
   subpackages:
   - pbutil
+- name: github.com/mreiferson/go-httpclient
+  version: 31f0106b4474f14bc441575c19d3a5fa21aa1f6c
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/prometheus/client_golang
@@ -199,7 +232,7 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/cobra
-  version: b62566898a99f2db9c68ed0026aa0a052e59678d
+  version: de09d9ce07d0d8a74442cfeaa91628cf9492cc23
 - name: github.com/spf13/pflag
   version: c7e63cf4530bcd3ba943729cee0efeff2ebea63f
 - name: github.com/ugorji/go

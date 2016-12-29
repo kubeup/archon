@@ -1,6 +1,7 @@
 package archon
 
 import (
+	//"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api"
 	rest "k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/watch"

@@ -27,26 +27,29 @@ import (
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
-	"k8s.io/kubernetes/pkg/master/ports"
 	"k8s.io/kubernetes/pkg/util/config"
 
 	"github.com/spf13/pflag"
 )
 
+// Used in leader election
+const ArchonControllerName = "archon-controller"
+
 // CMServer is the main context object for the controller manager.
 type CMServer struct {
 	componentconfig.KubeControllerManagerConfiguration
 
-	Master     string
-	Kubeconfig string
-	Namespace  string
+	Master         string
+	Kubeconfig     string
+	Namespace      string
+	ControllerName string
 }
 
 // NewCMServer creates a new CMServer with a default config.
 func NewCMServer() *CMServer {
 	s := CMServer{
 		KubeControllerManagerConfiguration: componentconfig.KubeControllerManagerConfiguration{
-			Port:                              ports.ControllerManagerPort,
+			Port:                              12312,
 			Address:                           "0.0.0.0",
 			ConcurrentEndpointSyncs:           5,
 			ConcurrentServiceSyncs:            1,
@@ -100,7 +103,8 @@ func NewCMServer() *CMServer {
 			ClusterSigningCertFile:  "/etc/kubernetes/ca/ca.pem",
 			ClusterSigningKeyFile:   "/etc/kubernetes/ca/ca.key",
 		},
-		Namespace: api.NamespaceAll,
+		Namespace:      api.NamespaceAll,
+		ControllerName: ArchonControllerName,
 	}
 	s.LeaderElection.LeaderElect = true
 	return &s
@@ -166,6 +170,7 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&s.ApproveAllKubeletCSRsForGroup, "insecure-experimental-approve-all-kubelet-csrs-for-group", s.ApproveAllKubeletCSRsForGroup, "The group for which the controller-manager will auto approve all CSRs for kubelet client certificates.")
 	fs.BoolVar(&s.EnableProfiling, "profiling", true, "Enable profiling via web interface host:port/debug/pprof/")
 	fs.StringVar(&s.ClusterName, "cluster-name", s.ClusterName, "The instance prefix for the cluster")
+	fs.StringVar(&s.ControllerName, "controller-name", s.ControllerName, "The name of the controller")
 	fs.StringVar(&s.ClusterCIDR, "cluster-cidr", s.ClusterCIDR, "CIDR Range for Pods in cluster.")
 	fs.StringVar(&s.ServiceCIDR, "service-cluster-ip-range", s.ServiceCIDR, "CIDR Range for Services in cluster.")
 	fs.Int32Var(&s.NodeCIDRMaskSize, "node-cidr-mask-size", s.NodeCIDRMaskSize, "Mask size for node cidr in cluster.")

@@ -31,7 +31,7 @@ const (
 	// Interval of synchoronizing network status from apiserver
 	networkSyncPeriod = 30 * time.Second
 
-	// How long to wait before retrying the processing of a service change.
+	// How long to wait before retrying the processing of a network change.
 	// If this changes, the sleep in hack/jenkins/e2e.sh before downing a cluster
 	// should be changed appropriately.
 	minRetryDelay = 5 * time.Second
@@ -47,14 +47,14 @@ const (
 )
 
 type cachedNetwork struct {
-	// The cached state of the service
+	// The cached state of the network
 	state *cluster.Network
 	// Controls error back-off
 	lastRetryDelay time.Duration
 }
 
 type networkCache struct {
-	mu         sync.Mutex // protects serviceMap
+	mu         sync.Mutex // protects networkMap
 	networkMap map[string]*cachedNetwork
 }
 
@@ -65,17 +65,17 @@ type NetworkController struct {
 	namespace   string
 	archon      cloudprovider.ArchonInterface
 	cache       *networkCache
-	// A store of services, populated by the serviceController
+	// A store of networks, populated by the networkController
 	networkStore cache.Indexer
-	// Watches changes to all services
+	// Watches changes to all networks
 	networkController *cache.Controller
 	eventBroadcaster  record.EventBroadcaster
 	eventRecorder     record.EventRecorder
-	// services that need to be synced
+	// networks that need to be synced
 	workingQueue workqueue.DelayingInterface
 }
 
-// New returns a new service controller to keep cloud provider service resources
+// New returns a new network controller to keep cloud provider network resources
 // (like load balancers) in sync with the registry.
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string, namespace string) (*NetworkController, error) {
 	broadcaster := record.NewBroadcaster()
@@ -126,7 +126,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	return s, nil
 }
 
-// obj could be an *api.Service, or a DeletionFinalStateUnknown marker item.
+// obj could be an *api.network, or a DeletionFinalStateUnknown marker item.
 func (s *NetworkController) enqueueNetwork(obj interface{}) {
 	key, err := controller.KeyFunc(obj)
 	if err != nil {
@@ -136,15 +136,15 @@ func (s *NetworkController) enqueueNetwork(obj interface{}) {
 	s.workingQueue.Add(key)
 }
 
-// Run starts a background goroutine that watches for changes to services that
+// Run starts a background goroutine that watches for changes to networks that
 // have (or had) LoadBalancers=true and ensures that they have
 // load balancers created and deleted appropriately.
-// serviceSyncPeriod controls how often we check the cluster's services to
+// networkSyncPeriod controls how often we check the cluster's networks to
 // ensure that the correct load balancers exist.
 // nodeSyncPeriod controls how often we check the cluster's nodes to determine
 // if load balancers need to be updated to point to a new set.
 //
-// It's an error to call Run() more than once for a given ServiceController
+// It's an error to call Run() more than once for a given networkController
 // object.
 func (s *NetworkController) Run(workers int) {
 	defer runtime.HandleCrash()
@@ -166,7 +166,7 @@ func (s *NetworkController) worker() {
 			defer s.workingQueue.Done(key)
 			err := s.syncNetwork(key.(string))
 			if err != nil {
-				glog.Errorf("Error syncing service: %v", err)
+				glog.Errorf("Error syncing network: %v", err)
 			}
 		}()
 	}
@@ -174,7 +174,7 @@ func (s *NetworkController) worker() {
 
 func (s *NetworkController) init() error {
 	if s.cloud == nil {
-		return fmt.Errorf("WARNING: no cloud provider provided, services of type LoadBalancer will fail.")
+		return fmt.Errorf("WARNING: no cloud provider provided, networks of type LoadBalancer will fail.")
 	}
 
 	archon, ok := s.cloud.Archon()
@@ -185,12 +185,12 @@ func (s *NetworkController) init() error {
 	return nil
 }
 
-// Returns an error if processing the service update failed, along with a time.Duration
+// Returns an error if processing the network update failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
 func (s *NetworkController) processNetworkUpdate(cachedNetwork *cachedNetwork, network *cluster.Network, key string) (error, time.Duration) {
 
-	// cache the service, we need the info for service deletion
+	// cache the network, we need the info for network deletion
 	cachedNetwork.state = network
 	err, retry := s.createNetworkIfNeeded(key, network)
 	if err != nil {
@@ -206,8 +206,8 @@ func (s *NetworkController) processNetworkUpdate(cachedNetwork *cachedNetwork, n
 		return err, cachedNetwork.nextRetryDelay()
 	}
 	// Always update the cache upon success.
-	// NOTE: Since we update the cached service if and only if we successfully
-	// processed it, a cached service being nil implies that it hasn't yet
+	// NOTE: Since we update the cached network if and only if we successfully
+	// processed it, a cached network being nil implies that it hasn't yet
 	// been successfully processed.
 	s.cache.set(key, cachedNetwork)
 
@@ -240,7 +240,7 @@ func (s *NetworkController) createNetworkIfNeeded(key string, network *cluster.N
 	s.eventRecorder.Event(network, api.EventTypeNormal, "CreatedNetwork", "Created network")
 
 	// Write the state if changed
-	// TODO: Be careful here ... what if there were other changes to the service?
+	// TODO: Be careful here ... what if there were other changes to the network?
 	if !reflect.DeepEqual(previousState, network.Status) || !reflect.DeepEqual(previousAnnotations, network.Annotations) {
 		if err := s.persistUpdate(network); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
@@ -283,7 +283,7 @@ func (s *NetworkController) persistUpdate(network *cluster.Network) error {
 }
 
 func (s *NetworkController) createNetwork(network *cluster.Network) error {
-	// - Only one protocol supported per service
+	// - Only one protocol supported per network
 	// - Not all cloud providers support all protocols and the next step is expected to return
 	//   an error for unsupported protocols
 	status, err := s.archon.EnsureNetwork(s.clusterName, network)
@@ -308,7 +308,7 @@ func (s *networkCache) ListKeys() []string {
 	return keys
 }
 
-// GetByKey returns the value stored in the serviceMap under the given key
+// GetByKey returns the value stored in the networkMap under the given key
 func (s *networkCache) GetByKey(key string) (interface{}, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -382,7 +382,7 @@ func (s *cachedNetwork) resetRetryDelay() {
 	s.lastRetryDelay = time.Duration(0)
 }
 
-// syncService will sync the Service with the given key if it has had its expectations fulfilled,
+// syncnetwork will sync the network with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (s *NetworkController) syncNetwork(key string) error {
@@ -390,17 +390,17 @@ func (s *NetworkController) syncNetwork(key string) error {
 	var cachedNetwork *cachedNetwork
 	var retryDelay time.Duration
 	defer func() {
-		glog.V(4).Infof("Finished syncing service %q (%v)", key, time.Now().Sub(startTime))
+		glog.V(4).Infof("Finished syncing network %q (%v)", key, time.Now().Sub(startTime))
 	}()
-	// obj holds the latest service info from apiserver
+	// obj holds the latest network info from apiserver
 	obj, exists, err := s.networkStore.GetByKey(key)
 	if err != nil {
-		glog.Infof("Unable to retrieve service %v from store: %v", key, err)
+		glog.Infof("Unable to retrieve network %v from store: %v", key, err)
 		s.workingQueue.Add(key)
 		return err
 	}
 	if !exists {
-		// service absence in store means watcher caught the deletion, ensure LB info is cleaned
+		// network absence in store means watcher caught the deletion, ensure LB info is cleaned
 		glog.Infof("network has been deleted %v", key)
 		err, retryDelay = s.processNetworkDeletion(key)
 	} else {
@@ -411,7 +411,7 @@ func (s *NetworkController) syncNetwork(key string) error {
 		} else {
 			tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 			if !ok {
-				return fmt.Errorf("object contained wasn't a service or a deleted key: %#v", obj)
+				return fmt.Errorf("object contained wasn't a network or a deleted key: %#v", obj)
 			}
 			glog.Infof("Found tombstone for %v", key)
 			err, retryDelay = s.processNetworkDeletion(tombstone.Key)
@@ -419,27 +419,27 @@ func (s *NetworkController) syncNetwork(key string) error {
 	}
 
 	if retryDelay != 0 {
-		// Add the failed service back to the queue so we'll retry it.
-		glog.Errorf("Failed to process service. Retrying in %s: %v", retryDelay, err)
+		// Add the failed network back to the queue so we'll retry it.
+		glog.Errorf("Failed to process network. Retrying in %s: %v", retryDelay, err)
 		go func(obj interface{}, delay time.Duration) {
-			// put back the service key to working queue, it is possible that more entries of the service
+			// put back the network key to working queue, it is possible that more entries of the network
 			// were added into the queue during the delay, but it does not mess as when handling the retry,
-			// it always get the last service info from service store
+			// it always get the last network info from network store
 			s.workingQueue.AddAfter(obj, delay)
 		}(key, retryDelay)
 	} else if err != nil {
-		runtime.HandleError(fmt.Errorf("Failed to process service. Not retrying: %v", err))
+		runtime.HandleError(fmt.Errorf("Failed to process network. Not retrying: %v", err))
 	}
 	return nil
 }
 
-// Returns an error if processing the service deletion failed, along with a time.Duration
+// Returns an error if processing the network deletion failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry after that Duration.
 func (s *NetworkController) processNetworkDeletion(key string) (error, time.Duration) {
 	cachedNetwork, ok := s.cache.get(key)
 	if !ok {
-		return fmt.Errorf("Service %s not in cache even though the watcher thought it was. Ignoring the deletion.", key), doNotRetry
+		return fmt.Errorf("network %s not in cache even though the watcher thought it was. Ignoring the deletion.", key), doNotRetry
 	}
 	network := cachedNetwork.state
 

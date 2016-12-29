@@ -51,7 +51,6 @@ type InstanceStatus struct {
 	Conditions        []InstanceCondition `json:"conditions,omitempty"`
 	PrivateIP         string              `json:"privateIP,omitempty"`
 	PublicIP          string              `json:"publicIP,omitempty"`
-	ElasticIP         string              `json:"elasticIP,omitempty"`
 	InstanceID        string              `json:"instanceID,omitempty"`
 	CreationTimestamp unversioned.Time    `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
 }

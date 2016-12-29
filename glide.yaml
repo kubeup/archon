@@ -80,6 +80,8 @@ import:
 - package: github.com/docker/go-connections
   subpackages:
   - nat
+- package: github.com/cloudflare/cfssl/signer/local
+  version: db0d0650b6496bfe8061ec56a92edd32d8e75c30
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

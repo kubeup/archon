@@ -109,7 +109,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 
 	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
-		return nil, err
+		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
 	}
 
 	s := &InstanceController{
@@ -202,7 +202,7 @@ func (s *InstanceController) worker() {
 
 func (s *InstanceController) init() error {
 	if s.cloud == nil {
-		return fmt.Errorf("WARNING: no cloud provider provided, services of type LoadBalancer will fail.")
+		return fmt.Errorf("WARNING: no cloud provider provided, InstanceController won't work.")
 	}
 
 	archon, ok := s.cloud.Archon()
@@ -342,12 +342,12 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 
 	// Write the state if changed
 	// TODO: Be careful here ... what if there were other changes to the service?
-	if cluster.InstanceStatusEqual(previousState, instance.Status) {
+	if !cluster.InstanceStatusEqual(previousState, instance.Status) {
 		if err := s.persistUpdate(instance); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
 		}
 	} else {
-		glog.V(2).Infof("Not persisting unchanged LoadBalancerStatus to registry.")
+		glog.V(2).Infof("Not persisting unchanged InstanceStatus to registry.")
 	}
 
 	return nil, notRetryable

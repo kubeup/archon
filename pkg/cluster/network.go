@@ -29,8 +29,8 @@ const (
 type Network struct {
 	unversioned.TypeMeta `json:",inline"`
 	api.ObjectMeta       `json:"metadata"`
-	Spec                 NetworkSpec
-	Status               NetworkStatus
+	Spec                 NetworkSpec   `json:"spec,omitempty"`
+	Status               NetworkStatus `json:"status,omitempty"`
 }
 
 type NetworkList struct {
