@@ -1,0 +1,10 @@
+apiVersion: archon.kubeup.com/v1
+kind: Network
+metadata:
+  name: k8snet
+spec:
+  Region: ap-northeast-1
+  Subnet: 10.99.0.1/24
+  Zone: ap-northeast-1b
+status:
+  Phase: Pending

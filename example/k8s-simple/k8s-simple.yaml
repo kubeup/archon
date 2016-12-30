@@ -1,0 +1,307 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-simple
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-simple
+  template:
+    metadata:
+      labels:
+        app: k8s-simple
+        archon.kubeup.com/preallocate-public-ip: "true"
+        archon.kubeup.com/preallocate-private-ip: "true"
+    spec:
+      networkName: k8snet
+      files:
+      - name: unit-etcd2
+        path: "/coreos/unit/etcd2"
+        content: |-
+          name: etcd2.service
+          command: start
+      - name: unit-docker
+        path: "/coreos/unit/docker"
+        template: |-
+          name: docker.service
+          command: start
+          drop_ins:
+          - name: 40-docker-network.conf
+            content: |-
+              [Service]
+              Environment=DOCKER_OPT_BIP='--bip={{ index .Configs "k8s" "docker-subnet"}}'
+              Environment=DOCKER_OPT_IPMASQ='--ip-masq=false'
+      - name: unit-kubelet
+        path: "/coreos/unit/kubelet"
+        template: |-
+          name: kubelet.service
+          command: start
+          enable: true
+          content: |-
+            [Service]
+            ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+            ExecStartPre=/usr/bin/mkdir -p /opt/bin
+            ExecStartPre=/usr/bin/sh -c 'test -e /opt/bin/kubelet || (wget -O /opt/bin/kubelet https://storage.googleapis.com/kubernetes-release/release/v1.5.1/bin/linux/amd64/kubelet && chmod +x /opt/bin/kubelet)'
+            ExecStart=/opt/bin/kubelet \
+              --api_servers=http://localhost:8080 \
+              --register-schedulable=true \
+              --allow-privileged=true \
+              --config=/etc/kubernetes/manifests \
+              --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
+              --node-ip={{.Status.PrivateIP}} \
+              --cluster-domain=cluster.local
+            ExecStartPost=/usr/sbin/iptables -t nat -A POSTROUTING ! -d 10.0.0.0/8 -m addrtype ! --dst-type LOCAL -j MASQUERADE
+            Restart=always
+            RestartSec=10
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: tokens.csv
+        path: "/etc/kubernetes/token/tokens.csv"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Configs "k8s" "admin-password" }},admin,admin
+      - name: ca.pem
+        path: "/etc/kubernetes/ssl/ca.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Configs "k8s" "ca-cert" }}
+      - name: apiserver.pem
+        path: "/etc/kubernetes/ssl/apiserver.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-cert" | printf "%s" }}
+      - name: apiserver-key.pem
+        path: "/etc/kubernetes/ssl/apiserver-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+      - name: kube-apiserver.yaml
+        path: "/etc/kubernetes/manifests/kube-apiserver.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-apiserver
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-apiserver
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - apiserver
+              - --bind-address=0.0.0.0
+              - --etcd-servers=http://localhost:2379
+              - --allow-privileged=true
+              - --service-cluster-ip-range={{ index .Configs "k8s" "service-ip-range" }}
+              - --runtime-config=extensions/v1beta1=true,extensions/v1beta1/thirdpartyresources=true
+              - --secure-port=443
+              - --advertise-address={{.Status.PrivateIP}}
+              - --admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
+              - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
+              - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --client-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --token-auth-file=/etc/kubernetes/token/tokens.csv
+              ports:
+              - containerPort: 443
+                hostPort: 443
+                name: https
+              - containerPort: 8080
+                hostPort: 8080
+                name: local
+              volumeMounts:
+              - mountPath: /etc/kubernetes/ssl
+                name: ssl-certs-kubernetes
+                readOnly: true
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+              - mountPath: /etc/kubernetes/token
+                name: token-kubernetes
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/ssl
+              name: ssl-certs-kubernetes
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+            - hostPath:
+                path: /etc/kubernetes/token
+              name: token-kubernetes
+      - name: kube-proxy.yaml
+        path: "/etc/kubernetes/manifests/kube-proxy.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-proxy
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-proxy
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - proxy
+              - --master=http://127.0.0.1:8080
+              - --proxy-mode=iptables
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+      - name: kube-controller-manager.yaml
+        path: "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-controller-manager
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-controller-manager
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - controller-manager
+              - --master=http://127.0.0.1:8080
+              - --leader-elect=true
+              - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --root-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --allocate-node-cidrs=false
+              livenessProbe:
+                httpGet:
+                  host: 127.0.0.1
+                  path: /healthz
+                  port: 10252
+                initialDelaySeconds: 15
+                timeoutSeconds: 1
+              volumeMounts:
+              - mountPath: /etc/kubernetes/ssl
+                name: ssl-certs-kubernetes
+                readOnly: true
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/ssl
+              name: ssl-certs-kubernetes
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+      - name: kube-scheduler.yaml
+        path: "/etc/kubernetes/manifests/kube-scheduler.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-scheduler
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-scheduler
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - scheduler
+              - --master=http://127.0.0.1:8080
+              - --leader-elect=true
+              livenessProbe:
+                httpGet:
+                  host: 127.0.0.1
+                  path: /healthz
+                  port: 10251
+                initialDelaySeconds: 15
+                timeoutSeconds: 1
+      configs:
+      - name: k8s
+        data:
+          hyper-kube-img: gcr.io/google_containers/hyperkube-amd64:v1.5.1
+          service-ip-range: 10.3.0.0/24
+          dns-service-ip: 10.3.0.10
+          k8s-service-ip: 10.3.0.1
+          admin-password: kubeup
+          docker-subnet: 10.2.1.1/24
+          ca-cert: |-
+            -----BEGIN CERTIFICATE-----
+            MIID3jCCAsagAwIBAgIUOg3pudg6vctac+mbaaR6p1aeNJkwDQYJKoZIhvcNAQEL
+            BQAwdTELMAkGA1UEBhMCVVMxFjAUBgNVBAgTDVNhbiBGcmFuY2lzY28xCzAJBgNV
+            BAcTAkNBMRgwFgYDVQQKEw9NeSBDb21wYW55IE5hbWUxEzARBgNVBAsTCk9yZyBV
+            bml0IDIxEjAQBgNVBAMTCU15IG93biBDQTAeFw0xNjEyMjgwNjA0MDBaFw0yMTEy
+            MjcwNjA0MDBaMHUxCzAJBgNVBAYTAlVTMRYwFAYDVQQIEw1TYW4gRnJhbmNpc2Nv
+            MQswCQYDVQQHEwJDQTEYMBYGA1UEChMPTXkgQ29tcGFueSBOYW1lMRMwEQYDVQQL
+            EwpPcmcgVW5pdCAyMRIwEAYDVQQDEwlNeSBvd24gQ0EwggEiMA0GCSqGSIb3DQEB
+            AQUAA4IBDwAwggEKAoIBAQCzJly3O+JOouLSY9kMnRondqXI2wmMiBK8Z25/yxg1
+            QiSlqFfyzg9IGl9GCq30TWFEav1d0YK2s8NgTKEbszB5UyvVMaz/6wFvqfXmQCNV
+            S6OppORwwBSNx9HRDx0JnS+KJdb7VNCC/Lge1cnY0i3/v5NHyq6u5fbRQVRvptwC
+            NDAe5Y1+Z+8yvNgiyXEKOLc1IunqCmcVwJr9xEu1ZY31BZ8pIbn6RrlJUtGKizw9
+            EQTweZoxa/BNCmUneaAx244endeHM0R0yd2u/yfDUJwDc5OrZQudpXt4Ne0XUlA8
+            TFWa5pYzd6lb4/0ixRMBGOpet2Wq4WkiXocD7n8Zo4CpAgMBAAGjZjBkMA4GA1Ud
+            DwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgECMB0GA1UdDgQWBBTrE/RsC22P
+            DHZ2bvr/0agXF8r29zAfBgNVHSMEGDAWgBTrE/RsC22PDHZ2bvr/0agXF8r29zAN
+            BgkqhkiG9w0BAQsFAAOCAQEAg4fr+G4hqlpxp/UfMkJrx6tXWvdQHtvD79VruYYb
+            AJPfe+dRre+Y/fXB5F77a80dXrEIxrN82JotTzswvfZKLhUb0G9dRWJybh0RTCWn
+            9ZB9bHS8p+sPTDgjMDzUcUTumWr3LKU4zHedeARslj+/YrEgY+/hKjuM3bTAZNOq
+            n/mGmXmCJDiy79G1fHUdXGGC0jDEcNhUSGcRa1jfxcAOodK4X3mkX1m3Y3289/ud
+            sGdnBZhJ97QLwAiECOEdBILfk3HzghLJ4FXX4PGJCEl4W40eQbiBMHQjueDQvET7
+            6sY9xesWyBfljv1ihGpPVCi4ArTDg8ap5PpAy68gVRqkUg==
+            -----END CERTIFICATE-----
+      users:
+      - name: core
+    secrets:
+    - metadata:
+        name: apiserver
+        annotations:
+            archon.kubeup.com/csr: |-
+              {
+                "CN": "{{ .Meta.Name }}",
+                "hosts": [
+                  "kubernetes",
+                  "kubernetes.default",
+                  "kubernetes.default.svc",
+                  "kubernetes.default.svc.cluster.local",
+                  "{{ index .Configs "k8s" "k8s-service-ip" }}",
+                  "{{ .Status.PrivateIP }}",
+                  "{{ .Status.PublicIP }}"
+                ],
+                "key": {
+                  "algo": "ecdsa",
+                  "size": 256
+                },
+                "names": [
+                  {
+                    "C": "US",
+                    "L": "CA",
+                    "ST": "San Francisco"
+                  }
+                ]
+              }
+            archon.kubeup.com/status: Pending
+            archon.kubeup.com/type: csr
+      type: Opaque
