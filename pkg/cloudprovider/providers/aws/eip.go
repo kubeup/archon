@@ -13,11 +13,11 @@ type EIP struct {
 	AllocationID string `k8s:"eip-allocation-id"`
 }
 
-func (p *awsCloud) EIP() (cloudprovider.EIPInterface, bool) {
+func (p *awsCloud) PublicIP() (cloudprovider.PublicIPInterface, bool) {
 	return p, true
 }
 
-func (p *awsCloud) EnsureEIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
+func (p *awsCloud) EnsurePublicIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
 	options := cluster.InstanceOptions{}
 	eip := EIP{}
 
@@ -65,7 +65,7 @@ func (p *awsCloud) EnsureEIP(clusterName string, instance *cluster.Instance) (st
 	return
 }
 
-func (p *awsCloud) EnsureEIPDeleted(clusterName string, instance *cluster.Instance) (err error) {
+func (p *awsCloud) EnsurePublicIPDeleted(clusterName string, instance *cluster.Instance) (err error) {
 	if instance.Annotations == nil {
 		return
 	}
@@ -94,7 +94,7 @@ func (p *awsCloud) EnsureEIPDeleted(clusterName string, instance *cluster.Instan
 
 		err = util.StructToMap(eip, instance.Annotations, AWSAnnotationPrefix)
 		if err != nil {
-			err = fmt.Errorf("Error allocating EIP: %s", err.Error())
+			err = fmt.Errorf("Error releasing EIP: %s", err.Error())
 			return
 		}
 

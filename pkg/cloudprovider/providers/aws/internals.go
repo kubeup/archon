@@ -184,7 +184,16 @@ func detime(t *time.Time) time.Time {
 
 func isNotExistError(err error) bool {
 	err2, ok := err.(awserr.Error)
-	return ok && err2.Code() == "NoSuchEntity"
+	if !ok {
+		return false
+	}
+
+	switch err2.Code() {
+	case "NoSuchEntity", "InvalidNetworkInterfaceID.NotFound":
+		return true
+	}
+
+	return false
 }
 
 // Derives the region from a valid az name.

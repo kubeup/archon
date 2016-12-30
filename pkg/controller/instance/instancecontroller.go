@@ -45,7 +45,7 @@ const (
 	// Interval of synchoronizing instance status from apiserver
 	instanceSyncPeriod = 30 * time.Second
 
-	// How long to wait before retrying the processing of a service change.
+	// How long to wait before retrying the processing of a instance change.
 	// If this changes, the sleep in hack/jenkins/e2e.sh before downing a cluster
 	// should be changed appropriately.
 	minRetryDelay = 5 * time.Second
@@ -64,37 +64,37 @@ const (
 )
 
 type cachedInstance struct {
-	// The cached state of the service
+	// The cached state of the instance
 	state *cluster.Instance
 	// Controls error back-off
 	lastRetryDelay time.Duration
 }
 
 type instanceCache struct {
-	mu          sync.Mutex // protects serviceMap
+	mu          sync.Mutex // protects instanceMap
 	instanceMap map[string]*cachedInstance
 }
 
 type InstanceController struct {
 	cloud              cloudprovider.Interface
 	kubeClient         clientset.Interface
-	eipController      *EIPController
+	ipController       *IPController
 	certificateControl CertificateControlInterface
 	clusterName        string
 	namespace          string
 	archon             cloudprovider.ArchonInterface
 	cache              *instanceCache
-	// A store of services, populated by the serviceController
+	// A store of instances, populated by the instanceController
 	instanceStore archoncache.StoreToInstanceLister
-	// Watches changes to all services
+	// Watches changes to all instances
 	instanceController *cache.Controller
 	eventBroadcaster   record.EventBroadcaster
 	eventRecorder      record.EventRecorder
-	// services that need to be synced
+	// instances that need to be synced
 	workingQueue workqueue.DelayingInterface
 }
 
-// New returns a new service controller to keep cloud provider service resources
+// New returns a new instance controller to keep cloud provider instance resources
 // (like load balancers) in sync with the registry.
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace, caCertFile, caKeyFile string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
@@ -105,7 +105,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_controller", kubeClient.Core().RESTClient().GetRateLimiter())
 	}
 
-	eipController := NewEIPController(cloud, kubeClient, clusterName)
+	ipController := NewIPController(cloud, kubeClient, clusterName)
 
 	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
@@ -115,7 +115,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	s := &InstanceController{
 		cloud:              cloud,
 		kubeClient:         kubeClient,
-		eipController:      eipController,
+		ipController:       ipController,
 		certificateControl: certControl,
 		clusterName:        clusterName,
 		namespace:          namespace,
@@ -154,7 +154,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	return s, nil
 }
 
-// obj could be an *api.Service, or a DeletionFinalStateUnknown marker item.
+// obj could be an *api.instance, or a DeletionFinalStateUnknown marker item.
 func (s *InstanceController) enqueueInstance(obj interface{}) {
 	key, err := controller.KeyFunc(obj)
 	if err != nil {
@@ -164,15 +164,15 @@ func (s *InstanceController) enqueueInstance(obj interface{}) {
 	s.workingQueue.Add(key)
 }
 
-// Run starts a background goroutine that watches for changes to services that
+// Run starts a background goroutine that watches for changes to instances that
 // have (or had) LoadBalancers=true and ensures that they have
 // load balancers created and deleted appropriately.
-// serviceSyncPeriod controls how often we check the cluster's services to
+// instanceSyncPeriod controls how often we check the cluster's instances to
 // ensure that the correct load balancers exist.
 // nodeSyncPeriod controls how often we check the cluster's nodes to determine
 // if load balancers need to be updated to point to a new set.
 //
-// It's an error to call Run() more than once for a given ServiceController
+// It's an error to call Run() more than once for a given instanceController
 // object.
 func (s *InstanceController) Run(workers int) {
 	defer runtime.HandleCrash()
@@ -194,7 +194,7 @@ func (s *InstanceController) worker() {
 			defer s.workingQueue.Done(key)
 			err := s.syncInstance(key.(string))
 			if err != nil {
-				glog.Errorf("Error syncing service: %v", err)
+				glog.Errorf("Error syncing instance: %v", err)
 			}
 		}()
 	}
@@ -214,10 +214,6 @@ func (s *InstanceController) init() error {
 }
 
 func (s *InstanceController) ensureDependency(key string, instance *cluster.Instance) (error, *cluster.InstanceDependency) {
-	err, _ := s.eipController.SyncEIP(key, instance, false)
-	if err != nil {
-		return fmt.Errorf("Failed to sync eip %s: %v", key, err), nil
-	}
 	// Check Network availability before creating instance
 	network, err := s.kubeClient.Archon().Networks(instance.Namespace).Get(instance.Spec.NetworkName)
 
@@ -232,6 +228,11 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 	err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
 	if err != nil {
 		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
+	}
+
+	err, _ = s.ipController.SyncIP(key, instance, false)
+	if err != nil {
+		return fmt.Errorf("Failed to sync ip %s: %v", key, err), nil
 	}
 
 	secrets := make([]api.Secret, 0)
@@ -276,12 +277,12 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 	return err, deps
 }
 
-// Returns an error if processing the service update failed, along with a time.Duration
+// Returns an error if processing the instance update failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
 func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstance, instance *cluster.Instance, key string) (error, time.Duration) {
 
-	// cache the service, we need the info for service deletion
+	// cache the instance, we need the info for instance deletion
 	cachedInstance.state = instance
 
 	err, retry := s.createInstanceIfNeeded(key, instance)
@@ -302,8 +303,8 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 		}
 	}
 	// Always update the cache upon success.
-	// NOTE: Since we update the cached service if and only if we successfully
-	// processed it, a cached service being nil implies that it hasn't yet
+	// NOTE: Since we update the cached instance if and only if we successfully
+	// processed it, a cached instance being nil implies that it hasn't yet
 	// been successfully processed.
 	s.cache.set(key, cachedInstance)
 
@@ -341,7 +342,7 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "CreatedInstance", "Created instance")
 
 	// Write the state if changed
-	// TODO: Be careful here ... what if there were other changes to the service?
+	// TODO: Be careful here ... what if there were other changes to the instance?
 	if !cluster.InstanceStatusEqual(previousState, instance.Status) {
 		if err := s.persistUpdate(instance); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
@@ -364,7 +365,7 @@ func (s *InstanceController) persistUpdate(instance *cluster.Instance) error {
 		// out so that we can process the delete, which we should soon be receiving
 		// if we haven't already.
 		if errors.IsNotFound(err) {
-			glog.Infof("Not persisting update to service '%s/%s' that no longer exists: %v",
+			glog.Infof("Not persisting update to instance '%s/%s' that no longer exists: %v",
 				instance.Namespace, instance.Name, err)
 			return nil
 		}
@@ -384,13 +385,13 @@ func (s *InstanceController) persistUpdate(instance *cluster.Instance) error {
 }
 
 func (s *InstanceController) createInstance(instance *cluster.Instance) error {
-	// - Only one protocol supported per service
+	// - Only one protocol supported per instance
 	// - Not all cloud providers support all protocols and the next step is expected to return
 	//   an error for unsupported protocols
 	status, err := s.archon.EnsureInstance(s.clusterName, instance)
 	if err != nil {
 		return err
-	} else {
+	} else if status != nil {
 		instance.Status = *status
 	}
 
@@ -409,7 +410,7 @@ func (s *instanceCache) ListKeys() []string {
 	return keys
 }
 
-// GetByKey returns the value stored in the serviceMap under the given key
+// GetByKey returns the value stored in the instanceMap under the given key
 func (s *instanceCache) GetByKey(key string) (interface{}, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -486,7 +487,7 @@ func (s *cachedInstance) resetRetryDelay() {
 	s.lastRetryDelay = time.Duration(0)
 }
 
-// syncService will sync the Service with the given key if it has had its expectations fulfilled,
+// syncinstance will sync the instance with the given key if it has had its expectations fulfilled,
 // meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (s *InstanceController) syncInstance(key string) error {
@@ -494,17 +495,17 @@ func (s *InstanceController) syncInstance(key string) error {
 	var cachedInstance *cachedInstance
 	var retryDelay time.Duration
 	defer func() {
-		glog.V(4).Infof("Finished syncing service %q (%v)", key, time.Now().Sub(startTime))
+		glog.V(4).Infof("Finished syncing instance %q (%v)", key, time.Now().Sub(startTime))
 	}()
-	// obj holds the latest service info from apiserver
+	// obj holds the latest instance info from apiserver
 	obj, exists, err := s.instanceStore.Indexer.GetByKey(key)
 	if err != nil {
-		glog.Infof("Unable to retrieve service %v from store: %v", key, err)
+		glog.Infof("Unable to retrieve instance %v from store: %v", key, err)
 		s.workingQueue.Add(key)
 		return err
 	}
 	if !exists {
-		// service absence in store means watcher caught the deletion, ensure LB info is cleaned
+		// instance absence in store means watcher caught the deletion, ensure LB info is cleaned
 		glog.Infof("Instance has been deleted %v", key)
 		err, retryDelay = s.processInstanceDeletion(key)
 	} else {
@@ -515,7 +516,7 @@ func (s *InstanceController) syncInstance(key string) error {
 		} else {
 			tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 			if !ok {
-				return fmt.Errorf("object contained wasn't a service or a deleted key: %#v", obj)
+				return fmt.Errorf("object contained wasn't a instance or a deleted key: %#v", obj)
 			}
 			glog.Infof("Found tombstone for %v", key)
 			err, retryDelay = s.processInstanceDeletion(tombstone.Key)
@@ -523,27 +524,27 @@ func (s *InstanceController) syncInstance(key string) error {
 	}
 
 	if retryDelay != 0 {
-		// Add the failed service back to the queue so we'll retry it.
-		glog.Errorf("Failed to process service. Retrying in %s: %v", retryDelay, err)
+		// Add the failed instance back to the queue so we'll retry it.
+		glog.Errorf("Failed to process instance. Retrying in %s: %v", retryDelay, err)
 		go func(obj interface{}, delay time.Duration) {
-			// put back the service key to working queue, it is possible that more entries of the service
+			// put back the instance key to working queue, it is possible that more entries of the instance
 			// were added into the queue during the delay, but it does not mess as when handling the retry,
-			// it always get the last service info from service store
+			// it always get the last instance info from instance store
 			s.workingQueue.AddAfter(obj, delay)
 		}(key, retryDelay)
 	} else if err != nil {
-		runtime.HandleError(fmt.Errorf("Failed to process service. Not retrying: %v", err))
+		runtime.HandleError(fmt.Errorf("Failed to process instance. Not retrying: %v", err))
 	}
 	return nil
 }
 
-// Returns an error if processing the service deletion failed, along with a time.Duration
+// Returns an error if processing the instance deletion failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry after that Duration.
 func (s *InstanceController) processInstanceDeletion(key string) (error, time.Duration) {
 	cachedInstance, ok := s.cache.get(key)
 	if !ok {
-		return fmt.Errorf("Service %s not in cache even though the watcher thought it was. Ignoring the deletion.", key), doNotRetry
+		return fmt.Errorf("instance %s not in cache even though the watcher thought it was. Ignoring the deletion.", key), doNotRetry
 	}
 	instance := cachedInstance.state
 
@@ -558,25 +559,25 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
 
-	// EIP
-	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncEIP", "Releasing eip if needed")
-	err, retry := s.eipController.SyncEIP(s.clusterName, instance, true)
+	// IP
+	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Releasing ip if needed")
+	err, retry := s.ipController.SyncIP(s.clusterName, instance, true)
 	if err != nil {
-		message := "Error syncing eip of instance"
+		message := "Error syncing ip of instance"
 		if retry {
 			message += " (will retry): "
 		} else {
 			message += " (will not retry): "
 		}
 		message += err.Error()
-		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncEIPFailed", message)
+		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncIPFailed", message)
 		if retry {
 			return err, cachedInstance.nextRetryDelay()
 		} else {
 			return err, doNotRetry
 		}
 	}
-	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncEIP", "Sync eip done")
+	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Sync ip done")
 
 	s.cache.delete(key)
 

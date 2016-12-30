@@ -158,7 +158,10 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 			return
 		}
 
-		err = p.deleteNetworkInterfaces(nifIDs)
+		err2 := p.deleteNetworkInterfaces(nifIDs)
+		if err2 != nil {
+			glog.Errorf("Can't delete network interface on error: %+v", err2)
+		}
 	}()
 
 	options := cluster.InstanceOptions{}
@@ -185,17 +188,25 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	eip := EIP{}
+	pip := PrivateIP{}
+	nif := ""
 	awsPrivateIP := (*string)(nil)
 	ifSpecs := ([]*ec2.InstanceNetworkInterfaceSpecification)(nil)
 	subnetID := (*string)(nil)
 
 	if options.PreallocatePrivateIP {
+		err = util.MapToStruct(instance.Annotations, &pip, AWSAnnotationPrefix)
+		if err != nil {
+			err = fmt.Errorf("Can't get private ip interface from instance annotations: %s", err.Error())
+			return
+		}
+
 		if instance.Status.PrivateIP == "" {
 			err = fmt.Errorf("custom private IP is not provided.")
 			return
 		}
 
-		awsPrivateIP = aws.String(instance.Status.PrivateIP)
+		nif = pip.NetworkInterfaceID
 	}
 
 	if options.PreallocatePublicIP {
@@ -210,21 +221,23 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 			return
 		}
 
-		// Create if
-		resp, err := p.ec2.CreateNetworkInterface(&ec2.CreateNetworkInterfaceInput{
-			PrivateIpAddress: awsPrivateIP,
-			SubnetId:         aws.String(awsnetwork.Subnet),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("Error creating network interface: %+v", err)
+		if nif == "" {
+			// Create if
+			resp, err := p.ec2.CreateNetworkInterface(&ec2.CreateNetworkInterfaceInput{
+				PrivateIpAddress: awsPrivateIP,
+				SubnetId:         aws.String(awsnetwork.Subnet),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("Error creating network interface: %+v", err)
+			}
+			nif = destring(resp.NetworkInterface.NetworkInterfaceId)
+			nifIDs = append(nifIDs, nif)
 		}
-		nif := resp.NetworkInterface
-		nifIDs = append(nifIDs, *nif.NetworkInterfaceId)
 
 		// Associate address
 		_, err = p.ec2.AssociateAddress(&ec2.AssociateAddressInput{
 			AllocationId:       aws.String(eip.AllocationID),
-			NetworkInterfaceId: nif.NetworkInterfaceId,
+			NetworkInterfaceId: aws.String(nif),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("Error associating eip with network interface: %+v", err)
@@ -234,16 +247,15 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		ifSpecs = append(ifSpecs, &ec2.InstanceNetworkInterfaceSpecification{
 			//DeleteOnTermination: aws.Bool(true),
 			DeviceIndex:        aws.Int64(0),
-			NetworkInterfaceId: nif.NetworkInterfaceId,
+			NetworkInterfaceId: aws.String(nif),
 		})
 
-	} else if options.PreallocatePrivateIP {
+	} else if nif != "" {
 		// Add to ifspecs
 		ifSpecs = append(ifSpecs, &ec2.InstanceNetworkInterfaceSpecification{
-			AssociatePublicIpAddress: aws.Bool(true),
-			PrivateIpAddress:         awsPrivateIP,
-			DeleteOnTermination:      aws.Bool(true),
-			DeviceIndex:              aws.Int64(0),
+			//AssociatePublicIpAddress: aws.Bool(true),
+			NetworkInterfaceId: aws.String(nif),
+			DeviceIndex:        aws.Int64(0),
 		})
 	} else {
 		subnetID = aws.String(awsnetwork.Subnet)
@@ -326,7 +338,8 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	status = instanceToStatus(vps)
-	glog.Infof("New instance created %+v, %+v", vps, status)
+	glog.Infof("New instance created %+v", status)
+	nifIDs = []string{}
 	return
 }
 

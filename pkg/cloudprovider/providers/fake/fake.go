@@ -50,7 +50,11 @@ func (f *FakeCloud) Archon() (archoncloudprovider.ArchonInterface, bool) {
 	return f, true
 }
 
-func (f *FakeCloud) EIP() (archoncloudprovider.EIPInterface, bool) {
+func (f *FakeCloud) PrivateIP() (archoncloudprovider.PrivateIPInterface, bool) {
+	return nil, false
+}
+
+func (f *FakeCloud) PublicIP() (archoncloudprovider.PublicIPInterface, bool) {
 	return nil, false
 }
 

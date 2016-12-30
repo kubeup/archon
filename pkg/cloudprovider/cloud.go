@@ -5,9 +5,14 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 )
 
-type EIPInterface interface {
-	EnsureEIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
-	EnsureEIPDeleted(clusterName string, instance *cluster.Instance) error
+type PublicIPInterface interface {
+	EnsurePublicIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
+	EnsurePublicIPDeleted(clusterName string, instance *cluster.Instance) error
+}
+
+type PrivateIPInterface interface {
+	EnsurePrivateIP(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
+	EnsurePrivateIPDeleted(clusterName string, instance *cluster.Instance) error
 }
 
 type ArchonInterface interface {
@@ -20,7 +25,8 @@ type ArchonInterface interface {
 	EnsureInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error)
 	EnsureInstanceDeleted(clusterName string, instance *cluster.Instance) error
 
-	EIP() (EIPInterface, bool)
+	PublicIP() (PublicIPInterface, bool)
+	PrivateIP() (PrivateIPInterface, bool)
 }
 
 type Interface interface {
