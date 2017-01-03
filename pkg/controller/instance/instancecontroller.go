@@ -25,6 +25,7 @@ import (
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/util"
 
 	"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api"
@@ -42,8 +43,9 @@ import (
 )
 
 const (
-	// Interval of synchoronizing instance status from apiserver
+	// Interval of synchoronizing instance status from apiserver and cloudprovider
 	instanceSyncPeriod = 30 * time.Second
+	instanceSyncJitter = 0.1
 
 	// How long to wait before retrying the processing of a instance change.
 	// If this changes, the sleep in hack/jenkins/e2e.sh before downing a cluster
@@ -68,6 +70,8 @@ type cachedInstance struct {
 	state *cluster.Instance
 	// Controls error back-off
 	lastRetryDelay time.Duration
+	// Lock in case of a update in progress
+	mu *util.Mutex
 }
 
 type instanceCache struct {
@@ -177,9 +181,79 @@ func (s *InstanceController) enqueueInstance(obj interface{}) {
 func (s *InstanceController) Run(workers int) {
 	defer runtime.HandleCrash()
 	go s.instanceController.Run(wait.NeverStop)
+	go wait.JitterUntil(s.syncCloudInstances, instanceSyncPeriod, instanceSyncJitter, true, wait.NeverStop)
 	for i := 0; i < workers; i++ {
 		go wait.Until(s.worker, time.Second, wait.NeverStop)
 	}
+}
+
+func (s *InstanceController) syncCloudInstances() {
+	glog.V(4).Infof("Syncing cloud instances")
+
+	// List all networks
+	networks, err := s.kubeClient.Archon().Networks(s.namespace).List()
+	if err != nil {
+		glog.Errorf("Couldn't get all networks from k8s. Cloud instance sync failed: %+v", err)
+		return
+	}
+
+	cloudStatus := make(map[string]*cluster.InstanceStatus)
+	for _, n := range networks.Items {
+		names, statuses, err := s.archon.ListInstances(s.clusterName, n, nil)
+		if err != nil {
+			glog.Errorf("Couldn't get instances for network %s. Skipping: %+v", n.Name, err)
+			continue
+		}
+
+		for i, name := range names {
+			cloudStatus[name] = statuses[i]
+		}
+	}
+
+	instances, err := s.kubeClient.Archon().Instances(s.namespace).List(api.ListOptions{})
+	if err != nil {
+		glog.Errorf("Couldn't get instances from k8s. Cloud instance sync failed: %+v", err)
+		return
+	}
+
+	for _, instance := range instances.Items {
+		key, err := controller.KeyFunc(instance)
+		if err != nil {
+			glog.Errorf("Couldn't get key for instance %#v: %v", instance, err)
+			continue
+		}
+		status, ok := cloudStatus[instance.Name]
+		if !ok {
+			switch instance.Status.Phase {
+			case cluster.InstanceInitializing, cluster.InstancePending:
+				continue
+			default:
+				status = cluster.InstanceStatusDeepCopy(&instance.Status)
+				status.Phase = cluster.InstanceUnknown
+			}
+		}
+
+		if !cluster.InstanceStatusEqual(*status, instance.Status) {
+			// Update only when there's no current operation going on with this instance
+			cachedInstance := s.cache.getOrCreate(key)
+			if cachedInstance.mu.TryLock() {
+				instance.Status = *status
+				updatedInstance, err := s.kubeClient.Archon().Instances(s.namespace).Update(instance)
+				if err != nil {
+					glog.Errorf("Couldn't update instance %s in k8s: %+v", key, err)
+					continue
+				}
+
+				cachedInstance.state = updatedInstance
+				s.cache.set(key, cachedInstance)
+				cachedInstance.mu.Unlock()
+			} else {
+				glog.Errorf("Couldn't update instance %s. Coz there's an ongoing operation", key)
+			}
+		}
+	}
+
+	glog.V(4).Infof("Done syncing cloud instances.")
 }
 
 // worker runs a worker thread that just dequeues items, processes them, and marks them done.
@@ -281,6 +355,10 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
 func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstance, instance *cluster.Instance, key string) (error, time.Duration) {
+	cachedInstance.mu.Lock()
+	defer func() {
+		cachedInstance.mu.Unlock()
+	}()
 
 	// cache the instance, we need the info for instance deletion
 	cachedInstance.state = instance
@@ -444,7 +522,9 @@ func (s *instanceCache) getOrCreate(instanceName string) *cachedInstance {
 	defer s.mu.Unlock()
 	instance, ok := s.instanceMap[instanceName]
 	if !ok {
-		instance = &cachedInstance{}
+		instance = &cachedInstance{
+			mu: util.NewMutex(),
+		}
 		s.instanceMap[instanceName] = instance
 	}
 	return instance
@@ -546,6 +626,10 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	if !ok {
 		return fmt.Errorf("instance %s not in cache even though the watcher thought it was. Ignoring the deletion.", key), doNotRetry
 	}
+	cachedInstance.mu.Lock()
+	defer func() {
+		cachedInstance.mu.Unlock()
+	}()
 	instance := cachedInstance.state
 
 	// Instance
