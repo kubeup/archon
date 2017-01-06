@@ -14,10 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// The controller manager is responsible for monitoring replication
-// controllers, and creating corresponding pods to achieve the desired
-// state.  It uses the API to listen for new controllers and to create/delete
-// pods.
+// The archon controller is a runner of fleet of physical resource controllers,
+// providing global leaderelection, healthz, profiler support
 package main
 
 import (

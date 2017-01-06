@@ -1,3 +1,18 @@
+/*
+Copyright 2016 The Kubernetes Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// This file is modified from the original kubernetes source tree
+
 package cache
 
 import (
@@ -90,7 +105,7 @@ func (s storeInstanceGroupsNamespacer) Get(name string) (*cluster.InstanceGroup,
 	return obj.(*cluster.InstanceGroup), nil
 }
 
-// GetPodReplicaSets returns a list of ReplicaSets managing a pod. Returns an error only if no matching ReplicaSets are found.
+// GetInstanceGroup returns a list of InstanceGroups managing a instance. Returns an error only if no matching InstanceGroups are found.
 func (s *StoreToInstanceGroupLister) GetInstanceGroup(instance *cluster.Instance) (igs []*cluster.InstanceGroup, err error) {
 	if len(instance.Labels) == 0 {
 		err = fmt.Errorf("no InstanceGroups found for instance %v because it has no labels", instance.Name)
@@ -110,7 +125,7 @@ func (s *StoreToInstanceGroupLister) GetInstanceGroup(instance *cluster.Instance
 			return nil, fmt.Errorf("invalid selector: %v", err)
 		}
 
-		// If a ReplicaSet with a nil or empty selector creeps in, it should match nothing, not everything.
+		// If a InstanceGroup with a nil or empty selector creeps in, it should match nothing, not everything.
 		if selector.Empty() || !selector.Matches(labels.Set(instance.Labels)) {
 			continue
 		}

@@ -1,3 +1,16 @@
+/*
+Copyright 2016 The Archon Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cluster
 
 import (
@@ -67,17 +80,17 @@ const (
 
 type InstanceConditionType string
 
-// These are valid conditions of pod.
+// These are valid conditions of instance.
 const (
-	// InstanceScheduled represents status of the scheduling process for this pod.
+	// InstanceScheduled represents status of the scheduling process for this instance.
 	InstanceScheduled InstanceConditionType = "InstanceScheduled"
-	// InstanceReady means the pod is able to service requests and should be added to the
+	// InstanceReady means the instance is able to service requests and should be added to the
 	// load balancing pools of all matching services.
 	InstanceReady InstanceConditionType = "Ready"
-	// InstanceInitialized means that all init containers in the pod have started successfully.
+	// InstanceInitialized means that all init containers in the instance have started successfully.
 	InstanceInitialized InstanceConditionType = "Initialized"
 	// InstanceReasonUnschedulable reason in InstanceScheduled InstanceCondition means that the scheduler
-	// can't schedule the pod right now, for example due to insufficient resources in the cluster.
+	// can't schedule the instance right now, for example due to insufficient resources in the cluster.
 	InstanceReasonUnschedulable = "Unschedulable"
 )
 

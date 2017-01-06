@@ -42,14 +42,14 @@ import (
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
-	clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	//clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
 	"k8s.io/kubernetes/pkg/client/leaderelection/resourcelock"
 	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
-	"k8s.io/kubernetes/pkg/controller/informers"
+	//"k8s.io/kubernetes/pkg/controller/informers"
 	"k8s.io/kubernetes/pkg/healthz"
 	"k8s.io/kubernetes/pkg/util/configz"
 	"k8s.io/kubernetes/pkg/util/wait"
@@ -96,7 +96,7 @@ func ResyncPeriod(s *options.CMServer) func() time.Duration {
 // Run runs the CMServer.  This should never exit.
 func Run(s *options.CMServer) error {
 	if c, err := configz.New("componentconfig"); err == nil {
-		c.Set(s.KubeControllerManagerConfiguration)
+		c.Set(s.ArchonControllerManagerConfiguration)
 	} else {
 		glog.Errorf("unable to register configz: %s", err)
 	}
@@ -183,7 +183,8 @@ func Run(s *options.CMServer) error {
 }
 
 func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface, kubeconfig *restclient.Config, stop <-chan struct{}, recorder record.EventRecorder) error {
-	sharedInformers := informers.NewSharedInformerFactory(clientset.NewForConfigOrDie(restclient.AddUserAgent(kubeconfig, "shared-informers")), ResyncPeriod(s)())
+	// TODO: make use of sharedInformers
+	//sharedInformers := informers.NewSharedInformerFactory(clientset.NewForConfigOrDie(restclient.AddUserAgent(kubeconfig, "shared-informers")), ResyncPeriod(s)())
 
 	glog.Infof("Starting controllers in namespace: %s", s.Namespace)
 
@@ -212,7 +213,7 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 		networkController.Run(3)
 	}
 
-	sharedInformers.Start(stop)
+	//sharedInformers.Start(stop)
 
 	select {}
 }

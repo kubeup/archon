@@ -1,3 +1,16 @@
+/*
+Copyright 2016 The Archon Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package cluster
 
 import (
@@ -16,9 +29,9 @@ type InstanceGroup struct {
 type InstanceGroupSpec struct {
 	Replicas int32
 
-	// Minimum number of seconds for which a newly created pod should be ready
+	// Minimum number of seconds for which a newly created instance should be ready
 	// without any of its container crashing, for it to be considered available.
-	// Defaults to 0 (pod will be considered available as soon as it is ready)
+	// Defaults to 0 (instance will be considered available as soon as it is ready)
 	// +optional
 	MinReadySeconds int32                      `json:"minReadySeconds,omitempty"`
 	Selector        *unversioned.LabelSelector `json:"selector,omitempty"`
@@ -29,8 +42,8 @@ type InstanceGroupConditionType string
 
 // These are valid conditions of a replica set.
 const (
-	// InstanceGroupReplicaFailure is added in a replica set when one of its pods fails to be created
-	// due to insufficient quota, limit ranges, pod security policy, node selectors, etc. or deleted
+	// InstanceGroupReplicaFailure is added in a replica set when one of its instances fails to be created
+	// due to insufficient quota, limit ranges, instance security policy, node selectors, etc. or deleted
 	// due to kubelet being down or finalizers are failing.
 	InstanceGroupReplicaFailure InstanceGroupConditionType = "ReplicaFailure"
 )
@@ -56,7 +69,7 @@ type InstanceGroupStatus struct {
 	// Replicas is the number of actual replicas.
 	Replicas int32 `json:"replicas"`
 
-	// The number of pods that have labels matching the labels of the pod template of the replicaset.
+	// The number of instances that have labels matching the labels of the instance template of the instancegroup.
 	// +optional
 	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas,omitempty"`
 

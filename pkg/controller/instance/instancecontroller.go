@@ -1,18 +1,17 @@
 /*
-Copyright 2015 The Kubernetes Authors.
-
+Copyright 2016 The Kubernetes Authors.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// This file is modified from servicecontroller.go in original kubernetes source tree
 
 package instance
 
@@ -47,9 +46,6 @@ const (
 	instanceSyncPeriod = 30 * time.Second
 	instanceSyncJitter = 0.1
 
-	// How long to wait before retrying the processing of a instance change.
-	// If this changes, the sleep in hack/jenkins/e2e.sh before downing a cluster
-	// should be changed appropriately.
 	minRetryDelay = 5 * time.Second
 	maxRetryDelay = 300 * time.Second
 
@@ -70,7 +66,7 @@ type cachedInstance struct {
 	state *cluster.Instance
 	// Controls error back-off
 	lastRetryDelay time.Duration
-	// Lock in case of a update in progress
+	// Lock held by sync routine either with cloud or with k8s
 	mu *util.Mutex
 }
 
@@ -99,7 +95,7 @@ type InstanceController struct {
 }
 
 // New returns a new instance controller to keep cloud provider instance resources
-// (like load balancers) in sync with the registry.
+// in sync with the registry.
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace, caCertFile, caKeyFile string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
@@ -168,16 +164,9 @@ func (s *InstanceController) enqueueInstance(obj interface{}) {
 	s.workingQueue.Add(key)
 }
 
-// Run starts a background goroutine that watches for changes to instances that
-// have (or had) LoadBalancers=true and ensures that they have
-// load balancers created and deleted appropriately.
-// instanceSyncPeriod controls how often we check the cluster's instances to
-// ensure that the correct load balancers exist.
-// nodeSyncPeriod controls how often we check the cluster's nodes to determine
-// if load balancers need to be updated to point to a new set.
-//
-// It's an error to call Run() more than once for a given instanceController
-// object.
+// Run starts a watcher who watches changes of instances in registry, serveral workers
+// who process instance updates, and a cloud instance syncer who syncs instance statuses
+// from cloud back to registry
 func (s *InstanceController) Run(workers int) {
 	defer runtime.HandleCrash()
 	go s.instanceController.Run(wait.NeverStop)
@@ -190,13 +179,14 @@ func (s *InstanceController) Run(workers int) {
 func (s *InstanceController) syncCloudInstances() {
 	glog.V(4).Infof("Syncing cloud instances")
 
-	// List all networks
+	// List all networks in our working namespace
 	networks, err := s.kubeClient.Archon().Networks(s.namespace).List()
 	if err != nil {
 		glog.Errorf("Couldn't get all networks from k8s. Cloud instance sync failed: %+v", err)
 		return
 	}
 
+	// List all instances in all networks in the cloud
 	cloudStatus := make(map[string]*cluster.InstanceStatus)
 	for _, n := range networks.Items {
 		names, statuses, err := s.archon.ListInstances(s.clusterName, n, nil)
@@ -210,20 +200,25 @@ func (s *InstanceController) syncCloudInstances() {
 		}
 	}
 
+	// List all instances in the registry
 	instances, err := s.kubeClient.Archon().Instances(s.namespace).List(api.ListOptions{})
 	if err != nil {
 		glog.Errorf("Couldn't get instances from k8s. Cloud instance sync failed: %+v", err)
 		return
 	}
 
+	// Update the statuses of existing instances in the registry
 	for _, instance := range instances.Items {
 		key, err := controller.KeyFunc(instance)
 		if err != nil {
 			glog.Errorf("Couldn't get key for instance %#v: %v", instance, err)
 			continue
 		}
+
 		status, ok := cloudStatus[instance.Name]
 		if !ok {
+			// Exists in registry but not in the cloud. Either waiting to be created or
+			// terminated unexpectedly.
 			switch instance.Status.Phase {
 			case cluster.InstanceInitializing, cluster.InstancePending:
 				continue
@@ -290,7 +285,6 @@ func (s *InstanceController) init() error {
 func (s *InstanceController) ensureDependency(key string, instance *cluster.Instance) (error, *cluster.InstanceDependency) {
 	// Check Network availability before creating instance
 	network, err := s.kubeClient.Archon().Networks(instance.Namespace).Get(instance.Spec.NetworkName)
-
 	if err != nil {
 		return fmt.Errorf("Failed to get network %s: %v", instance.Spec.NetworkName, err), nil
 	}
@@ -304,6 +298,7 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
 	}
 
+	// Ensure IP prerequistes
 	err, _ = s.ipController.SyncIP(key, instance, false)
 	if err != nil {
 		return fmt.Errorf("Failed to sync ip %s: %v", key, err), nil
@@ -409,9 +404,7 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 
 	glog.V(2).Infof("Ensuring instance %s", key)
 
-	// TODO: We could do a dry-run here if wanted to avoid the spurious cloud-calls & events when we restart
-
-	// The load balancer doesn't exist yet, so create it.
+	// The instance doesn't exist yet, so create it.
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "CreatingInstance", "Creating instance")
 	err = s.createInstance(instance)
 	if err != nil {
@@ -419,8 +412,7 @@ func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluste
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "CreatedInstance", "Created instance")
 
-	// Write the state if changed
-	// TODO: Be careful here ... what if there were other changes to the instance?
+	// Write the status if changed.
 	if !cluster.InstanceStatusEqual(previousState, instance.Status) {
 		if err := s.persistUpdate(instance); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
@@ -447,15 +439,13 @@ func (s *InstanceController) persistUpdate(instance *cluster.Instance) error {
 				instance.Namespace, instance.Name, err)
 			return nil
 		}
-		// TODO: Try to resolve the conflict if the change was unrelated to load
-		// balancer status. For now, just rely on the fact that we'll
-		// also process the update that caused the resource version to change.
+		// TODO: Try to resolve the conflict if the change was unrelated to instance
 		if errors.IsConflict(err) {
 			glog.V(4).Infof("Not persisting update to instance '%s/%s' that has been changed since we received it: %v",
 				instance.Namespace, instance.Name, err)
 			return nil
 		}
-		glog.Warningf("Failed to persist updated InstanceStatus to instance '%s/%s' after creating its load balancer: %v",
+		glog.Warningf("Failed to persist updated InstanceStatus to instance '%s/%s' after creating: %v",
 			instance.Namespace, instance.Name, err)
 		time.Sleep(clientRetryInterval)
 	}
@@ -463,9 +453,6 @@ func (s *InstanceController) persistUpdate(instance *cluster.Instance) error {
 }
 
 func (s *InstanceController) createInstance(instance *cluster.Instance) error {
-	// - Only one protocol supported per instance
-	// - Not all cloud providers support all protocols and the next step is expected to return
-	//   an error for unsupported protocols
 	status, err := s.archon.EnsureInstance(s.clusterName, instance)
 	if err != nil {
 		return err
@@ -476,8 +463,6 @@ func (s *InstanceController) createInstance(instance *cluster.Instance) error {
 	return nil
 }
 
-// ListKeys implements the interface required by DeltaFIFO to list the keys we
-// already know about.
 func (s *instanceCache) ListKeys() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -488,7 +473,6 @@ func (s *instanceCache) ListKeys() []string {
 	return keys
 }
 
-// GetByKey returns the value stored in the instanceMap under the given key
 func (s *instanceCache) GetByKey(key string) (interface{}, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -498,8 +482,6 @@ func (s *instanceCache) GetByKey(key string) (interface{}, bool, error) {
 	return nil, false, nil
 }
 
-// ListKeys implements the interface required by DeltaFIFO to list the keys we
-// already know about.
 func (s *instanceCache) allInstances() []*cluster.Instance {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -567,9 +549,7 @@ func (s *cachedInstance) resetRetryDelay() {
 	s.lastRetryDelay = time.Duration(0)
 }
 
-// syncinstance will sync the instance with the given key if it has had its expectations fulfilled,
-// meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
-// invoked concurrently with the same key.
+// syncInstance will sync the instance with the given key if it has had its expectations fulfilled,
 func (s *InstanceController) syncInstance(key string) error {
 	startTime := time.Now()
 	var cachedInstance *cachedInstance
@@ -585,7 +565,7 @@ func (s *InstanceController) syncInstance(key string) error {
 		return err
 	}
 	if !exists {
-		// instance absence in store means watcher caught the deletion, ensure LB info is cleaned
+		// instance absence in store means watcher caught the deletion, ensure instance is cleaned
 		glog.Infof("Instance has been deleted %v", key)
 		err, retryDelay = s.processInstanceDeletion(key)
 	} else {

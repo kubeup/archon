@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// If you make changes to this file, you should also make the corresponding change in ReplicationController.
+// If you make changes to this file, you should also make the corresponding change in InstanceGroupController.
 
 package instancegroup
 
@@ -94,11 +94,11 @@ func (o overlappingInstanceGroups) Less(i, j int) bool {
 
 func calculateStatus(ig cluster.InstanceGroup, filteredInstances []*cluster.Instance, manageReplicasErr error) cluster.InstanceGroupStatus {
 	newStatus := ig.Status
-	// Count the number of pods that have labels matching the labels of the pod
-	// template of the replica set, the matching pods may have more
-	// labels than are in the template. Because the label of podTemplateSpec is
+	// Count the number of instances that have labels matching the labels of the instance
+	// template of the replica set, the matching instances may have more
+	// labels than are in the template. Because the label of instanceTemplateSpec is
 	// a superset of the selector of the replica set, so the possible
-	// matching pods must be part of the filteredPods.
+	// matching instances must be part of the filteredInstances.
 	fullyLabeledReplicasCount := 0
 	readyReplicasCount := 0
 	availableReplicasCount := 0

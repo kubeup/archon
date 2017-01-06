@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// If you make changes to this file, you should also make the corresponding change in ReplicationController.
+// This file is modified from replica_set.go in the original kubernetes source tree
 
 package instancegroup
 
@@ -47,20 +47,17 @@ import (
 )
 
 const (
-	// We'll attempt to recompute the required replicas of all ReplicaSets
+	// We'll attempt to recompute the required replicas of all InstanceGroups
 	// that have fulfilled their expectations at least this often. This recomputation
-	// happens based on contents in local pod storage.
+	// happens based on contents in local instance storage.
 	FullControllerResyncPeriod = 30 * time.Second
 
 	// Realistic value of the burstReplica field for the replica set manager based off
 	// performance requirements for kubernetes 1.0.
+	// TODO: adjust for instancegroups
 	BurstReplicas = 500
 
-	// We must avoid counting pods until the pod store has synced. If it hasn't synced, to
-	// avoid a hot loop, we'll wait this long between checks.
-	PodStoreSyncedPollPeriod = 100 * time.Millisecond
-
-	// The number of times we retry updating a ReplicaSet's status.
+	// The number of times we retry updating a InstanceGroup's status.
 	statusUpdateRetries = 1
 )
 
@@ -68,20 +65,20 @@ func getIGKind() unversioned.GroupVersionKind {
 	return archon.SchemeGroupVersion.WithKind("InstanceGroup")
 }
 
-// InstanceGroupController is responsible for synchronizing ReplicaSet objects stored
-// in the system with actual running pods.
+// InstanceGroupController is responsible for synchronizing InstanceGroup objects stored
+// in the system with actual running Instances.
 type InstanceGroupController struct {
 	kubeClient      clientset.Interface
 	instanceControl archoncontroller.InstanceControlInterface
 	namespace       string
 
-	// A ReplicaSet is temporarily suspended after creating/deleting these many replicas.
+	// A InstanceGroup is temporarily suspended after creating/deleting these many replicas.
 	// It resumes normal action after observing the watch events for them.
 	burstReplicas int
-	// To allow injection of syncReplicaSet for testing.
+	// To allow injection of syncInstanceGroup for testing.
 	syncHandler func(igKey string) error
 
-	// A TTLCache of pod creates/deletes each rc expects to see.
+	// A TTLCache of instance creates/deletes each rc expects to see.
 	expectations *controller.UIDTrackingControllerExpectations
 
 	instanceStore           archoncache.StoreToInstanceLister
@@ -194,9 +191,7 @@ func (rsc *InstanceGroupController) Run(workers int, stopCh <-chan struct{}) {
 	glog.Infof("Shutting down InstanceGroup Controller")
 }
 
-// getPodReplicaSet returns the replica set managing the given pod.
-// TODO: Surface that we are ignoring multiple replica sets for a single pod.
-// TODO: use ownerReference.Controller to determine if the rs controls the pod.
+// getInstanceGroup returns the replica set managing the given instance.
 func (rsc *InstanceGroupController) getInstanceGroup(instance *cluster.Instance) *cluster.InstanceGroup {
 	// look up in the cache, if cached and the cache is valid, just return cached value
 	if obj, cached := rsc.lookupCache.GetMatchingObject(instance); cached {
@@ -217,13 +212,13 @@ func (rsc *InstanceGroupController) getInstanceGroup(instance *cluster.Instance)
 		glog.V(4).Infof("No InstanceGroups found for instance %v, InstanceGroup controller will avoid syncing", instance.Name)
 		return nil
 	}
-	// In theory, overlapping ReplicaSets is user error. This sorting will not prevent
+	// In theory, overlapping InstanceGroup's user error. This sorting will not prevent
 	// oscillation of replicas in all cases, eg:
-	// rs1 (older rs): [(k1=v1)], replicas=1 rs2: [(k2=v2)], replicas=2
-	// pod: [(k1:v1), (k2:v2)] will wake both rs1 and rs2, and we will sync rs1.
-	// pod: [(k2:v2)] will wake rs2 which creates a new replica.
+	// ig1 (older ig): [(k1=v1)], replicas=1 ig2: [(k2=v2)], replicas=2
+	// instance: [(k1:v1), (k2:v2)] will wake both ig1 and ig2, and we will sync ig1.
+	// instance: [(k2:v2)] will wake ig2 which creates a new replica.
 	if len(igs) > 1 {
-		// More than two items in this list indicates user error. If two replicasets
+		// More than two items in this list indicates user error. If two instancegroups
 		// overlap, sort by creation timestamp, subsort by name, then pick
 		// the first.
 		utilruntime.HandleError(fmt.Errorf("user error! more than one InstanceGroup is selecting instances with labels: %+v", instance.Labels))
@@ -236,19 +231,19 @@ func (rsc *InstanceGroupController) getInstanceGroup(instance *cluster.Instance)
 	return igs[0]
 }
 
-// callback when RS is updated
+// callback when InstanceGroup is updated
 func (rsc *InstanceGroupController) updateIG(old, cur interface{}) {
 	oldIG := old.(*cluster.InstanceGroup)
 	curIG := cur.(*cluster.InstanceGroup)
 
-	// We should invalidate the whole lookup cache if a RS's selector has been updated.
+	// We should invalidate the whole lookup cache if a IG's selector has been updated.
 	//
-	// Imagine that you have two RSs:
-	// * old RS1
-	// * new RS2
-	// You also have a pod that is attached to RS2 (because it doesn't match RS1 selector).
-	// Now imagine that you are changing RS1 selector so that it is now matching that pod,
-	// in such case we must invalidate the whole cache so that pod could be adopted by RS1
+	// Imagine that you have two IGs:
+	// * old IG1
+	// * new IG2
+	// You also have a instance that is attached to IG2 (because it doesn't match IG1 selector).
+	// Now imagine that you are changing IG1 selector so that it is now matching that instance,
+	// in such case we must invalidate the whole cache so that instance could be adopted by IG1
 	//
 	// This makes the lookup cache less helpful, but selector update does not happen often,
 	// so it's not a big problem
@@ -259,14 +254,14 @@ func (rsc *InstanceGroupController) updateIG(old, cur interface{}) {
 	// You might imagine that we only really need to enqueue the
 	// replica set when Spec changes, but it is safer to sync any
 	// time this function is triggered. That way a full informer
-	// resync can requeue any replica set that don't yet have pods
-	// but whose last attempts at creating a pod have failed (since
-	// we don't block on creation of pods) instead of those
+	// resync can requeue any replica set that don't yet have instances
+	// but whose last attempts at creating a instance have failed (since
+	// we don't block on creation of instances) instead of those
 	// replica sets stalling indefinitely. Enqueueing every time
 	// does result in some spurious syncs (like when Status.Replica
 	// is updated and the watch notification from it retriggers
 	// this function), but in general extra resyncs shouldn't be
-	// that bad as ReplicaSets that haven't met expectations yet won't
+	// that bad as InstanceGroups that haven't met expectations yet won't
 	// sync, and all the listing is done using local stores.
 	if oldIG.Status.Replicas != curIG.Status.Replicas {
 		glog.V(4).Infof("Observed updated replica count for InstanceGroup: %v, %d->%d", curIG.Name, oldIG.Status.Replicas, curIG.Status.Replicas)
@@ -284,8 +279,8 @@ func (rsc *InstanceGroupController) isCacheValid(instance *cluster.Instance, cac
 	return true
 }
 
-// isReplicaSetMatch take a Pod and ReplicaSet, return whether the Pod and ReplicaSet are matching
-// TODO(mqliang): This logic is a copy from GetPodReplicaSets(), remove the duplication
+// isInstanceGroupMatch take a Instance and InstanceGroup, return whether the Instance and InstanceGroup are matching
+// TODO(mqliang): This logic is a copy from GetInstanceGroups(), remove the duplication
 func isInstanceGroupMatch(instance *cluster.Instance, ig *cluster.InstanceGroup) bool {
 	if ig.Namespace != instance.Namespace {
 		return false
@@ -303,7 +298,7 @@ func isInstanceGroupMatch(instance *cluster.Instance, ig *cluster.InstanceGroup)
 	return true
 }
 
-// When a pod is created, enqueue the replica set that manages it and update it's expectations.
+// When a instance is created, enqueue the replica set that manages it and update it's expectations.
 func (rsc *InstanceGroupController) addInstance(obj interface{}) {
 	instance := obj.(*cluster.Instance)
 	glog.V(4).Infof("Instance %s created: %#v.", instance.Name, instance)
@@ -318,8 +313,8 @@ func (rsc *InstanceGroupController) addInstance(obj interface{}) {
 		return
 	}
 	if instance.DeletionTimestamp != nil {
-		// on a restart of the controller manager, it's possible a new pod shows up in a state that
-		// is already pending deletion. Prevent the pod from being a creation observation.
+		// on a restart of the controller manager, it's possible a new instance shows up in a state that
+		// is already pending deletion. Prevent the instance from being a creation observation.
 		rsc.deleteInstance(instance)
 		return
 	}
@@ -327,36 +322,36 @@ func (rsc *InstanceGroupController) addInstance(obj interface{}) {
 	rsc.enqueueInstanceGroup(ig)
 }
 
-// When a pod is updated, figure out what replica set/s manage it and wake them
-// up. If the labels of the pod have changed we need to awaken both the old
-// and new replica set. old and cur must be *api.Pod types.
+// When a instance is updated, figure out what replica set/s manage it and wake them
+// up. If the labels of the instance have changed we need to awaken both the old
+// and new replica set. old and cur must be *cluster.Instance types.
 func (rsc *InstanceGroupController) updateInstance(old, cur interface{}) {
 	curInstance := cur.(*cluster.Instance)
 	oldInstance := old.(*cluster.Instance)
 	if curInstance.ResourceVersion == oldInstance.ResourceVersion {
-		// Periodic resync will send update events for all known pods.
-		// Two different versions of the same pod will always have different RVs.
+		// Periodic resync will send update events for all known instances.
+		// Two different versions of the same instance will always have different RVs.
 		return
 	}
 	glog.V(4).Infof("Instance %s updated, objectMeta %+v -> %+v.", curInstance.Name, oldInstance.ObjectMeta, curInstance.ObjectMeta)
 	labelChanged := !reflect.DeepEqual(curInstance.Labels, oldInstance.Labels)
 	if curInstance.DeletionTimestamp != nil {
-		// when a pod is deleted gracefully it's deletion timestamp is first modified to reflect a grace period,
+		// when a instance is deleted gracefully it's deletion timestamp is first modified to reflect a grace period,
 		// and after such time has passed, the kubelet actually deletes it from the store. We receive an update
 		// for modification of the deletion timestamp and expect an rs to create more replicas asap, not wait
-		// until the kubelet actually deletes the pod. This is different from the Phase of a pod changing, because
+		// until the kubelet actually deletes the instance. This is different from the Phase of a instance changing, because
 		// an rs never initiates a phase change, and so is never asleep waiting for the same.
 		rsc.deleteInstance(curInstance)
 		if labelChanged {
-			// we don't need to check the oldPod.DeletionTimestamp because DeletionTimestamp cannot be unset.
+			// we don't need to check the oldInstance.DeletionTimestamp because DeletionTimestamp cannot be unset.
 			rsc.deleteInstance(oldInstance)
 		}
 		return
 	}
 
-	// Enqueue the oldRC before the curRC to give curRC a chance to adopt the oldPod.
+	// Enqueue the oldRC before the cur to give curRC a chance to adopt the oldInstance.
 	if labelChanged {
-		// If the old and new ReplicaSet are the same, the first one that syncs
+		// If the old and new InstanceGroup are the same, the first one that syncs
 		// will set expectations preventing any damage from the second.
 		if oldIG := rsc.getInstanceGroup(oldInstance); oldIG != nil {
 			rsc.enqueueInstanceGroup(oldIG)
@@ -368,15 +363,15 @@ func (rsc *InstanceGroupController) updateInstance(old, cur interface{}) {
 	}
 }
 
-// When a pod is deleted, enqueue the replica set that manages the pod and update its expectations.
-// obj could be an *api.Pod, or a DeletionFinalStateUnknown marker item.
+// When a instance is deleted, enqueue the replica set that manages the instance and update its expectations.
+// obj could be an *cluster.Instance, or a DeletionFinalStateUnknown marker item.
 func (rsc *InstanceGroupController) deleteInstance(obj interface{}) {
 	instance, ok := obj.(*cluster.Instance)
 
-	// When a delete is dropped, the relist will notice a pod in the store not
+	// When a delete is dropped, the relist will notice a instance in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
-	// the deleted key/value. Note that this value might be stale. If the pod
-	// changed labels the new ReplicaSet will not be woken up till the periodic resync.
+	// the deleted key/value. Note that this value might be stale. If the instance
+	// changed labels the new InstanceGroup will not be woken up till the periodic resync.
 	if !ok {
 		tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 		if !ok {
@@ -385,7 +380,7 @@ func (rsc *InstanceGroupController) deleteInstance(obj interface{}) {
 		}
 		instance, ok = tombstone.Obj.(*cluster.Instance)
 		if !ok {
-			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a pod %#v", obj))
+			utilruntime.HandleError(fmt.Errorf("Tombstone contained object that is not a instance %#v", obj))
 			return
 		}
 	}
@@ -401,7 +396,7 @@ func (rsc *InstanceGroupController) deleteInstance(obj interface{}) {
 	}
 }
 
-// obj could be an *extensions.ReplicaSet, or a DeletionFinalStateUnknown marker item.
+// obj could be an *extensions.InstanceGroup, or a DeletionFinalStateUnknown marker item.
 func (rsc *InstanceGroupController) enqueueInstanceGroup(obj interface{}) {
 	key, err := controller.KeyFunc(obj)
 	if err != nil {
@@ -410,8 +405,8 @@ func (rsc *InstanceGroupController) enqueueInstanceGroup(obj interface{}) {
 	}
 
 	// TODO: Handle overlapping replica sets better. Either disallow them at admission time or
-	// deterministically avoid syncing replica sets that fight over pods. Currently, we only
-	// ensure that the same replica set is synced for a given pod. When we periodically relist
+	// deterministically avoid syncing replica sets that fight over instances. Currently, we only
+	// ensure that the same replica set is synced for a given instance. When we periodically relist
 	// all replica sets there will still be some replica instability. One way to handle this is
 	// by querying the store for all replica sets that this replica set overlaps, as well as all
 	// replica sets that overlap this ReplicaSet, and sorting them.
@@ -445,8 +440,8 @@ func (rsc *InstanceGroupController) processNextWorkItem() bool {
 }
 
 // manageReplicas checks and updates replicas for the given ReplicaSet.
-// Does NOT modify <filteredPods>.
-// It will requeue the replica set in case of an error while creating/deleting pods.
+// Does NOT modify <filteredinstances>.
+// It will requeue the replica set in case of an error while creating/deleting instances.
 func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.Instance, ig *cluster.InstanceGroup) error {
 	diff := len(filteredInstances) - int(ig.Spec.Replicas)
 	igKey, err := controller.KeyFunc(ig)
@@ -462,9 +457,9 @@ func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.
 			diff = rsc.burstReplicas
 		}
 		// TODO: Track UIDs of creates just like deletes. The problem currently
-		// is we'd need to wait on the result of a create to record the pod's
+		// is we'd need to wait on the result of a create to record the instance's
 		// UID, which would require locking *across* the create, which will turn
-		// into a performance bottleneck. We should generate a UID for the pod
+		// into a performance bottleneck. We should generate a UID for the instance
 		// beforehand and store it via ExpectCreations.
 		rsc.expectations.ExpectCreations(igKey, diff)
 		var wg sync.WaitGroup
@@ -489,7 +484,7 @@ func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.
 					err = rsc.instanceControl.CreateInstances(ig.Namespace, &ig.Spec.Template, ig)
 				}
 				if err != nil {
-					// Decrement the expected number of creates because the informer won't observe this pod
+					// Decrement the expected number of creates because the informer won't observe this instance
 					glog.V(2).Infof("Failed creation, decrementing expectations for replica set %q/%q", ig.Namespace, ig.Name)
 					rsc.expectations.CreationObserved(igKey)
 					errCh <- err
@@ -503,19 +498,19 @@ func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.
 		}
 		errCh = make(chan error, diff)
 		glog.V(2).Infof("Too many %q/%q replicas, need %d, deleting %d", ig.Namespace, ig.Name, ig.Spec.Replicas, diff)
-		// No need to sort pods if we are about to delete all of them
+		// No need to sort instances if we are about to delete all of them
 		if ig.Spec.Replicas != 0 {
-			// Sort the pods in the order such that not-ready < ready, unscheduled
-			// < scheduled, and pending < running. This ensures that we delete pods
+			// Sort the instances in the order such that not-ready < ready, unscheduled
+			// < scheduled, and pending < running. This ensures that we delete instances
 			// in the earlier stages whenever possible.
 			sort.Sort(archoncontroller.ActiveInstances(filteredInstances))
 		}
-		// Snapshot the UIDs (ns/name) of the pods we're expecting to see
+		// Snapshot the UIDs (ns/name) of the instances we're expecting to see
 		// deleted, so we know to record their expectations exactly once either
 		// when we see it as an update of the deletion timestamp, or as a delete.
-		// Note that if the labels on a pod/rs change in a way that the pod gets
+		// Note that if the labels on a instance/rs change in a way that the instance gets
 		// orphaned, the rs will only wake up after the expectations have
-		// expired even if other pods are deleted.
+		// expired even if other instances are deleted.
 		deletedInstanceKeys := []string{}
 		for i := 0; i < diff; i++ {
 			deletedInstanceKeys = append(deletedInstanceKeys, archoncontroller.InstanceKey(filteredInstances[i]))
@@ -550,7 +545,7 @@ func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.
 }
 
 // syncReplicaSet will sync the ReplicaSet with the given key if it has had its expectations fulfilled,
-// meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
+// meaning it did not expect to see any more of its instances created or deleted. This function is not meant to be
 // invoked concurrently with the same key.
 func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 	startTime := time.Now()
@@ -569,8 +564,8 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 	}
 	ig := *obj.(*cluster.InstanceGroup)
 
-	// Check the expectations of the ReplicaSet before counting active pods, otherwise a new pod can sneak
-	// in and update the expectations after we've retrieved active pods from the store. If a new pod enters
+	// Check the expectations of the ReplicaSet before counting active instances, otherwise a new instance can sneak
+	// in and update the expectations after we've retrieved active instances from the store. If a new instance enters
 	// the store after we've checked the expectation, the ReplicaSet sync is just deferred till the next
 	// relist.
 	if err != nil {
@@ -585,12 +580,12 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 		return nil
 	}
 
-	// NOTE: filteredPods are pointing to objects from cache - if you need to
+	// NOTE: filteredinstances are pointing to objects from cache - if you need to
 	// modify them, you need to copy it first.
 	// TODO: Do the List and Filter in a single pass, or use an index.
 	var filteredInstances []*cluster.Instance
 	if rsc.garbageCollectorEnabled {
-		// list all pods to include the pods that don't match the rs`s selector
+		// list all instances to include the instances that don't match the rs`s selector
 		// anymore but has the stale controller ref.
 		instances, err := rsc.instanceStore.Instances(ig.Namespace).List(labels.Everything())
 		if err != nil {
@@ -600,9 +595,9 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 		matchesAndControlled, matchesNeedsController, controlledDoesNotMatch := cm.Classify(instances)
 		for _, instance := range matchesNeedsController {
 			err := cm.AdoptInstance(instance)
-			// continue to next pod if adoption fails.
+			// continue to next instance if adoption fails.
 			if err != nil {
-				// If the pod no longer exists, don't even log the error.
+				// If the instance no longer exists, don't even log the error.
 				if !errors.IsNotFound(err) {
 					utilruntime.HandleError(err)
 				}
@@ -611,7 +606,7 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 			}
 		}
 		filteredInstances = matchesAndControlled
-		// remove the controllerRef for the pods that no longer have matching labels
+		// remove the controllerRef for the instances that no longer have matching labels
 		var errlist []error
 		for _, instance := range controlledDoesNotMatch {
 			err := cm.ReleaseInstance(instance)
@@ -621,8 +616,8 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 		}
 		if len(errlist) != 0 {
 			aggregate := utilerrors.NewAggregate(errlist)
-			// push the RS into work queue again. We need to try to free the
-			// pods again otherwise they will stuck with the stale
+			// push the IG into work queue again. We need to try to free the
+			// instances again otherwise they will stuck with the stale
 			// controllerRef.
 			return aggregate
 		}
@@ -641,7 +636,7 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 
 	newStatus := calculateStatus(ig, filteredInstances, manageReplicasErr)
 
-	// Always updates status as pods come up or die.
+	// Always updates status as instances come up or die.
 	if err := updateInstanceGroupStatus(rsc.kubeClient.Archon().InstanceGroups(ig.Namespace), ig, newStatus); err != nil {
 		// Multiple things could lead to this update failing. Requeuing the replica set ensures
 		// Returning an error causes a requeue without forcing a hotloop

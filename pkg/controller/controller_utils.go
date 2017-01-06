@@ -14,18 +14,18 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 )
 
-// Reasons for pod events
+// Reasons for instance events
 const (
 	// FailedCreateInstanceReason is added in an event and in a replica set condition
-	// when a pod for a replica set is failed to be created.
+	// when a instance for a replica set is failed to be created.
 	FailedCreateInstanceReason = "FailedCreate"
-	// SuccessfulCreateInstanceReason is added in an event when a pod for a replica set
+	// SuccessfulCreateInstanceReason is added in an event when a instance for a replica set
 	// is successfully created.
 	SuccessfulCreateInstanceReason = "SuccessfulCreate"
 	// FailedDeleteInstanceReason is added in an event and in a replica set condition
-	// when a pod for a replica set is failed to be deleted.
+	// when a instance for a replica set is failed to be deleted.
 	FailedDeleteInstanceReason = "FailedDelete"
-	// SuccessfulDeleteInstanceReason is added in an event when a pod for a replica set
+	// SuccessfulDeleteInstanceReason is added in an event when a instance for a replica set
 	// is successfully deleted.
 	SuccessfulDeleteInstanceReason = "SuccessfulDelete"
 )
@@ -34,14 +34,14 @@ func InstanceKey(instance *cluster.Instance) string {
 	return fmt.Sprintf("%v/%v", instance.Namespace, instance.Name)
 }
 
-// FilterActivePods returns pods that have not terminated.
+// FilterActiveInstances returns instances that have not terminated.
 func FilterActiveInstances(instances []*cluster.Instance) []*cluster.Instance {
 	var result []*cluster.Instance
 	for _, p := range instances {
 		if IsInstanceActive(p) {
 			result = append(result, p)
 		} else {
-			glog.V(4).Infof("Ignoring inactive pod %v/%v in state %v, deletion time %v",
+			glog.V(4).Infof("Ignoring inactive instance %v/%v in state %v, deletion time %v",
 				p.Namespace, p.Name, p.Status.Phase, p.DeletionTimestamp)
 		}
 	}
@@ -53,7 +53,7 @@ func IsInstanceActive(p *cluster.Instance) bool {
 		p.DeletionTimestamp == nil
 }
 
-// ActiveInstances type allows custom sorting of pods so a controller can pick the best ones to delete.
+// ActiveInstances type allows custom sorting of instances so a controller can pick the best ones to delete.
 type ActiveInstances []*cluster.Instance
 
 func (s ActiveInstances) Len() int      { return len(s) }
@@ -66,11 +66,11 @@ func (s ActiveInstances) Less(i, j int) bool {
 		return m[s[i].Status.Phase] < m[s[j].Status.Phase]
 	}
 	// 3. Not ready < ready
-	// If only one of the pods is not ready, the not ready one is smaller
+	// If only one of the instances is not ready, the not ready one is smaller
 	if cluster.IsInstanceReady(s[i]) != cluster.IsInstanceReady(s[j]) {
 		return !cluster.IsInstanceReady(s[i])
 	}
-	// 6. Empty creation time pods < newer pods < older pods
+	// 6. Empty creation time instances < newer instances < older instances
 	if !s[i].CreationTimestamp.Equal(s[j].CreationTimestamp) {
 		return afterOrZero(s[i].CreationTimestamp, s[j].CreationTimestamp)
 	}
@@ -86,18 +86,18 @@ func afterOrZero(t1, t2 unversioned.Time) bool {
 	return t1.After(t2.Time)
 }
 
-// InstanceControlInterface is an interface that knows how to add or delete pods
+// InstanceControlInterface is an interface that knows how to add or delete instances
 // created as an interface to allow testing.
 type InstanceControlInterface interface {
-	// CreateInstances creates new pods according to the spec.
+	// CreateInstances creates new instances according to the spec.
 	CreateInstances(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object) error
-	// CreateInstancesOnNode creates a new pod according to the spec on the specified node.
+	// CreateInstancesOnNode creates a new instance according to the spec on the specified node.
 	CreateInstancesOnNode(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object) error
-	// CreateInstancesWithControllerRef creates new pods according to the spec, and sets object as the pod's controller.
+	// CreateInstancesWithControllerRef creates new instances according to the spec, and sets object as the instance's controller.
 	CreateInstancesWithControllerRef(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) error
-	// DeleteInstance deletes the pod identified by podID.
-	DeleteInstance(namespace string, podID string, object runtime.Object) error
-	// PatchInstance patches the pod.
+	// DeleteInstance deletes the instance identified by instanceID.
+	DeleteInstance(namespace string, instanceID string, object runtime.Object) error
+	// PatchInstance patches the instance.
 	PatchInstance(namespace, name string, data []byte) error
 }
 
@@ -149,7 +149,7 @@ func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object ru
 }
 
 func getSecretName(controllerName, alias string) string {
-	// use the dash (if the name isn't too long) to make the pod name a bit prettier
+	// use the dash (if the name isn't too long) to make the instance name a bit prettier
 	name := fmt.Sprintf("%s-%s", controllerName, alias)
 	if len(validation.NameIsDNSSubdomain(name, false)) != 0 {
 		name = controllerName
@@ -158,7 +158,7 @@ func getSecretName(controllerName, alias string) string {
 }
 
 func getInstancesPrefix(controllerName string) string {
-	// use the dash (if the name isn't too long) to make the pod name a bit prettier
+	// use the dash (if the name isn't too long) to make the instance name a bit prettier
 	prefix := fmt.Sprintf("%s-", controllerName)
 	if len(validation.NameIsDNSSubdomain(prefix, true)) != 0 {
 		prefix = controllerName
@@ -224,7 +224,7 @@ func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObjec
 		instance.OwnerReferences = append(instance.OwnerReferences, *controllerRef)
 	}
 	if err := api.Scheme.Convert(&template.Spec, &instance.Spec, nil); err != nil {
-		return nil, fmt.Errorf("unable to convert pod template: %v", err)
+		return nil, fmt.Errorf("unable to convert instance template: %v", err)
 	}
 	return instance, nil
 }
@@ -299,8 +299,8 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		if err != nil {
 			glog.Errorf("parentObject does not have ObjectMeta, %v", err)
 		} else {
-			glog.V(4).Infof("Controller %v created pod %v", accessor.GetName(), newInstance.Name)
-			r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created pod: %v", newInstance.Name)
+			glog.V(4).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
+			r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created instance: %v", newInstance.Name)
 		}
 		secrets, err := r.createSecrets(namespace, template, newInstance, nil)
 		if err != nil {
@@ -320,17 +320,17 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 	return nil
 }
 
-func (r RealInstanceControl) DeleteInstance(namespace string, podID string, object runtime.Object) error {
+func (r RealInstanceControl) DeleteInstance(namespace string, instanceID string, object runtime.Object) error {
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return fmt.Errorf("object does not have ObjectMeta, %v", err)
 	}
-	glog.V(2).Infof("Controller %v deleting pod %v/%v", accessor.GetName(), namespace, podID)
-	if err := r.KubeClient.Archon().Instances(namespace).Delete(podID); err != nil {
+	glog.V(2).Infof("Controller %v deleting instance %v/%v", accessor.GetName(), namespace, instanceID)
+	if err := r.KubeClient.Archon().Instances(namespace).Delete(instanceID); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedDeleteInstanceReason, "Error deleting: %v", err)
-		return fmt.Errorf("unable to delete pods: %v", err)
+		return fmt.Errorf("unable to delete instances: %v", err)
 	} else {
-		r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulDeleteInstanceReason, "Deleted pod: %v", podID)
+		r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulDeleteInstanceReason, "Deleted instance: %v", instanceID)
 	}
 	return nil
 }

@@ -1,3 +1,18 @@
+/*
+Copyright 2016 The Kubernetes Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// This file is modified from servicecontroller.go in original kubernetes source tree
+
 package network
 
 import (
@@ -32,8 +47,6 @@ const (
 	networkSyncPeriod = 30 * time.Second
 
 	// How long to wait before retrying the processing of a network change.
-	// If this changes, the sleep in hack/jenkins/e2e.sh before downing a cluster
-	// should be changed appropriately.
 	minRetryDelay = 5 * time.Second
 	maxRetryDelay = 300 * time.Second
 
@@ -75,8 +88,10 @@ type NetworkController struct {
 	workingQueue workqueue.DelayingInterface
 }
 
-// New returns a new network controller to keep cloud provider network resources
-// (like load balancers) in sync with the registry.
+// New returns a new network controller to keep cloud provider network resource
+// in sync with registry
+// TODO: Currently only registry-to-cloud sync is performed. Is it necessary to
+// perform the opposite sync? is network subject to change after creation?
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string, namespace string) (*NetworkController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
@@ -110,6 +125,8 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: s.enqueueNetwork,
 			UpdateFunc: func(old, cur interface{}) {
+				glog.Warningf("Network changes in registry are ignored")
+				// TODO?
 				// oldSvc, ok1 := old.(*cluster.network)
 				// curSvc, ok2 := cur.(*cluster.network)
 				// if ok1 && ok2 && s.needsUpdate(oldSvc, curSvc) {
@@ -136,13 +153,9 @@ func (s *NetworkController) enqueueNetwork(obj interface{}) {
 	s.workingQueue.Add(key)
 }
 
-// Run starts a background goroutine that watches for changes to networks that
-// have (or had) LoadBalancers=true and ensures that they have
-// load balancers created and deleted appropriately.
-// networkSyncPeriod controls how often we check the cluster's networks to
-// ensure that the correct load balancers exist.
-// nodeSyncPeriod controls how often we check the cluster's nodes to determine
-// if load balancers need to be updated to point to a new set.
+// Run starts a background goroutine that watches for changes of networks and
+// ensures they are created/deleted properly
+// networkSyncPeriod controls how often we resync our store with cluster registry
 //
 // It's an error to call Run() more than once for a given networkController
 // object.
@@ -174,7 +187,7 @@ func (s *NetworkController) worker() {
 
 func (s *NetworkController) init() error {
 	if s.cloud == nil {
-		return fmt.Errorf("WARNING: no cloud provider provided, networks of type LoadBalancer will fail.")
+		return fmt.Errorf("WARNING: no cloud provider provided, networks sync will fail.")
 	}
 
 	archon, ok := s.cloud.Archon()
@@ -229,9 +242,6 @@ func (s *NetworkController) createNetworkIfNeeded(key string, network *cluster.N
 
 	glog.V(2).Infof("Ensuring network %s", key)
 
-	// TODO: We could do a dry-run here if wanted to avoid the spurious cloud-calls & events when we restart
-
-	// The load balancer doesn't exist yet, so create it.
 	s.eventRecorder.Event(network, api.EventTypeNormal, "CreatingNetwork", "Creating network")
 	err := s.createNetwork(network)
 	if err != nil {
@@ -240,7 +250,6 @@ func (s *NetworkController) createNetworkIfNeeded(key string, network *cluster.N
 	s.eventRecorder.Event(network, api.EventTypeNormal, "CreatedNetwork", "Created network")
 
 	// Write the state if changed
-	// TODO: Be careful here ... what if there were other changes to the network?
 	if !reflect.DeepEqual(previousState, network.Status) || !reflect.DeepEqual(previousAnnotations, network.Annotations) {
 		if err := s.persistUpdate(network); err != nil {
 			return fmt.Errorf("Failed to persist updated status to apiserver, even after retries. Giving up: %v", err), notRetryable
@@ -267,15 +276,14 @@ func (s *NetworkController) persistUpdate(network *cluster.Network) error {
 				network.Namespace, network.Name, err)
 			return nil
 		}
-		// TODO: Try to resolve the conflict if the change was unrelated to load
-		// balancer status. For now, just rely on the fact that we'll
-		// also process the update that caused the resource version to change.
+		// TODO: Try to resolve the conflict if the change was unrelated to network
+		// status.
 		if errors.IsConflict(err) {
 			glog.V(4).Infof("Not persisting update to network '%s/%s' that has been changed since we received it: %v",
 				network.Namespace, network.Name, err)
 			return nil
 		}
-		glog.Warningf("Failed to persist updated NetworkStatus to network '%s/%s' after creating its load balancer: %v",
+		glog.Warningf("Failed to persist updated NetworkStatus to network '%s/%s' after creating: %v",
 			network.Namespace, network.Name, err)
 		time.Sleep(clientRetryInterval)
 	}
@@ -296,8 +304,6 @@ func (s *NetworkController) createNetwork(network *cluster.Network) error {
 	return nil
 }
 
-// ListKeys implements the interface required by DeltaFIFO to list the keys we
-// already know about.
 func (s *networkCache) ListKeys() []string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -308,7 +314,6 @@ func (s *networkCache) ListKeys() []string {
 	return keys
 }
 
-// GetByKey returns the value stored in the networkMap under the given key
 func (s *networkCache) GetByKey(key string) (interface{}, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -318,8 +323,6 @@ func (s *networkCache) GetByKey(key string) (interface{}, bool, error) {
 	return nil, false, nil
 }
 
-// ListKeys implements the interface required by DeltaFIFO to list the keys we
-// already know about.
 func (s *networkCache) allNetworks() []*cluster.Network {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -382,9 +385,7 @@ func (s *cachedNetwork) resetRetryDelay() {
 	s.lastRetryDelay = time.Duration(0)
 }
 
-// syncnetwork will sync the network with the given key if it has had its expectations fulfilled,
-// meaning it did not expect to see any more of its pods created or deleted. This function is not meant to be
-// invoked concurrently with the same key.
+// syncNetwork will sync the network with the given key if it has had its expectations fulfilled,
 func (s *NetworkController) syncNetwork(key string) error {
 	startTime := time.Now()
 	var cachedNetwork *cachedNetwork
@@ -400,7 +401,6 @@ func (s *NetworkController) syncNetwork(key string) error {
 		return err
 	}
 	if !exists {
-		// network absence in store means watcher caught the deletion, ensure LB info is cleaned
 		glog.Infof("network has been deleted %v", key)
 		err, retryDelay = s.processNetworkDeletion(key)
 	} else {
