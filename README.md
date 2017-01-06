@@ -36,6 +36,7 @@ define resources in your cluster by creating yaml files using our customized
 resource types. Then manage its lifecycle using `kubectl`. Until now, we
 support these resources:
 
+  - User
   - Network
   - InstanceGroup
   - Instance
@@ -45,8 +46,8 @@ create and manage its status based on your definition.
 
 You might find the idea that bootstrapping a new Kubernetes cluster with an existing
 one too complex. But after your cluster got initialized, you can move all the
-definitions and controllers into the new cluster and let's it manage itself. It will
-be very convinient that you can manage both applications running in your cluster
+definitions and controllers into the new cluster and let it manage itself. It will
+be very convenient that you can manage both applications running in your cluster
 and the cluster itself with just the `kubectl` cli tool.
 
 Supported platforms

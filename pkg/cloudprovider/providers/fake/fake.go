@@ -63,7 +63,7 @@ func (f *FakeCloud) AddNetworkAnnotation(clustername string, instance *cluster.I
 }
 
 func (f *FakeCloud) EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error) {
-	return nil, nil
+	return &cluster.NetworkStatus{Phase: cluster.NetworkRunning}, nil
 }
 
 func (f *FakeCloud) EnsureNetworkDeleted(clusterName string, network *cluster.Network) (err error) {
