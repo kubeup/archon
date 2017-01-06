@@ -14,7 +14,7 @@ spec:
         archon.kubeup.com/preallocate-public-ip: "true"
         archon.kubeup.com/preallocate-private-ip: "true"
     spec:
-      networkName: k8snet
+      networkName: k8s-net
       files:
       - name: unit-etcd2
         path: "/coreos/unit/etcd2"
@@ -249,29 +249,7 @@ spec:
           admin-password: kubeup
           docker-subnet: 10.2.1.1/24
           ca-cert: |-
-            -----BEGIN CERTIFICATE-----
-            MIID3jCCAsagAwIBAgIUOg3pudg6vctac+mbaaR6p1aeNJkwDQYJKoZIhvcNAQEL
-            BQAwdTELMAkGA1UEBhMCVVMxFjAUBgNVBAgTDVNhbiBGcmFuY2lzY28xCzAJBgNV
-            BAcTAkNBMRgwFgYDVQQKEw9NeSBDb21wYW55IE5hbWUxEzARBgNVBAsTCk9yZyBV
-            bml0IDIxEjAQBgNVBAMTCU15IG93biBDQTAeFw0xNjEyMjgwNjA0MDBaFw0yMTEy
-            MjcwNjA0MDBaMHUxCzAJBgNVBAYTAlVTMRYwFAYDVQQIEw1TYW4gRnJhbmNpc2Nv
-            MQswCQYDVQQHEwJDQTEYMBYGA1UEChMPTXkgQ29tcGFueSBOYW1lMRMwEQYDVQQL
-            EwpPcmcgVW5pdCAyMRIwEAYDVQQDEwlNeSBvd24gQ0EwggEiMA0GCSqGSIb3DQEB
-            AQUAA4IBDwAwggEKAoIBAQCzJly3O+JOouLSY9kMnRondqXI2wmMiBK8Z25/yxg1
-            QiSlqFfyzg9IGl9GCq30TWFEav1d0YK2s8NgTKEbszB5UyvVMaz/6wFvqfXmQCNV
-            S6OppORwwBSNx9HRDx0JnS+KJdb7VNCC/Lge1cnY0i3/v5NHyq6u5fbRQVRvptwC
-            NDAe5Y1+Z+8yvNgiyXEKOLc1IunqCmcVwJr9xEu1ZY31BZ8pIbn6RrlJUtGKizw9
-            EQTweZoxa/BNCmUneaAx244endeHM0R0yd2u/yfDUJwDc5OrZQudpXt4Ne0XUlA8
-            TFWa5pYzd6lb4/0ixRMBGOpet2Wq4WkiXocD7n8Zo4CpAgMBAAGjZjBkMA4GA1Ud
-            DwEB/wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgECMB0GA1UdDgQWBBTrE/RsC22P
-            DHZ2bvr/0agXF8r29zAfBgNVHSMEGDAWgBTrE/RsC22PDHZ2bvr/0agXF8r29zAN
-            BgkqhkiG9w0BAQsFAAOCAQEAg4fr+G4hqlpxp/UfMkJrx6tXWvdQHtvD79VruYYb
-            AJPfe+dRre+Y/fXB5F77a80dXrEIxrN82JotTzswvfZKLhUb0G9dRWJybh0RTCWn
-            9ZB9bHS8p+sPTDgjMDzUcUTumWr3LKU4zHedeARslj+/YrEgY+/hKjuM3bTAZNOq
-            n/mGmXmCJDiy79G1fHUdXGGC0jDEcNhUSGcRa1jfxcAOodK4X3mkX1m3Y3289/ud
-            sGdnBZhJ97QLwAiECOEdBILfk3HzghLJ4FXX4PGJCEl4W40eQbiBMHQjueDQvET7
-            6sY9xesWyBfljv1ihGpPVCi4ArTDg8ap5PpAy68gVRqkUg==
-            -----END CERTIFICATE-----
+            PUT YOUR CA CERTIFICATE HERE
       users:
       - name: core
     secrets:

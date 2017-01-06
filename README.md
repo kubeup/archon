@@ -43,11 +43,23 @@ support these resources:
 The `archon-controller` which you should launch beforehand in the cluster will
 create and manage its status based on your definition.
 
+You might find the idea that bootstrapping a new Kubernetes cluster with an existing
+one too complex. But after your cluster got initialized, you can move all the
+definitions and controllers into the new cluster and let's it manage itself. It will
+be very convinient that you can manage both applications running in your cluster
+and the cluster itself with just the `kubectl` cli tool.
+
 Supported platforms
 -------------------
 
 At the moment, we only support [AWS] and [CoreOS]. More cloud providers and operating
 systems support will be added when the core is stable.
+
+Installation
+------------
+
+See the [installation instructions].
+
 
 Example
 -------
@@ -62,3 +74,4 @@ Kubernetes cluster with Archon. More examples are on their way.
 [CoreOS]: https://coreos.com/os/docs/latest/
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
+[installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
