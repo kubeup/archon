@@ -15,7 +15,7 @@ package userdata
 
 import (
 	"github.com/coreos/yaml"
-	"kubeup.com/archon/cloudinit"
+	"kubeup.com/archon/pkg/cloudinit"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/render"
 	"strings"
