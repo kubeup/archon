@@ -20,6 +20,12 @@ import (
 
 const AnnotationPrefix = "archon.kubeup.com/"
 
+// LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+type LocalObjectReference struct {
+	//TODO: Add other useful fields.  apiVersion, kind, uid?
+	Name string `json:"name,omitempty"`
+}
+
 type ConfigSpec struct {
 	Name string            `json:"name,omitempty"`
 	Data map[string]string `json:"data,omitempty"`
@@ -85,7 +91,7 @@ type InstanceGroup struct {
 }
 
 type InstanceGroupSpec struct {
-	Replicas int32
+	Replicas int32 `json:"replicas,omitempty"`
 
 	// Minimum number of seconds for which a newly created instance should be ready
 	// without any of its container crashing, for it to be considered available.
@@ -191,14 +197,14 @@ type Instance struct {
 }
 
 type InstanceSpec struct {
-	Image        string                     `json:"image,omitempty"`
-	InstanceType string                     `json:"instanceType,omitempty"`
-	NetworkName  string                     `json:"networkName,omitempty"`
-	Files        []FileSpec                 `json:"files,omitempty"`
-	Secrets      []api.LocalObjectReference `json:"secrets,omitempty"`
-	Configs      []ConfigSpec               `json:"configs,omitempty"`
-	Users        []api.LocalObjectReference `json:"users,omitempty"`
-	Hostname     string                     `json:"hostname,omitempty"`
+	Image        string                 `json:"image,omitempty"`
+	InstanceType string                 `json:"instanceType,omitempty"`
+	NetworkName  string                 `json:"networkName,omitempty"`
+	Files        []FileSpec             `json:"files,omitempty"`
+	Secrets      []LocalObjectReference `json:"secrets,omitempty"`
+	Configs      []ConfigSpec           `json:"configs,omitempty"`
+	Users        []LocalObjectReference `json:"users,omitempty"`
+	Hostname     string                 `json:"hostname,omitempty"`
 }
 
 type InstanceStatus struct {

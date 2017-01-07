@@ -308,7 +308,7 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		}
 		if len(secrets) > 0 {
 			for _, s := range secrets {
-				newInstance.Spec.Secrets = append(newInstance.Spec.Secrets, api.LocalObjectReference{Name: s.Name})
+				newInstance.Spec.Secrets = append(newInstance.Spec.Secrets, cluster.LocalObjectReference{Name: s.Name})
 			}
 			newInstance.Status.Phase = cluster.InstancePending
 			_, err = r.KubeClient.Archon().Instances(namespace).Update(newInstance)

@@ -57,12 +57,19 @@ First install it with `go get`:
 go get -u kubeup.com/archon/cmd/archon-controller
 ```
 
+Create `cloud-config.conf` with following content:
+
+```
+[global]
+zone = ap-northeast-1b
+```
+
 Then config AWS credentials and run it:
 
 ```
 export AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
 export AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET
-archon-controller --kubeconfig ~/.kube/config --cloud-provider aws --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
+archon-controller --kubeconfig ~/.kube/config --cloud-config cloud-config.conf --cloud-provider aws --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
 ```
 
 Deploy to Kubernetes
@@ -70,6 +77,12 @@ Deploy to Kubernetes
 
 Before you begin. You should use roles and policies to protect secrets making them
 only available to sysadmins.
+
+Create a `configmap` containing the `cloud-config.conf` file:
+
+```
+kubectl create configmap cloud-config --from-file=cloud-config.conf --namespace kube-system
+```
 
 Create a `secret` containing the CA certificates:
 
@@ -103,10 +116,10 @@ spec:
         image: kubeup/archon-controller
         command:
         - "/archon-controller"
-        - "--master"
-        - kubernetes.default.svc
+        - "--cloud-config"
+        - "/etc/cloud-config/cloud-config.conf"
         - "--cloud-provider"
-        - aws
+        - "aws"
         - "--cluster-signing-cert-file"
         - "/etc/ca/tls.crt"
         - "--cluster-signing-key-file"
@@ -125,10 +138,15 @@ spec:
         volumeMounts:
         - mountPath: "/etc/ca"
           name: archon-ca
+        - mountPath: "/etc/cloud-config"
+          name: cloud-config
       volumes:
       - name: archon-ca
         secret:
           secretName: archon-ca
+      - name: cloud-config
+        configMap:
+          name: cloud-config
 ```
 
 And create the deployment with `kubectl create -f archon-controller.yaml --namespace kube-system`
