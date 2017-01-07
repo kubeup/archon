@@ -57,13 +57,6 @@ First install it with `go get`:
 go get -u kubeup.com/archon/cmd/archon-controller
 ```
 
-Create `cloud-config.conf` with following content:
-
-```
-[global]
-zone = ap-northeast-1b
-```
-
 Then config AWS credentials and run it:
 
 ```
@@ -79,12 +72,6 @@ Deploy to Kubernetes
 Before you begin. You should use roles and policies to protect secrets making them
 only available to sysadmins.
 
-Create a `configmap` containing the `cloud-config.conf` file:
-
-```
-kubectl create configmap cloud-config --from-file=cloud-config.conf --namespace kube-system
-```
-
 Create a `secret` containing the CA certificates:
 
 ```
@@ -94,7 +81,7 @@ kubectl create secret tls archon-ca --cert=ca.pem --key=ca-key.pem --namespace k
 Create another `secret` containing the AWS credentials:
 
 ```
-kubectl create secret generic archon-aws --from-literal=AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID --from-literal=AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET --namespace=kube-system
+kubectl create secret generic archon-aws --from-literal=AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID --from-literal=AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET --from-literal=AWS_ZONE=ap-northeast-1b --namespace=kube-system
 ```
 
 Save the following configuration as `archon-controller.yaml`:
@@ -117,8 +104,6 @@ spec:
         image: kubeup/archon-controller
         command:
         - "/archon-controller"
-        - "--cloud-config"
-        - "/etc/cloud-config/cloud-config.conf"
         - "--cloud-provider"
         - "aws"
         - "--cluster-signing-cert-file"
@@ -136,18 +121,18 @@ spec:
             secretKeyRef:
               name: archon-aws
               key: AWS_SECRET_ACCESS_KEY
+        - name: AWS_ZONE
+          valueFrom:
+            secretKeyRef:
+              name: archon-aws
+              key: AWS_ZONE
         volumeMounts:
         - mountPath: "/etc/ca"
           name: archon-ca
-        - mountPath: "/etc/cloud-config"
-          name: cloud-config
       volumes:
       - name: archon-ca
         secret:
           secretName: archon-ca
-      - name: cloud-config
-        configMap:
-          name: cloud-config
 ```
 
 And create the deployment with `kubectl create -f archon-controller.yaml --namespace kube-system`

@@ -858,7 +858,7 @@ func (x *User) CodecEncodeSelf(e *codec1978.Encoder) {
 				yy65.CodecEncodeSelf(e)
 			} else {
 				z.EncSendContainerState(codecSelfer_containerMapKey1234)
-				r.EncodeString(codecSelferC_UTF81234, string("Spec"))
+				r.EncodeString(codecSelferC_UTF81234, string("spec"))
 				z.EncSendContainerState(codecSelfer_containerMapValue1234)
 				yy66 := &x.Spec
 				yy66.CodecEncodeSelf(e)
@@ -943,7 +943,7 @@ func (x *User) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 				yyv72 := &x.ObjectMeta
 				yyv72.CodecDecodeSelf(d)
 			}
-		case "Spec":
+		case "spec":
 			if r.TryDecodeAsNil() {
 				x.Spec = UserSpec{}
 			} else {

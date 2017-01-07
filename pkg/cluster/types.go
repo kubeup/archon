@@ -40,7 +40,7 @@ type UserSpec struct {
 type User struct {
 	unversioned.TypeMeta `json:",inline"`
 	api.ObjectMeta       `json:"metadata"`
-	Spec                 UserSpec
+	Spec                 UserSpec `json:"spec"`
 }
 
 type UserList struct {
