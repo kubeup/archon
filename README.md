@@ -14,8 +14,8 @@ WARNING: Archon is currently in alpha status.
 Why Archon
 ----------
 
-We've already have tools like [kubeadm] and [kops]. Why do we need another tool
-for similar job? Here are bunch of reasons:
+We already have tools like [kubeadm] and [kops]. Why do we need another tool
+for a similar job? Here are bunch of reasons:
 
   1. Tools exist today are mainly imperative. Declarative tools will help
   users share their experience by publish their own cluster definitions.

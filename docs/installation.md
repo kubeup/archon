@@ -69,7 +69,8 @@ Then config AWS credentials and run it:
 ```
 export AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
 export AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET
-archon-controller --kubeconfig ~/.kube/config --cloud-config cloud-config.conf --cloud-provider aws --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
+export AWS_ZONE=YOUR_CLUSTER_ZONE
+archon-controller --kubeconfig ~/.kube/config --cloud-provider aws --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
 ```
 
 Deploy to Kubernetes
