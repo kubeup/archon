@@ -81,7 +81,7 @@ kubectl create secret tls archon-ca --cert=ca.pem --key=ca-key.pem --namespace k
 Create another `secret` containing the AWS credentials:
 
 ```
-kubectl create secret generic archon-aws --from-literal=AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID --from-literal=AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET --from-literal=AWS_ZONE=ap-northeast-1b --namespace=kube-system
+kubectl create secret generic archon-aws --from-literal=AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID --from-literal=AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET --from-literal=AWS_ZONE=YOUR_CLUSTER_ZONE --namespace=kube-system
 ```
 
 Save the following configuration as `archon-controller.yaml`:
