@@ -1,6 +1,8 @@
 Archon
 ======
 
+[![CircleCI](https://circleci.com/gh/kubeup/archon/tree/master.svg?style=shield)][circleci]
+
 Archon is an open source tool for cluster creation and daily operations.
 It is primarily targeted for Kubernetes clusters but extending to other
 distributed clusters should be easy due to its declarative nature.
@@ -76,3 +78,4 @@ Kubernetes cluster with Archon. More examples are on their way.
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
 [installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
+[circleci]: https://circleci.com/gh/kubeup/archon
