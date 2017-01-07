@@ -491,11 +491,14 @@ func (x *UserSpec) CodecEncodeSelf(e *codec1978.Encoder) {
 			var yyq31 [3]bool
 			_, _, _ = yysep31, yyq31, yy2arr31
 			const yyr31 bool = false
+			yyq31[0] = x.Name != ""
+			yyq31[1] = x.PasswordHash != ""
+			yyq31[2] = len(x.SSHAuthorizedKeys) != 0
 			var yynn31 int
 			if yyr31 || yy2arr31 {
 				r.EncodeArrayStart(3)
 			} else {
-				yynn31 = 3
+				yynn31 = 0
 				for _, b := range yyq31 {
 					if b {
 						yynn31++
@@ -506,66 +509,84 @@ func (x *UserSpec) CodecEncodeSelf(e *codec1978.Encoder) {
 			}
 			if yyr31 || yy2arr31 {
 				z.EncSendContainerState(codecSelfer_containerArrayElem1234)
-				yym33 := z.EncBinary()
-				_ = yym33
-				if false {
-				} else {
-					r.EncodeString(codecSelferC_UTF81234, string(x.Name))
-				}
-			} else {
-				z.EncSendContainerState(codecSelfer_containerMapKey1234)
-				r.EncodeString(codecSelferC_UTF81234, string("Name"))
-				z.EncSendContainerState(codecSelfer_containerMapValue1234)
-				yym34 := z.EncBinary()
-				_ = yym34
-				if false {
-				} else {
-					r.EncodeString(codecSelferC_UTF81234, string(x.Name))
-				}
-			}
-			if yyr31 || yy2arr31 {
-				z.EncSendContainerState(codecSelfer_containerArrayElem1234)
-				yym36 := z.EncBinary()
-				_ = yym36
-				if false {
-				} else {
-					r.EncodeString(codecSelferC_UTF81234, string(x.PasswordHash))
-				}
-			} else {
-				z.EncSendContainerState(codecSelfer_containerMapKey1234)
-				r.EncodeString(codecSelferC_UTF81234, string("PasswordHash"))
-				z.EncSendContainerState(codecSelfer_containerMapValue1234)
-				yym37 := z.EncBinary()
-				_ = yym37
-				if false {
-				} else {
-					r.EncodeString(codecSelferC_UTF81234, string(x.PasswordHash))
-				}
-			}
-			if yyr31 || yy2arr31 {
-				z.EncSendContainerState(codecSelfer_containerArrayElem1234)
-				if x.SSHAuthorizedKeys == nil {
-					r.EncodeNil()
-				} else {
-					yym39 := z.EncBinary()
-					_ = yym39
+				if yyq31[0] {
+					yym33 := z.EncBinary()
+					_ = yym33
 					if false {
 					} else {
-						z.F.EncSliceStringV(x.SSHAuthorizedKeys, false, e)
+						r.EncodeString(codecSelferC_UTF81234, string(x.Name))
+					}
+				} else {
+					r.EncodeString(codecSelferC_UTF81234, "")
+				}
+			} else {
+				if yyq31[0] {
+					z.EncSendContainerState(codecSelfer_containerMapKey1234)
+					r.EncodeString(codecSelferC_UTF81234, string("name"))
+					z.EncSendContainerState(codecSelfer_containerMapValue1234)
+					yym34 := z.EncBinary()
+					_ = yym34
+					if false {
+					} else {
+						r.EncodeString(codecSelferC_UTF81234, string(x.Name))
 					}
 				}
-			} else {
-				z.EncSendContainerState(codecSelfer_containerMapKey1234)
-				r.EncodeString(codecSelferC_UTF81234, string("SSHAuthorizedKeys"))
-				z.EncSendContainerState(codecSelfer_containerMapValue1234)
-				if x.SSHAuthorizedKeys == nil {
-					r.EncodeNil()
-				} else {
-					yym40 := z.EncBinary()
-					_ = yym40
+			}
+			if yyr31 || yy2arr31 {
+				z.EncSendContainerState(codecSelfer_containerArrayElem1234)
+				if yyq31[1] {
+					yym36 := z.EncBinary()
+					_ = yym36
 					if false {
 					} else {
-						z.F.EncSliceStringV(x.SSHAuthorizedKeys, false, e)
+						r.EncodeString(codecSelferC_UTF81234, string(x.PasswordHash))
+					}
+				} else {
+					r.EncodeString(codecSelferC_UTF81234, "")
+				}
+			} else {
+				if yyq31[1] {
+					z.EncSendContainerState(codecSelfer_containerMapKey1234)
+					r.EncodeString(codecSelferC_UTF81234, string("passwordHash"))
+					z.EncSendContainerState(codecSelfer_containerMapValue1234)
+					yym37 := z.EncBinary()
+					_ = yym37
+					if false {
+					} else {
+						r.EncodeString(codecSelferC_UTF81234, string(x.PasswordHash))
+					}
+				}
+			}
+			if yyr31 || yy2arr31 {
+				z.EncSendContainerState(codecSelfer_containerArrayElem1234)
+				if yyq31[2] {
+					if x.SSHAuthorizedKeys == nil {
+						r.EncodeNil()
+					} else {
+						yym39 := z.EncBinary()
+						_ = yym39
+						if false {
+						} else {
+							z.F.EncSliceStringV(x.SSHAuthorizedKeys, false, e)
+						}
+					}
+				} else {
+					r.EncodeNil()
+				}
+			} else {
+				if yyq31[2] {
+					z.EncSendContainerState(codecSelfer_containerMapKey1234)
+					r.EncodeString(codecSelferC_UTF81234, string("sshAuthorizedKeys"))
+					z.EncSendContainerState(codecSelfer_containerMapValue1234)
+					if x.SSHAuthorizedKeys == nil {
+						r.EncodeNil()
+					} else {
+						yym40 := z.EncBinary()
+						_ = yym40
+						if false {
+						} else {
+							z.F.EncSliceStringV(x.SSHAuthorizedKeys, false, e)
+						}
 					}
 				}
 			}
@@ -630,19 +651,19 @@ func (x *UserSpec) codecDecodeSelfFromMap(l int, d *codec1978.Decoder) {
 		yys43 := string(yys43Slc)
 		z.DecSendContainerState(codecSelfer_containerMapValue1234)
 		switch yys43 {
-		case "Name":
+		case "name":
 			if r.TryDecodeAsNil() {
 				x.Name = ""
 			} else {
 				x.Name = string(r.DecodeString())
 			}
-		case "PasswordHash":
+		case "passwordHash":
 			if r.TryDecodeAsNil() {
 				x.PasswordHash = ""
 			} else {
 				x.PasswordHash = string(r.DecodeString())
 			}
-		case "SSHAuthorizedKeys":
+		case "sshAuthorizedKeys":
 			if r.TryDecodeAsNil() {
 				x.SSHAuthorizedKeys = nil
 			} else {

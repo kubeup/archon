@@ -32,9 +32,9 @@ type ConfigSpec struct {
 }
 
 type UserSpec struct {
-	Name              string   `yaml:"name"`
-	PasswordHash      string   `yaml:"passwd"`
-	SSHAuthorizedKeys []string `yaml:"ssh_authorized_keys"`
+	Name              string   `json:"name,omitempty"`
+	PasswordHash      string   `json:"passwordHash,omitempty"`
+	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
 }
 
 type User struct {
