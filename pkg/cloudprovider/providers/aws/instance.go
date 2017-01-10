@@ -25,6 +25,11 @@ import (
 	"kubeup.com/archon/pkg/util"
 )
 
+type InstanceOptions struct {
+	// AWS use instance profile to grant permissions to ec2 instances.
+	InstanceProfile string `k8s:"instance-profile"`
+}
+
 var ErrorNotFound = fmt.Errorf("Instance is not found")
 
 var StateMap = map[string]cluster.InstancePhase{
@@ -200,6 +205,13 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		return
 	}
 
+	awsoptions := InstanceOptions{}
+	err = util.MapToStruct(instance.Annotations, &awsoptions, AWSAnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get aws instance options: %s", err.Error())
+		return
+	}
+
 	eip := EIP{}
 	pip := PrivateIP{}
 	nif := ""
@@ -308,6 +320,12 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 			AvailabilityZone: aws.String(networkSpec.Zone),
 		},
 		NetworkInterfaces: ifSpecs,
+	}
+
+	if awsoptions.InstanceProfile != "" {
+		params.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
+			Arn: aws.String(awsoptions.InstanceProfile),
+		}
 	}
 
 	r, err := p.ec2.RunInstances(params)
