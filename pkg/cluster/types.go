@@ -208,12 +208,13 @@ type InstanceSpec struct {
 }
 
 type InstanceStatus struct {
-	Phase             InstancePhase       `json:"phase,omitempty"`
-	Conditions        []InstanceCondition `json:"conditions,omitempty"`
-	PrivateIP         string              `json:"privateIP,omitempty"`
-	PublicIP          string              `json:"publicIP,omitempty"`
-	InstanceID        string              `json:"instanceID,omitempty"`
-	CreationTimestamp unversioned.Time    `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
+	Phase      InstancePhase       `json:"phase,omitempty"`
+	Conditions []InstanceCondition `json:"conditions,omitempty"`
+	// TODO: allow multiple ips
+	PrivateIP         string           `json:"privateIP,omitempty"`
+	PublicIP          string           `json:"publicIP,omitempty"`
+	InstanceID        string           `json:"instanceID,omitempty"`
+	CreationTimestamp unversioned.Time `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
 }
 
 type InstancePhase string

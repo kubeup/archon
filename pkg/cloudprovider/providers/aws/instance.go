@@ -286,9 +286,9 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		subnetID = aws.String(awsnetwork.Subnet)
 	}
 
-	awsInstanceType := "t2.small"
-	if instance.Spec.InstanceType != "" {
-		awsInstanceType = instance.Spec.InstanceType
+	awsInstanceType := instance.Spec.InstanceType
+	if awsInstanceType == "" {
+		return nil, fmt.Errorf("Instance type must be specified")
 	}
 
 	u, err := userdata.Generate(instance)
@@ -298,14 +298,9 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	s := base64.StdEncoding.EncodeToString(u)
 
 	// Image and its root device
-	regionProfile, ok := AWSRegions[networkSpec.Region]
-	if !ok {
-		return nil, fmt.Errorf("Invalid region: %s", networkSpec.Region)
-	}
-
-	image := regionProfile.HVM
-	if instance.Spec.Image != "" {
-		image = instance.Spec.Image
+	image := instance.Spec.Image
+	if image == "" {
+		return nil, fmt.Errorf("Instance image must be specified")
 	}
 
 	params := &ec2.RunInstancesInput{

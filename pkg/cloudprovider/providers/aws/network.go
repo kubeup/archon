@@ -26,7 +26,7 @@ type AWSNetwork struct {
 	VPC             string `k8s:"vpc-id"`
 	InternetGateway string `k8s:"internet-gateway-id"`
 	Subnet          string `k8s:"subnet-id"`
-	RouteTable      string `k8s:"route-table"`
+	RouteTable      string `k8s:"route-table-id"`
 }
 
 func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error) {

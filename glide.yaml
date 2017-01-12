@@ -10,6 +10,8 @@ ignore:
 - kubeup.com/archon/cmd/archon-controller/app
 - kubeup.com/archon/cmd/archon-controller/app/options
 import:
+- package: github.com/denverdino/aliyungo
+- package: github.com/tryk8s/ssh-cloudinit
 - package: github.com/Masterminds/sprig
 - package: github.com/aws/aws-sdk-go
   subpackages:

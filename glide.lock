@@ -1,5 +1,5 @@
-hash: f95a92ca4a7f02700a45d9262290c8e02d6d68ab5d50d863c183818de7d5454f
-updated: 2016-12-28T23:15:37.096458577+08:00
+hash: d49033d5773cbbdd254110c022da3da048478ef95f11b30f82335636f8277148
+updated: 2017-01-11T23:02:24.866907968+08:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -48,12 +48,8 @@ imports:
 - name: github.com/cloudflare/cfssl
   version: db0d0650b6496bfe8061ec56a92edd32d8e75c30
   subpackages:
-  - api
-  - api/client
   - auth
   - certdb
-  - cli
-  - cli/genkey
   - config
   - crypto/pkcs7
   - csr
@@ -61,13 +57,10 @@ imports:
   - helpers
   - helpers/derhelpers
   - info
-  - initca
   - log
   - ocsp/config
   - signer
   - signer/local
-  - signer/remote
-  - signer/universal
 - name: github.com/coreos/go-oidc
   version: 5644a2f50e2d2d5ba0b474bc5bc55fea1925936d
   subpackages:
@@ -90,6 +83,12 @@ imports:
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
+- name: github.com/denverdino/aliyungo
+  version: 95db160b5f7088ec3e6ff50cdec1ade0485d17f2
+  subpackages:
+  - common
+  - ecs
+  - util
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/docker/distribution
@@ -232,9 +231,13 @@ imports:
 - name: github.com/satori/go.uuid
   version: 879c5887cd475cd7864858769793b2ceb0d44feb
 - name: github.com/spf13/cobra
-  version: de09d9ce07d0d8a74442cfeaa91628cf9492cc23
+  version: 1dd5ff2e11b6dca62fdcb275eb804b94607d8b06
 - name: github.com/spf13/pflag
   version: c7e63cf4530bcd3ba943729cee0efeff2ebea63f
+- name: github.com/tryk8s/ssh-cloudinit
+  version: 0fa7576407a1532e84bd5b50f452042ba14e2317
+  subpackages:
+  - client
 - name: github.com/ugorji/go
   version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
@@ -384,8 +387,6 @@ imports:
   - pkg/client/clientset_generated/internalclientset/typed/storage/internalversion
   - pkg/client/leaderelection
   - pkg/client/leaderelection/resourcelock
-  - pkg/client/listers/batch/internalversion
-  - pkg/client/listers/core/internalversion
   - pkg/client/metrics
   - pkg/client/metrics/prometheus
   - pkg/client/record
