@@ -16,6 +16,7 @@ package aws
 import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 )
 
 type EC2 interface {
@@ -48,6 +49,10 @@ type EC2 interface {
 	ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error)
 
 	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
+}
+
+type IAM interface {
+	GetInstanceProfile(input *iam.GetInstanceProfileInput) (*iam.GetInstanceProfileOutput, error)
 }
 
 type awsSdkEC2 struct {
@@ -179,4 +184,12 @@ func (p *awsSdkEC2) DeleteInternetGateway(input *ec2.DeleteInternetGatewayInput)
 
 func (p *awsSdkEC2) DeleteSubnet(input *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error) {
 	return p.ec2.DeleteSubnet(input)
+}
+
+type awsSdkIAM struct {
+	iam *iam.IAM
+}
+
+func (c *awsSdkIAM) GetInstanceProfile(input *iam.GetInstanceProfileInput) (*iam.GetInstanceProfileOutput, error) {
+	return c.iam.GetInstanceProfile(input)
 }

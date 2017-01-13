@@ -18,6 +18,7 @@ import (
 	"fmt"
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"kubeup.com/archon/pkg/cluster"
@@ -318,8 +319,15 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	if awsoptions.InstanceProfile != "" {
+		i := &iam.GetInstanceProfileInput{
+			InstanceProfileName: aws.String(awsoptions.InstanceProfile),
+		}
+		r, err := p.iam.GetInstanceProfile(i)
+		if err != nil {
+			return nil, err
+		}
 		params.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
-			Arn: aws.String(awsoptions.InstanceProfile),
+			Arn: r.InstanceProfile.Arn,
 		}
 	}
 

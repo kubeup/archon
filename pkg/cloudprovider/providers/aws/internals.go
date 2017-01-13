@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/golang/glog"
 	"gopkg.in/gcfg.v1"
 	"io"
@@ -127,6 +128,20 @@ func (p *awsSDKProvider) Compute(regionName string) (EC2, error) {
 		ec2: service,
 	}
 	return ec2, nil
+}
+
+func (p *awsSDKProvider) IAM(regionName string) (IAM, error) {
+	service := iam.New(session.New(&origaws.Config{
+		Region:      &regionName,
+		Credentials: p.creds,
+	}))
+
+	p.addHandlers(regionName, &service.Handlers)
+
+	iam := &awsSdkIAM{
+		iam: service,
+	}
+	return iam, nil
 }
 
 func (p *awsSDKProvider) Metadata() (EC2Metadata, error) {

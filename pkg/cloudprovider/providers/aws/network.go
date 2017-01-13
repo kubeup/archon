@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	k8saws "k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/util"
 	"time"
@@ -27,6 +28,8 @@ type AWSNetwork struct {
 	InternetGateway string `k8s:"internet-gateway-id"`
 	Subnet          string `k8s:"subnet-id"`
 	RouteTable      string `k8s:"route-table-id"`
+	Labels          map[string]string
+	Annotations     map[string]string
 }
 
 func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error) {
@@ -39,6 +42,9 @@ func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (
 	if err != nil {
 		return
 	}
+
+	an.Labels = network.Labels
+	an.Annotations = network.Annotations
 
 	if an.VPC == "" {
 		an.VPC, err = p.createVPC(clusterName, network)
@@ -256,6 +262,28 @@ func (p *awsCloud) createRouteTable(an *AWSNetwork) (rtID string, err error) {
 		GatewayId:            aws.String(an.InternetGateway),
 	}
 	_, err = p.ec2.CreateRoute(params4)
+	if err != nil {
+		return
+	}
+
+	if cn, ok := an.Labels[k8saws.TagNameKubernetesCluster]; ok {
+		params5 := &ec2.CreateTagsInput{
+			Resources: []*string{
+				resp.RouteTables[0].RouteTableId,
+			},
+			Tags: []*ec2.Tag{
+				{
+					Key:   aws.String(k8saws.TagNameKubernetesCluster),
+					Value: aws.String(cn),
+				},
+			},
+		}
+		_, err = p.ec2.CreateTags(params5)
+		if err != nil {
+			return
+		}
+
+	}
 	return
 }
 
