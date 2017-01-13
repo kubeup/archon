@@ -67,8 +67,8 @@ See the [installation instructions].
 Example
 -------
 
-[Here][simple-example] is a simple example showing how to create a single machine
-Kubernetes cluster with Archon. More examples are on their way.
+  - [Simple one machine Kubernetes cluster][simple-example]
+  - [One master multiple nodes Kubernetes cluster][master-node-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
 [kubeadm]: https://github.com/kubernetes/kubeadm
@@ -76,6 +76,7 @@ Kubernetes cluster with Archon. More examples are on their way.
 [AWS]: https://aws.amazon.com
 [CoreOS]: https://coreos.com/os/docs/latest/
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
+[master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
 [installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
 [circleci]: https://circleci.com/gh/kubeup/archon

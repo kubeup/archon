@@ -1,0 +1,180 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-node
+  template:
+    metadata:
+      annotations:
+        aws.archon.kubeup.com/instance-profile: "k8s-node"
+      labels:
+        app: k8s-node
+        archon.kubeup.com/preallocate-public-ip: "true"
+        archon.kubeup.com/preallocate-private-ip: "true"
+    spec:
+      networkName: k8s-net
+      files:
+      - name: unit-kubelet
+        path: "/coreos/unit/kubelet"
+        template: |-
+          name: kubelet.service
+          command: start
+          enable: true
+          content: |-
+            [Service]
+            Environment=KUBELET_VERSION={{ index .Configs "k8s" "k8s-version"}}
+            Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
+              --volume dns,kind=host,source=/etc/resolv.conf \
+              --mount volume=dns,target=/etc/resolv.conf \
+              --volume var-log,kind=host,source=/var/log \
+              --mount volume=var-log,target=/var/log \
+              --volume lib-modules,kind=host,source=/lib/modules \
+              --mount volume=lib-modules,target=/lib/modules \
+              --volume var-cni,kind=host,source=/var/lib/cni \
+              --mount volume=var-cni,target=/var/lib/cni"
+            ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+            ExecStartPre=/usr/bin/mkdir -p /var/log/containers
+            ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
+            ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
+            ExecStart=/usr/lib/coreos/kubelet-wrapper \
+              --api-servers={{ index .Configs "k8s" "api-servers"}} \
+              --register-schedulable=true \
+              --allow-privileged=true \
+              --pod-manifest-path=/etc/kubernetes/manifests \
+              --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
+              --node-ip={{.Status.PrivateIP}} \
+              --cluster-domain=cluster.local \
+              --network-plugin=kubenet \
+              --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml \
+              --tls-cert-file=/etc/kubernetes/ssl/node.pem \
+              --tls-private-key-file=/etc/kubernetes/ssl/node-key.pem
+            ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
+            Restart=always
+            RestartSec=10
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: ca.pem
+        path: "/etc/kubernetes/ssl/ca.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Configs "k8s" "ca-cert" }}
+      - name: node.pem
+        path: "/etc/kubernetes/ssl/node.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "node" "tls-cert" | printf "%s" }}
+      - name: node-key.pem
+        path: "/etc/kubernetes/ssl/node-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "node" "tls-key" | printf "%s" }}
+      - name: node-kubeconfig.yaml
+        path: "/etc/kubernetes/node-kubeconfig.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: local
+            cluster:
+              certificate-authority: /etc/kubernetes/ssl/ca.pem
+          users:
+          - name: kubelet
+            user:
+              client-certificate: /etc/kubernetes/ssl/node.pem
+              client-key: /etc/kubernetes/ssl/node-key.pem
+          contexts:
+          - context:
+              cluster: local
+              user: kubelet
+            name: kubelet-context
+          current-context: kubelet-context
+      - name: kube-proxy.yaml
+        path: "/etc/kubernetes/manifests/kube-proxy.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-proxy
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-proxy
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - proxy
+              - --master={{ index .Configs "k8s" "api-servers" }}
+              - --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+              - mountPath: /etc/kubernetes/node-kubeconfig.yaml
+                name: kubeconfig
+                readOnly: true
+              - mountPath: /etc/kubernetes/ssl
+                name: etc-kube-ssl
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+            - hostPath:
+                path: /etc/kubernetes/node-kubeconfig.yaml
+              name: kubeconfig
+            - hostPath:
+                path: /etc/kubernetes/ssl
+              name: etc-kube-ssl
+      configs:
+      - name: k8s
+        data:
+          hyper-kube-img: gcr.io/google_containers/hyperkube-amd64:v1.5.1
+          api-servers: https://MASTER_PRIVATE_IP
+          dns-service-ip: 10.3.0.10
+          k8s-version: v1.5.1_coreos.0
+          ca-cert: |-
+            PUT YOUR CA CERTIFICATE HERE
+      users:
+      - name: core
+    secrets:
+    - metadata:
+        name: node
+        annotations:
+            archon.kubeup.com/csr: |-
+              {
+                "CN": "{{ .Meta.Name }}",
+                "hosts": [
+                  "{{ .Meta.Name }}",
+                  "{{ .Status.PrivateIP }}",
+                  "{{ .Status.PublicIP }}"
+                ],
+                "key": {
+                  "algo": "ecdsa",
+                  "size": 256
+                },
+                "names": [
+                  {
+                    "C": "US",
+                    "L": "CA",
+                    "ST": "San Francisco"
+                  }
+                ]
+              }
+            archon.kubeup.com/status: Pending
+            archon.kubeup.com/type: csr
+      type: Opaque
