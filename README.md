@@ -55,8 +55,17 @@ and the cluster itself with just the `kubectl` cli tool.
 Supported platforms
 -------------------
 
-At the moment, we only support [AWS] and [CoreOS]. More cloud providers and operating
-systems support will be added when the core is stable.
+Supported cloud providers:
+
+  - [AWS]
+  - [Aliyun]
+
+Supported operating system:
+
+  - [CoreOS]
+
+At the moment, we only support limited cloud providers and oses. More cloud providers
+and operating systems support will be added when the core is stable.
 
 Installation
 ------------
@@ -74,6 +83,7 @@ Example
 [kubeadm]: https://github.com/kubernetes/kubeadm
 [kops]: https://github.com/kubernetes/kops
 [AWS]: https://aws.amazon.com
+[Aliyun]: https://www.aliyun.com
 [CoreOS]: https://coreos.com/os/docs/latest/
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
