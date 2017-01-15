@@ -272,11 +272,22 @@ func (p *aliyunCloud) createInstance(clusterName string, instance *cluster.Insta
 		return
 	}
 
+	status, err = p.getInstance(networkSpec.Region, vpsID)
+	if err != nil {
+		err = aliyunSafeError(err)
+		return
+	}
+
+	oldStatus := instance.Status
+	instance.Status = *status
+
 	// User data
 	u, err := userdata.Generate(instance)
 	if err != nil {
 		return nil, err
 	}
+
+	instance.Status = oldStatus
 
 	/*
 		// TODO: aliyun doesn't support modifying userdata when coreos is used as image
