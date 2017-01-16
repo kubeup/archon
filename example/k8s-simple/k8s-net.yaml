@@ -3,8 +3,8 @@ kind: Network
 metadata:
   name: k8s-net
 spec:
-  region: ap-northeast-1
+  region: us-west-1
   subnet: 10.99.0.1/24
-  zone: ap-northeast-1b
+  zone: us-west-1a
 status:
   phase: Pending

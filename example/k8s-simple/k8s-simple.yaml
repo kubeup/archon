@@ -15,23 +15,15 @@ spec:
         archon.kubeup.com/preallocate-private-ip: "true"
     spec:
       networkName: k8s-net
+      instanceType: t2.small
+      os: CoreOS
+      image: ami-65336005
       files:
       - name: unit-etcd2
         path: "/coreos/unit/etcd2"
         content: |-
           name: etcd2.service
           command: start
-      - name: unit-docker
-        path: "/coreos/unit/docker"
-        template: |-
-          name: docker.service
-          command: start
-          drop_ins:
-          - name: 40-docker-network.conf
-            content: |-
-              [Service]
-              Environment=DOCKER_OPT_BIP='--bip={{ index .Configs "k8s" "docker-subnet"}}'
-              Environment=DOCKER_OPT_IPMASQ='--ip-masq=false'
       - name: unit-kubelet
         path: "/coreos/unit/kubelet"
         template: |-
@@ -40,18 +32,30 @@ spec:
           enable: true
           content: |-
             [Service]
+            Environment=KUBELET_VERSION={{ index .Configs "k8s" "k8s-version"}}
+            Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
+              --volume dns,kind=host,source=/etc/resolv.conf \
+              --mount volume=dns,target=/etc/resolv.conf \
+              --volume var-log,kind=host,source=/var/log \
+              --mount volume=var-log,target=/var/log \
+              --volume lib-modules,kind=host,source=/lib/modules \
+              --mount volume=lib-modules,target=/lib/modules \
+              --volume var-cni,kind=host,source=/var/lib/cni \
+              --mount volume=var-cni,target=/var/lib/cni"
             ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
-            ExecStartPre=/usr/bin/mkdir -p /opt/bin
-            ExecStartPre=/usr/bin/sh -c 'test -e /opt/bin/kubelet || (wget -O /opt/bin/kubelet https://storage.googleapis.com/kubernetes-release/release/v1.5.1/bin/linux/amd64/kubelet && chmod +x /opt/bin/kubelet)'
-            ExecStart=/opt/bin/kubelet \
-              --api_servers=http://localhost:8080 \
+            ExecStartPre=/usr/bin/mkdir -p /var/log/containers
+            ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
+            ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
+            ExecStart=/usr/lib/coreos/kubelet-wrapper \
+              --api-servers=http://localhost:8080 \
               --register-schedulable=true \
               --allow-privileged=true \
-              --config=/etc/kubernetes/manifests \
+              --pod-manifest-path=/etc/kubernetes/manifests \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
               --node-ip={{.Status.PrivateIP}} \
-              --cluster-domain=cluster.local
-            ExecStartPost=/usr/sbin/iptables -t nat -A POSTROUTING ! -d 10.0.0.0/8 -m addrtype ! --dst-type LOCAL -j MASQUERADE
+              --cluster-domain=cluster.local \
+              --network-plugin=kubenet
+            ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
             RestartSec=10
             User=root
@@ -190,7 +194,9 @@ spec:
               - --leader-elect=true
               - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
               - --root-ca-file=/etc/kubernetes/ssl/ca.pem
-              - --allocate-node-cidrs=false
+              - --allocate-node-cidrs=true
+              - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
+              - --configure-cloud-routes=false
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -244,10 +250,11 @@ spec:
         data:
           hyper-kube-img: gcr.io/google_containers/hyperkube-amd64:v1.5.1
           service-ip-range: 10.3.0.0/24
+          pod-ip-range: 10.2.0.0/16
           dns-service-ip: 10.3.0.10
           k8s-service-ip: 10.3.0.1
+          k8s-version: v1.5.1_coreos.0
           admin-password: kubeup
-          docker-subnet: 10.2.1.1/24
           ca-cert: |-
             PUT YOUR CA CERTIFICATE HERE
       users:
