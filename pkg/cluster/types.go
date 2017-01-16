@@ -197,6 +197,7 @@ type Instance struct {
 }
 
 type InstanceSpec struct {
+	OS           string                 `json:"os,omitempty"`
 	Image        string                 `json:"image,omitempty"`
 	InstanceType string                 `json:"instanceType,omitempty"`
 	NetworkName  string                 `json:"networkName,omitempty"`
