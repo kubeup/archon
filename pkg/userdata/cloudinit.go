@@ -28,8 +28,8 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 		return nil, err
 	}
 
+	coreos := &cloudinit.CoreOS{}
 	files := make([]cloudinit.File, 0)
-	units := make([]cloudinit.Unit, 0)
 	for _, t := range instance.Spec.Files {
 		f := cloudinit.File{
 			Encoding:           t.Encoding,
@@ -51,16 +51,21 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			units = append(units, u)
+			coreos.Units = append(coreos.Units, u)
+		} else if f.Path == "/coreos/update" {
+			u := cloudinit.Update{}
+			err = yaml.Unmarshal([]byte(f.Content), &u)
+			if err != nil {
+				return nil, err
+			}
+			coreos.Update = &u
 		} else {
 			files = append(files, f)
 		}
 
 	}
 	result.WriteFiles = files
-	result.CoreOS = &cloudinit.CoreOS{
-		Units: units,
-	}
+	result.CoreOS = coreos
 
 	users := make([]cloudinit.User, 0)
 	for _, t := range instance.Dependency.Users {
