@@ -44,6 +44,8 @@ type ECS interface {
 	CreateVpc(*ecs.CreateVpcArgs) (*ecs.CreateVpcResponse, error)
 	DeleteVpc(string) error
 	WaitForVpcAvailable(common.Region, string, int) error
+
+	AddTags(*ecs.AddTagsArgs) error
 }
 
 type aliyunECS struct {
@@ -158,4 +160,8 @@ func (p *aliyunECS) DeleteVpc(id string) error {
 
 func (p *aliyunECS) WaitForVpcAvailable(region common.Region, id string, timeout int) error {
 	return p.ecs.WaitForVpcAvailable(region, id, timeout)
+}
+
+func (p *aliyunECS) AddTags(args *ecs.AddTagsArgs) error {
+	return p.ecs.AddTags(args)
 }

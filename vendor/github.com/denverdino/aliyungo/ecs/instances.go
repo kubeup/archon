@@ -15,12 +15,14 @@ type InstanceStatus string
 
 // Constants of InstanceStatus
 const (
-	Creating = InstanceStatus("Creating")
+	Pending  = InstanceStatus("Pending")
 	Running  = InstanceStatus("Running")
 	Starting = InstanceStatus("Starting")
 
 	Stopped  = InstanceStatus("Stopped")
 	Stopping = InstanceStatus("Stopping")
+
+	Deleted = InstanceStatus("Deleted")
 )
 
 type LockReason string

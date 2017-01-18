@@ -135,7 +135,7 @@ func (p *awsCloud) getInstance(awsnetwork AWSNetwork, instanceID string) (status
 
 func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
+	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil {
 		err = fmt.Errorf("Network is not ready. Can't create instance: %s", err.Error())
 		return
@@ -193,7 +193,7 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 
 	awsnetwork := AWSNetwork{}
-	err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
+	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil || awsnetwork.Subnet == "" || awsnetwork.VPC == "" {
 		err = fmt.Errorf("Can't get network from instance annotations: %+v", err)
 		return

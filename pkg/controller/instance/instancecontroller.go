@@ -293,10 +293,12 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		return fmt.Errorf("Network is not ready %s: %v", instance.Spec.NetworkName, network.Status.Phase), nil
 	}
 
-	err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
-	if err != nil {
-		return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
-	}
+	/*
+		err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
+		if err != nil {
+			return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
+		}
+	*/
 
 	// Ensure IP prerequistes
 	err, _ = s.ipController.SyncIP(key, instance, false)
