@@ -70,7 +70,8 @@ and operating systems support will be added when the core is stable.
 Installation
 ------------
 
-See the [installation instructions].
+  - [AWS installation instructions]
+  - [Aliyun installation instructions]
 
 
 Example
@@ -78,6 +79,7 @@ Example
 
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
+  - [Aliyun one machine Kubernetes cluster][aliyun-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
 [kubeadm]: https://github.com/kubernetes/kubeadm
@@ -87,6 +89,8 @@ Example
 [CoreOS]: https://coreos.com/os/docs/latest/
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
+[aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
-[installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
+[AWS installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
+[Aliyun installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation_aliyun.md
 [circleci]: https://circleci.com/gh/kubeup/archon

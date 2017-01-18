@@ -1,0 +1,308 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-aliyun
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-aliyun
+  template:
+    metadata:
+      labels:
+        app: k8s-aliyun
+    spec:
+      networkName: k8s-net
+      instanceType: ecs.n1.tiny
+      os: CoreOS
+      image: coreos681_64_40G_aliaegis_20160222.vhd
+      files:
+      - name: coreos-update
+        path: "/coreos/update"
+        content: |-
+          server: https://kubeup.com/coreos_update
+      - name: unit-etcd2
+        path: "/coreos/unit/etcd2"
+        content: |-
+          name: etcd2.service
+          command: start
+      - name: unit-aliyun-update
+        path: "/coreos/unit/aliyun-update"
+        template: |-
+          name: aliyun-update.service
+          command: start
+          content: |-
+            [Service]
+            ExecStart=/usr/bin/sh -c 'sleep 30 && update_engine_client -update && sleep 5 && systemctl reboot'
+            User=root
+      - name: unit-kubelet
+        path: "/coreos/unit/kubelet"
+        template: |-
+          name: kubelet.service
+          enable: true
+          content: |-
+            [Service]
+            Environment=KUBELET_VERSION={{ index .Configs "k8s" "k8s-version"}}
+            Environment=KUBELET_ACI={{ index .Configs "k8s" "kubelet-aci-img"}}
+            Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
+              --volume dns,kind=host,source=/etc/resolv.conf \
+              --mount volume=dns,target=/etc/resolv.conf \
+              --volume var-log,kind=host,source=/var/log \
+              --mount volume=var-log,target=/var/log \
+              --volume lib-modules,kind=host,source=/lib/modules \
+              --mount volume=lib-modules,target=/lib/modules \
+              --volume var-cni,kind=host,source=/var/lib/cni \
+              --mount volume=var-cni,target=/var/lib/cni"
+            ExecStartPre=/usr/bin/systemctl stop update-engine
+            ExecStartPre=/usr/bin/systemctl start etcd2
+            ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+            ExecStartPre=/usr/bin/mkdir -p /var/log/containers
+            ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
+            ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
+            ExecStart=/usr/lib/coreos/kubelet-wrapper \
+              --api_servers=http://localhost:8080 \
+              --register-schedulable=true \
+              --allow-privileged=true \
+              --config=/etc/kubernetes/manifests \
+              --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
+              --node-ip={{.Status.PrivateIP}} \
+              --cluster-domain=cluster.local \
+              --network-plugin=kubenet \
+              --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
+            ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
+            Restart=always
+            RestartSec=10
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: tokens.csv
+        path: "/etc/kubernetes/token/tokens.csv"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Configs "k8s" "admin-password" }},admin,admin
+      - name: ca.pem
+        path: "/etc/kubernetes/ssl/ca.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Configs "k8s" "ca-cert" }}
+      - name: apiserver.pem
+        path: "/etc/kubernetes/ssl/apiserver.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-cert" | printf "%s" }}
+      - name: apiserver-key.pem
+        path: "/etc/kubernetes/ssl/apiserver-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+      - name: kube-apiserver.yaml
+        path: "/etc/kubernetes/manifests/kube-apiserver.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-apiserver
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-apiserver
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - apiserver
+              - --bind-address=0.0.0.0
+              - --etcd-servers=http://localhost:2379
+              - --allow-privileged=true
+              - --service-cluster-ip-range={{ index .Configs "k8s" "service-ip-range" }}
+              - --runtime-config=extensions/v1beta1=true,extensions/v1beta1/thirdpartyresources=true
+              - --secure-port=443
+              - --advertise-address={{.Status.PrivateIP}}
+              - --admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
+              - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
+              - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --client-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --token-auth-file=/etc/kubernetes/token/tokens.csv
+              ports:
+              - containerPort: 443
+                hostPort: 443
+                name: https
+              - containerPort: 8080
+                hostPort: 8080
+                name: local
+              volumeMounts:
+              - mountPath: /etc/kubernetes/ssl
+                name: ssl-certs-kubernetes
+                readOnly: true
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+              - mountPath: /etc/kubernetes/token
+                name: token-kubernetes
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/ssl
+              name: ssl-certs-kubernetes
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+            - hostPath:
+                path: /etc/kubernetes/token
+              name: token-kubernetes
+      - name: kube-proxy.yaml
+        path: "/etc/kubernetes/manifests/kube-proxy.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-proxy
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-proxy
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - proxy
+              - --master=http://127.0.0.1:8080
+              - --proxy-mode=iptables
+              securityContext:
+                privileged: true
+              volumeMounts:
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+      - name: kube-controller-manager.yaml
+        path: "/etc/kubernetes/manifests/kube-controller-manager.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-controller-manager
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-controller-manager
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - controller-manager
+              - --master=http://127.0.0.1:8080
+              - --leader-elect=true
+              - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --root-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --allocate-node-cidrs=true
+              - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
+              - --configure-cloud-routes=false
+              livenessProbe:
+                httpGet:
+                  host: 127.0.0.1
+                  path: /healthz
+                  port: 10252
+                initialDelaySeconds: 15
+                timeoutSeconds: 1
+              volumeMounts:
+              - mountPath: /etc/kubernetes/ssl
+                name: ssl-certs-kubernetes
+                readOnly: true
+              - mountPath: /etc/ssl/certs
+                name: ssl-certs-host
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes/ssl
+              name: ssl-certs-kubernetes
+            - hostPath:
+                path: /usr/share/ca-certificates
+              name: ssl-certs-host
+      - name: kube-scheduler.yaml
+        path: "/etc/kubernetes/manifests/kube-scheduler.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: kube-scheduler
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: kube-scheduler
+              image: {{ index .Configs "k8s" "hyper-kube-img" }}
+              command:
+              - /hyperkube
+              - scheduler
+              - --master=http://127.0.0.1:8080
+              - --leader-elect=true
+              livenessProbe:
+                httpGet:
+                  host: 127.0.0.1
+                  path: /healthz
+                  port: 10251
+                initialDelaySeconds: 15
+                timeoutSeconds: 1
+      configs:
+      - name: k8s
+        data:
+          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.5.1
+          pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
+          kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
+          k8s-version: v1.5.1_coreos.0
+          service-ip-range: 10.3.0.0/24
+          pod-ip-range: 10.2.0.0/16
+          dns-service-ip: 10.3.0.10
+          k8s-service-ip: 10.3.0.1
+          admin-password: kubeup
+          ca-cert: |-
+            PUT YOUR CA CERTIFICATE HERE
+      users:
+      - name: core
+    secrets:
+    - metadata:
+        name: apiserver
+        annotations:
+            archon.kubeup.com/csr: |-
+              {
+                "CN": "{{ .Meta.Name }}",
+                "hosts": [
+                  "kubernetes",
+                  "kubernetes.default",
+                  "kubernetes.default.svc",
+                  "kubernetes.default.svc.cluster.local",
+                  "{{ index .Configs "k8s" "k8s-service-ip" }}",
+                  "{{ .Status.PrivateIP }}",
+                  "{{ .Status.PublicIP }}"
+                ],
+                "key": {
+                  "algo": "ecdsa",
+                  "size": 256
+                },
+                "names": [
+                  {
+                    "C": "US",
+                    "L": "CA",
+                    "ST": "San Francisco"
+                  }
+                ]
+              }
+            archon.kubeup.com/status: Pending
+            archon.kubeup.com/type: csr
+      type: Opaque

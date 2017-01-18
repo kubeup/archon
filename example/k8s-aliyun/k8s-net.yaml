@@ -1,0 +1,10 @@
+apiVersion: archon.kubeup.com/v1
+kind: Network
+metadata:
+  name: k8s-net
+spec:
+  region: cn-hangzhou
+  subnet: 10.0.0.0/8
+  zone: cn-hangzhou-e
+status:
+  phase: Pending

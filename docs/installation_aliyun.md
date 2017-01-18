@@ -1,5 +1,5 @@
-Installation on AWS
-===================
+Installation on Aliyun
+======================
 
 The only service you have to run is the `archon-controller`. You can launch it
 locally or deploy it into your Kubernetes cluster.
@@ -57,13 +57,12 @@ First install it with `go get`:
 go get -u kubeup.com/archon/cmd/archon-controller
 ```
 
-Then config AWS credentials and run it:
+Then config Aliyun credentials and run it:
 
 ```
-export AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
-export AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET
-export AWS_ZONE=YOUR_CLUSTER_ZONE
-archon-controller --kubeconfig ~/.kube/config --cloud-provider aws --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
+export ALIYUN_ACCESS_KEY=YOUR_ALIYUN_KEY_ID
+export ALIYUN_ACCESS_KEY_SECRET=YOUR_ALIYUN_SECRET
+archon-controller --kubeconfig ~/.kube/config --cloud-provider aliyun --cluster-signing-cert-file ca.pem --cluster-signing-key-file ca-key.pem
 ```
 
 Deploy to Kubernetes
@@ -78,10 +77,10 @@ Create a `secret` containing the CA certificates:
 kubectl create secret tls archon-ca --cert=ca.pem --key=ca-key.pem --namespace kube-system
 ```
 
-Create another `secret` containing the AWS credentials:
+Create another `secret` containing the Aliyun credentials:
 
 ```
-kubectl create secret generic archon-aws --from-literal=AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID --from-literal=AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET --from-literal=AWS_ZONE=YOUR_CLUSTER_ZONE --namespace=kube-system
+kubectl create secret generic archon-aliyun --from-literal=ALIYUN_ACCESS_KEY=YOUR_ALIYUN_KEY_ID --from-literal=ALIYUN_ACCESS_KEY_SECRET=YOUR_ALIYUN_SECRET --namespace=kube-system
 ```
 
 Save the following configuration as `archon-controller.yaml`:
@@ -105,27 +104,22 @@ spec:
         command:
         - "/archon-controller"
         - "--cloud-provider"
-        - "aws"
+        - "aliyun"
         - "--cluster-signing-cert-file"
         - "/etc/ca/tls.crt"
         - "--cluster-signing-key-file"
         - "/etc/ca/tls.key"
         env:
-        - name: AWS_ACCESS_KEY_ID
+        - name: ALIYUN_ACCESS_KEY
           valueFrom:
             secretKeyRef:
-              name: archon-aws
-              key: AWS_ACCESS_KEY_ID
-        - name: AWS_SECRET_ACCESS_KEY
+              name: archon-aliyun
+              key: ALIYUN_ACCESS_KEY
+        - name: ALIYUN_ACCESS_KEY_SECRET
           valueFrom:
             secretKeyRef:
-              name: archon-aws
-              key: AWS_SECRET_ACCESS_KEY
-        - name: AWS_ZONE
-          valueFrom:
-            secretKeyRef:
-              name: archon-aws
-              key: AWS_ZONE
+              name: archon-aliyun
+              key: ALIYUN_ACCESS_KEY_SECRET
         volumeMounts:
         - mountPath: "/etc/ca"
           name: archon-ca
