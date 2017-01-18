@@ -59,6 +59,20 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 				return nil, err
 			}
 			coreos.Update = &u
+		} else if f.Path == "/coreos/etcd2" {
+			u := cloudinit.Etcd2{}
+			err = yaml.Unmarshal([]byte(f.Content), &u)
+			if err != nil {
+				return nil, err
+			}
+			coreos.Etcd2 = &u
+		} else if f.Path == "/coreos/flannel" {
+			u := cloudinit.Flannel{}
+			err = yaml.Unmarshal([]byte(f.Content), &u)
+			if err != nil {
+				return nil, err
+			}
+			coreos.Flannel = &u
 		} else {
 			files = append(files, f)
 		}
