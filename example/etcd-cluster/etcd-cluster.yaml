@@ -1,0 +1,35 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: etcd-cluster
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: etcd-cluster
+  template:
+    metadata:
+      labels:
+        app: etcd-cluster
+    spec:
+      networkName: etcd-net
+      instanceType: t2.small
+      os: CoreOS
+      image: ami-65336005
+      files:
+      - name: etcd2-config
+        path: "/coreos/etcd2"
+        content: |-
+          # Generate a new token at https://discovery.etcd.io/new?size=3
+          discovery: "https://discovery.etcd.io/<token>"
+          advertise-client-urls: "http://$public_ipv4:2379"
+          initial-advertise-peer-urls: "http://$private_ipv4:2380"
+          listen-client-urls: "http://0.0.0.0:2379"
+          listen-peer-urls: "http://$private_ipv4:2380"
+      - name: unit-etcd2
+        path: "/coreos/unit/etcd2"
+        content: |-
+          name: etcd2.service
+          command: start
+      users:
+      - name: core

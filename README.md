@@ -80,6 +80,7 @@ Example
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
   - [Aliyun one machine Kubernetes cluster][aliyun-example]
+  - [Three nodes etcd cluster][etcd-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
 [kubeadm]: https://github.com/kubernetes/kubeadm
@@ -90,6 +91,7 @@ Example
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
 [aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
+[etcd-example]: https://github.com/kubeup/archon/tree/master/example/etcd-cluster
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
 [AWS installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
 [Aliyun installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation_aliyun.md
