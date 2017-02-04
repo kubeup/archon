@@ -237,8 +237,16 @@ func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject
 			return nil, fmt.Errorf("parentObject does not have ObjectMeta, %v", err)
 		}
 
+		if secret.Annotations == nil {
+			secret.Annotations = make(map[string]string)
+		}
+
 		if secret.Name != "" {
 			secret.Annotations["archon.kubeup.com/alias"] = secret.Name
+		}
+
+		if secret.Annotations == nil {
+			secret.Annotations = make(map[string]string)
 		}
 		alias := secret.Annotations["archon.kubeup.com/alias"]
 		if alias != "" {

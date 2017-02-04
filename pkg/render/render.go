@@ -32,6 +32,7 @@ type Renderer interface {
 type InstanceRenderer struct {
 	Configs map[string]map[string]string
 	Secrets map[string]map[string][]byte
+	Network cluster.Network
 	Status  cluster.InstanceStatus
 	Meta    api.ObjectMeta
 }
@@ -50,6 +51,7 @@ func NewInstanceRenderer(instance *cluster.Instance) (r *InstanceRenderer, err e
 	r = &InstanceRenderer{
 		Configs: make(map[string]map[string]string),
 		Secrets: make(map[string]map[string][]byte),
+		Network: instance.Dependency.Network,
 		Status:  instance.Status,
 		Meta:    instance.ObjectMeta,
 	}

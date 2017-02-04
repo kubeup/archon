@@ -66,12 +66,25 @@ spec:
               --config=/etc/kubernetes/manifests \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
               --node-ip={{.Status.PrivateIP}} \
+              --hostname-override={{.Status.PrivateIP}} \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
             RestartSec=10
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: unit-flexv
+        path: "/coreos/unit/flexv"
+        template: |-
+          name: flexv.service
+          enable: true
+          content: |-
+            [Service]
+            ExecStart=/usr/bin/sh -c 'FLEXPATH=/opt/k8s/volume/plugins/aliyun~flexv; sudo mkdir $FLEXPATH -p; docker run -v $FLEXPATH:/opt {{ index .Configs "k8s" "kube-aliyun-img" }} cp /flexv /opt/'
+            Restart=on-failure
             User=root
             [Install]
             WantedBy=multi-user.target
@@ -208,9 +221,21 @@ spec:
               - --leader-elect=true
               - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
               - --root-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --flex-volume-plugin-dir=/opt/k8s/volume/plugins
               - --allocate-node-cidrs=true
               - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
               - --configure-cloud-routes=false
+              env:
+              - name: ALIYUN_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKey
+              - name: ALIYUN_ACCESS_KEY_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKeySecret
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -259,12 +284,54 @@ spec:
                   port: 10251
                 initialDelaySeconds: 15
                 timeoutSeconds: 1
+      - name: kube-aliyun.yaml
+        path: "/etc/kubernetes/manifests/kube-aliyun.yaml"
+        permissions: "0664"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: aliyun-controller
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: aliyun-controller
+              image: {{ index .Configs "k8s" "kube-aliyun-image" }} 
+              command:
+              - /aliyun-controller
+              - --server=http://127.0.0.1:8080
+              - --leader-elect=true
+              - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
+              env:
+              - name: ALIYUN_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKey
+              - name: ALIYUN_ACCESS_KEY_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKeySecret
+              - name: ALIYUN_REGION
+                value: {{ .Network.Spec.Region }}
+              - name: ALIYUN_VPC
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vpc-id" }}
+              - name: ALIYUN_ROUTER
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/router-id" }}
+              - name: ALIYUN_ROUTE_TABLE
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/route-table-id" }}
+              - name: ALIYUN_VSWITCH
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vswitch-id" }}
       configs:
       - name: k8s
         data:
           hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.5.1
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
+          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
           k8s-version: v1.5.1_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
