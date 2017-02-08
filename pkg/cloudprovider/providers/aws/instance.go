@@ -14,22 +14,42 @@ limitations under the License.
 package aws
 
 import (
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	aws "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/userdata"
 	"kubeup.com/archon/pkg/util"
+	"net/url"
+	"text/template"
 )
 
 type InstanceOptions struct {
 	// AWS use instance profile to grant permissions to ec2 instances.
 	InstanceProfile string `k8s:"instance-profile"`
+	CloudInitS3Path string `k8s:"cloud-init-s3-path"`
 }
+
+var s3CloudInitTemplate = `#!/bin/sh
+set -ue
+
+REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+
+/usr/bin/rkt run \
+   --net=host \
+   --volume=dns,kind=host,source=/etc/resolv.conf,readOnly=true --mount volume=dns,target=/etc/resolv.conf  \
+   --volume=awsenv,kind=host,source=/var/run/coreos,readOnly=false --mount volume=awsenv,target=/var/run/coreos \
+   --trust-keys-from-https \
+   quay.io/coreos/awscli:master  -- aws s3 --region $REGION  cp s3://{{ .Host }}{{ .Path }} /var/run/coreos/userdata
+
+exec /usr/bin/coreos-cloudinit --from-file /var/run/coreos/userdata
+`
 
 var ErrorNotFound = fmt.Errorf("Instance is not found")
 
@@ -262,6 +282,32 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	if err != nil {
 		return nil, err
 	}
+
+	if awsoptions.CloudInitS3Path != "" {
+		s, err := url.Parse(awsoptions.CloudInitS3Path + instance.Name)
+		if err != nil {
+			return nil, err
+		}
+		params := &s3.PutObjectInput{
+			Bucket: aws.String(s.Host),
+			Key:    aws.String(s.Path),
+			Body:   bytes.NewReader(u),
+		}
+		_, err = p.s3.PutObject(params)
+		if err != nil {
+			return nil, err
+		}
+		tmpl, err := template.New("userdata").Parse(s3CloudInitTemplate)
+		if err != nil {
+			return nil, err
+		}
+		var buf bytes.Buffer
+		if err := tmpl.Execute(&buf, s); err != nil {
+			return nil, err
+		}
+		u = buf.Bytes()
+	}
+
 	s := base64.StdEncoding.EncodeToString(u)
 
 	// Image and its root device

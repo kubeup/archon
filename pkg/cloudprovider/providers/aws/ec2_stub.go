@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 type EC2 interface {
@@ -49,6 +50,10 @@ type EC2 interface {
 	ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error)
 
 	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
+}
+
+type S3 interface {
+	PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error)
 }
 
 type IAM interface {
@@ -192,4 +197,12 @@ type awsSdkIAM struct {
 
 func (c *awsSdkIAM) GetInstanceProfile(input *iam.GetInstanceProfileInput) (*iam.GetInstanceProfileOutput, error) {
 	return c.iam.GetInstanceProfile(input)
+}
+
+type awsSdkS3 struct {
+	s3 *s3.S3
+}
+
+func (s *awsSdkS3) PutObject(input *s3.PutObjectInput) (*s3.PutObjectOutput, error) {
+	return s.s3.PutObject(input)
 }

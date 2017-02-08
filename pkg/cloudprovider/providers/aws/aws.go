@@ -45,6 +45,7 @@ func init() {
 
 type awsCloud struct {
 	ec2 EC2
+	s3  S3
 	iam IAM
 
 	region string
@@ -90,9 +91,15 @@ func newAWSCloud(config io.Reader, service *awsSDKProvider) (cloudprovider.Inter
 		return nil, fmt.Errorf("error creating AWS IAM client: %v", err)
 	}
 
+	s3, err := service.S3(regionName)
+	if err != nil {
+		return nil, fmt.Errorf("error creating AWS S3 client: %v", err)
+	}
+
 	return &awsCloud{
 		ec2:    ec2,
 		iam:    iam,
+		s3:     s3,
 		region: regionName,
 	}, nil
 }
