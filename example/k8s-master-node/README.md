@@ -48,34 +48,34 @@ Create a new instance profile named `k8s-master` with content below:
             "Effect": "Allow",
             "Action": [
                 "ec2:DescribeInstances",
-            "ec2:AttachVolume",
-            "ec2:DetachVolume",
-            "ec2:DescribeVolumes",
-            "ec2:DescribeSecurityGroups",
-            "ec2:CreateSecurityGroup",
-            "ec2:DeleteSecurityGroup",
-            "ec2:AuthorizeSecurityGroupIngress",
-            "ec2:RevokeSecurityGroupIngress",
-            "ec2:DescribeSubnets",
-            "ec2:CreateTags",
-            "ec2:DescribeRouteTables",
-            "ec2:CreateRoute",
-            "ec2:DeleteRoute",
-            "ec2:ModifyInstanceAttribute",
-            "ecr:GetAuthorizationToken"
-                ],
+                "ec2:AttachVolume",
+                "ec2:DetachVolume",
+                "ec2:DescribeVolumes",
+                "ec2:DescribeSecurityGroups",
+                "ec2:CreateSecurityGroup",
+                "ec2:DeleteSecurityGroup",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:DescribeSubnets",
+                "ec2:CreateTags",
+                "ec2:DescribeRouteTables",
+                "ec2:CreateRoute",
+                "ec2:DeleteRoute",
+                "ec2:ModifyInstanceAttribute",
+                "ecr:GetAuthorizationToken"
+            ],
             "Resource": [
                 "*"
-                ]
+            ]
         },
         {
             "Effect": "Allow",
             "Action": [
                 "elasticloadbalancing:*"
-                ],
+            ],
             "Resource": [
                 "*"
-                ]
+            ]
         }]
 }
 ```
@@ -90,25 +90,25 @@ And `k8s-node` with content below:
             "Effect": "Allow",
             "Action": [
                 "ec2:DescribeInstances",
-            "ec2:AttachVolume",
-            "ec2:DetachVolume",
-            "ecr:GetAuthorizationToken",
-            "ec2:DescribeVolumes"
-                ],
+                "ec2:AttachVolume",
+                "ec2:DetachVolume",
+                "ecr:GetAuthorizationToken",
+                "ec2:DescribeVolumes"
+            ],
             "Resource": [
                 "*"
-                ]
+            ]
         }]
 }
 ```
 
-Step 7
+Step 6
 ------
 
 Modify `k8s-master.yaml` and `k8s-node.yaml`. Replace `PUT YOUR CA CERTIFICATE HERE` with the content of
 `ca.pem` file you generated with `cfssl` during the installation process.
 
-Step 8
+Step 7
 ------
 
 Create the master instance group and let the `archon-controller` create the instance for you:
@@ -117,7 +117,7 @@ Create the master instance group and let the `archon-controller` create the inst
 kubectl create -f k8s-master.yaml --namespace=k8s-master-node
 ```
 
-Step 9
+Step 8
 ------
 
 Use `kubectl get instance -o yaml` to get the `PrivateIP` status of your master instance. And
@@ -129,7 +129,7 @@ Create the node instance group:
 kubectl create -f k8s-node.yaml --namespace=k8s-master-node
 ```
 
-Step 10
+Step 9
 -------
 
 Scale your node instance group by editing `replicas` field with `kubectl edit`.
