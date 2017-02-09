@@ -42,6 +42,8 @@ type EC2 interface {
 	DeleteInternetGateway(input *ec2.DeleteInternetGatewayInput) (*ec2.DeleteInternetGatewayOutput, error)
 	DetachInternetGateway(input *ec2.DetachInternetGatewayInput) (*ec2.DetachInternetGatewayOutput, error)
 	DeleteSubnet(input *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error)
+	CreateDhcpOptions(input *ec2.CreateDhcpOptionsInput) (*ec2.CreateDhcpOptionsOutput, error)
+	AssociateDhcpOptions(input *ec2.AssociateDhcpOptionsInput) (*ec2.AssociateDhcpOptionsOutput, error)
 
 	CreateNetworkInterface(input *ec2.CreateNetworkInterfaceInput) (*ec2.CreateNetworkInterfaceOutput, error)
 	DeleteNetworkInterface(input *ec2.DeleteNetworkInterfaceInput) (*ec2.DeleteNetworkInterfaceOutput, error)
@@ -189,6 +191,14 @@ func (p *awsSdkEC2) DeleteInternetGateway(input *ec2.DeleteInternetGatewayInput)
 
 func (p *awsSdkEC2) DeleteSubnet(input *ec2.DeleteSubnetInput) (*ec2.DeleteSubnetOutput, error) {
 	return p.ec2.DeleteSubnet(input)
+}
+
+func (p *awsSdkEC2) CreateDhcpOptions(input *ec2.CreateDhcpOptionsInput) (*ec2.CreateDhcpOptionsOutput, error) {
+	return p.ec2.CreateDhcpOptions(input)
+}
+
+func (p *awsSdkEC2) AssociateDhcpOptions(input *ec2.AssociateDhcpOptionsInput) (*ec2.AssociateDhcpOptionsOutput, error) {
+	return p.ec2.AssociateDhcpOptions(input)
 }
 
 type awsSdkIAM struct {

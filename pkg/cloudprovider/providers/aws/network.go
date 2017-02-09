@@ -23,6 +23,11 @@ import (
 	"time"
 )
 
+type AWSNetworkOption struct {
+	NameServers string `k8s:"name-servers"`
+	DomainName  string `k8s:"domain-name"`
+}
+
 type AWSNetwork struct {
 	VPC             string `k8s:"vpc-id"`
 	InternetGateway string `k8s:"internet-gateway-id"`
@@ -33,6 +38,12 @@ type AWSNetwork struct {
 }
 
 func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error) {
+	ano := &AWSNetworkOption{}
+	err = util.MapToStruct(network.Annotations, ano, AWSAnnotationPrefix)
+	if err != nil {
+		return
+	}
+
 	an := &AWSNetwork{}
 	if network.Annotations == nil {
 		network.Annotations = make(map[string]string)
@@ -48,6 +59,13 @@ func (p *awsCloud) EnsureNetwork(clusterName string, network *cluster.Network) (
 
 	if an.VPC == "" {
 		an.VPC, err = p.createVPC(clusterName, network)
+		if err != nil {
+			return
+		}
+	}
+
+	if ano.NameServers != "" || ano.DomainName != "" {
+		err = p.configureDhcp(an, ano)
 		if err != nil {
 			return
 		}
@@ -160,6 +178,40 @@ func (p *awsCloud) AddNetworkAnnotation(clusterName string, instance *cluster.In
 	}
 
 	return util.StructToMap(awsnetwork, instance.Annotations, AWSAnnotationPrefix)
+}
+
+func (p *awsCloud) configureDhcp(an *AWSNetwork, ano *AWSNetworkOption) (err error) {
+	var c []*ec2.NewDhcpConfiguration
+	if ano.DomainName != "" {
+		c = append(c, &ec2.NewDhcpConfiguration{
+			Key: aws.String("domain-name"),
+			Values: []*string{
+				aws.String(ano.DomainName),
+			},
+		})
+	}
+	if ano.NameServers != "" {
+		c = append(c, &ec2.NewDhcpConfiguration{
+			Key: aws.String("domain-name-servers"),
+			Values: []*string{
+				aws.String(ano.NameServers),
+			},
+		})
+	}
+
+	params := &ec2.CreateDhcpOptionsInput{
+		DhcpConfigurations: c,
+	}
+	resp, err := p.ec2.CreateDhcpOptions(params)
+	if err != nil {
+		return err
+	}
+	params2 := &ec2.AssociateDhcpOptionsInput{
+		DhcpOptionsId: resp.DhcpOptions.DhcpOptionsId,
+		VpcId:         aws.String(an.VPC),
+	}
+	_, err = p.ec2.AssociateDhcpOptions(params2)
+	return
 }
 
 func (p *awsCloud) createVPC(clusterName string, network *cluster.Network) (vpcID string, err error) {
