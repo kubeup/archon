@@ -79,6 +79,7 @@ Example
 
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
+  - [Self-hosted Kubernetes cluster with bootkube][bootkube-example]
   - [Aliyun one machine Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
 
@@ -90,6 +91,7 @@ Example
 [CoreOS]: https://coreos.com/os/docs/latest/
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
+[bootkube-example]: https://github.com/kubeup/archon/tree/master/example/k8s-bootkube
 [aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
 [etcd-example]: https://github.com/kubeup/archon/tree/master/example/etcd-cluster
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
