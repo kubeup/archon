@@ -170,7 +170,8 @@ type ObjectMeta struct {
 	// from the list. If the deletionTimestamp of the object is non-nil, entries
 	// in this list can only be removed.
 	// +optional
-	Finalizers []string `json:"finalizers,omitempty"`
+	Finalizers   []string `json:"finalizers,omitempty"`
+	Initializers []string `json:"initializers,omitempty"`
 
 	// The name of the cluster which the object belongs to.
 	// This is used to distinguish resources with same name and namespace in different clusters.

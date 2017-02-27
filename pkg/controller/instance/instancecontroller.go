@@ -24,6 +24,7 @@ import (
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/initializer"
 	"kubeup.com/archon/pkg/util"
 
 	"github.com/golang/glog"
@@ -78,12 +79,13 @@ type instanceCache struct {
 type InstanceController struct {
 	cloud              cloudprovider.Interface
 	kubeClient         clientset.Interface
-	ipController       *IPController
 	certificateControl CertificateControlInterface
 	clusterName        string
 	namespace          string
 	archon             cloudprovider.ArchonInterface
 	cache              *instanceCache
+	// Initializers
+	initializerManager *initializer.InitializerManager
 	// A store of instances, populated by the instanceController
 	instanceStore archoncache.StoreToInstanceLister
 	// Watches changes to all instances
@@ -105,17 +107,23 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_controller", kubeClient.Core().RESTClient().GetRateLimiter())
 	}
 
-	ipController := NewIPController(cloud, kubeClient, clusterName)
-
 	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
 		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
 	}
 
+	factories := initializer.Factories{
+		IPInitializerFactory,
+	}
+	manager, err := initializer.NewInitializerManager(factories, kubeClient, cloud, clusterName)
+	if err != nil {
+		return nil, err
+	}
+
 	s := &InstanceController{
 		cloud:              cloud,
 		kubeClient:         kubeClient,
-		ipController:       ipController,
+		initializerManager: manager,
 		certificateControl: certControl,
 		clusterName:        clusterName,
 		namespace:          namespace,
@@ -300,11 +308,13 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		}
 	*/
 
-	// Ensure IP prerequistes
-	err, _ = s.ipController.SyncIP(key, instance, false)
-	if err != nil {
-		return fmt.Errorf("Failed to sync ip %s: %v", key, err), nil
-	}
+	/*
+		// Ensure IP prerequistes
+		err, _ = s.ipController.SyncIP(key, instance, false)
+		if err != nil {
+			return fmt.Errorf("Failed to sync ip %s: %v", key, err), nil
+		}
+	*/
 
 	secrets := make([]api.Secret, 0)
 
@@ -351,7 +361,7 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 // Returns an error if processing the instance update failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
-func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstance, instance *cluster.Instance, key string) (error, time.Duration) {
+func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstance, instance *cluster.Instance, key string) (err error, retryDelay time.Duration) {
 	cachedInstance.mu.Lock()
 	defer func() {
 		cachedInstance.mu.Unlock()
@@ -360,9 +370,28 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 	// cache the instance, we need the info for instance deletion
 	cachedInstance.state = instance
 
-	err, retry := s.createInstanceIfNeeded(key, instance)
+	var (
+		retry bool
+		obj   pkg_runtime.Object
+	)
+	if instance.GetDeletionTimestamp() != nil {
+		obj, err, retry = s.initializerManager.Finalize(instance)
+		if obj != nil && err == nil {
+			instance, _ = obj.(*cluster.Instance)
+			cachedInstance.state = instance
+		}
+	} else if len(instance.GetInitializers()) > 0 {
+		obj, err, retry = s.initializerManager.Initialize(instance)
+		if obj != nil && err == nil {
+			instance, _ = obj.(*cluster.Instance)
+			cachedInstance.state = instance
+		}
+	} else {
+		err, retry = s.createInstanceIfNeeded(key, instance)
+	}
+
 	if err != nil {
-		message := "Error creating instance"
+		message := "Error updating the instance"
 		if retry {
 			message += " (will retry): "
 		} else {
@@ -625,25 +654,27 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
 
-	// IP
-	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Releasing ip if needed")
-	err, retry := s.ipController.SyncIP(s.clusterName, instance, true)
-	if err != nil {
-		message := "Error syncing ip of instance"
-		if retry {
-			message += " (will retry): "
-		} else {
-			message += " (will not retry): "
+	/*
+		// IP
+		s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Releasing ip if needed")
+		err, retry := s.ipController.SyncIP(s.clusterName, instance, true)
+		if err != nil {
+			message := "Error syncing ip of instance"
+			if retry {
+				message += " (will retry): "
+			} else {
+				message += " (will not retry): "
+			}
+			message += err.Error()
+			s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncIPFailed", message)
+			if retry {
+				return err, cachedInstance.nextRetryDelay()
+			} else {
+				return err, doNotRetry
+			}
 		}
-		message += err.Error()
-		s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncIPFailed", message)
-		if retry {
-			return err, cachedInstance.nextRetryDelay()
-		} else {
-			return err, doNotRetry
-		}
-	}
-	s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Sync ip done")
+		s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Sync ip done")
+	*/
 
 	s.cache.delete(key)
 

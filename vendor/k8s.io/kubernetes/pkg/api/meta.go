@@ -101,6 +101,8 @@ func (meta *ObjectMeta) GetAnnotations() map[string]string            { return m
 func (meta *ObjectMeta) SetAnnotations(annotations map[string]string) { meta.Annotations = annotations }
 func (meta *ObjectMeta) GetFinalizers() []string                      { return meta.Finalizers }
 func (meta *ObjectMeta) SetFinalizers(finalizers []string)            { meta.Finalizers = finalizers }
+func (meta *ObjectMeta) GetInitializers() []string                    { return meta.Initializers }
+func (meta *ObjectMeta) SetInitializers(initializers []string)        { meta.Initializers = initializers }
 
 func (meta *ObjectMeta) GetOwnerReferences() []metatypes.OwnerReference {
 	ret := make([]metatypes.OwnerReference, len(meta.OwnerReferences))

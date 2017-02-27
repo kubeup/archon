@@ -41,7 +41,7 @@ func (p *awsCloud) EnsurePublicIP(clusterName string, instance *cluster.Instance
 		}
 	}
 
-	if options.PreallocatePublicIP && instance.Annotations != nil {
+	if instance.Annotations != nil {
 		err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 		if err != nil {
 			return

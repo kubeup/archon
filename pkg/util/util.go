@@ -26,9 +26,9 @@ func MapToStruct(in map[string]string, out interface{}, keyPrefix string) (err e
 			err = fmt.Errorf("Error: %+v", err2)
 		}
 	}()
-
 	if in == nil {
-		return fmt.Errorf("Can't convert to struct. in is nil")
+		//return fmt.Errorf("Can't convert to struct. in is nil")
+		return nil
 	}
 
 	ptrType := reflect.TypeOf(out)

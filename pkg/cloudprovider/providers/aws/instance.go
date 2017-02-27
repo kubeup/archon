@@ -199,12 +199,7 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		return
 	}
 
-	networkSpec := cluster.NetworkSpec{}
-	err = util.MapToStruct(instance.Annotations, &networkSpec, cluster.AnnotationPrefix)
-	if err != nil {
-		err = fmt.Errorf("Can't get network from instance annotations: %s", err.Error())
-		return
-	}
+	networkSpec := instance.Dependency.Network.Spec
 
 	awsoptions := InstanceOptions{}
 	err = util.MapToStruct(instance.Annotations, &awsoptions, AWSAnnotationPrefix)
@@ -220,33 +215,25 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	ifSpecs := ([]*ec2.InstanceNetworkInterfaceSpecification)(nil)
 	subnetID := (*string)(nil)
 
-	if options.PreallocatePrivateIP {
-		err = util.MapToStruct(instance.Annotations, &pip, AWSAnnotationPrefix)
-		if err != nil {
-			err = fmt.Errorf("Can't get private ip interface from instance annotations: %s", err.Error())
-			return
-		}
+	err = util.MapToStruct(instance.Annotations, &pip, AWSAnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get private ip interface from instance annotations: %s", err.Error())
+		return
+	}
+	nif = pip.NetworkInterfaceID
 
-		if instance.Status.PrivateIP == "" {
-			err = fmt.Errorf("custom private IP is not provided.")
-			return
-		}
-
-		nif = pip.NetworkInterfaceID
+	if nif == "" && instance.Status.PrivateIP == "" {
+		err = fmt.Errorf("custom private IP is not provided.")
+		return
 	}
 
-	if options.PreallocatePublicIP {
-		err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
-		if err != nil {
-			err = fmt.Errorf("Can't get eip from instance annotations: %s", err.Error())
-			return
-		}
+	err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get eip from instance annotations: %s", err.Error())
+		return
+	}
 
-		if eip.AllocationID == "" {
-			err = fmt.Errorf("EIP is not provided.")
-			return
-		}
-
+	if eip.AllocationID != "" {
 		if nif == "" {
 			// Create if
 			resp, err := p.ec2.CreateNetworkInterface(&ec2.CreateNetworkInterfaceInput{

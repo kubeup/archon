@@ -14,63 +14,75 @@ limitations under the License.
 package instance
 
 import (
-	"fmt"
 	"github.com/golang/glog"
+	"k8s.io/kubernetes/pkg/runtime"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/initializer"
 	"kubeup.com/archon/pkg/util"
+
+	"fmt"
 	"reflect"
 )
 
-type IPController struct {
+type IPInitializer struct {
 	clusterName string
 	kubeClient  clientset.Interface
 	archon      cloudprovider.ArchonInterface
 }
 
-func NewIPController(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string) *IPController {
-	c := &IPController{
+var _ initializer.Initializer = &IPInitializer{}
+
+func IPInitializerFactory(kubeClient clientset.Interface, cloud cloudprovider.Interface, clusterName string) (initializer.Initializer, error) {
+	c := &IPInitializer{
 		clusterName: clusterName,
 		kubeClient:  kubeClient,
 	}
 	if cloud != nil {
 		c.archon, _ = cloud.Archon()
 	}
-	return c
+	return c, nil
 }
 
-func (ec *IPController) SyncIP(key string, instance *cluster.Instance, deleting bool) (err error, retryable bool) {
-	err, retryable = ec.syncPublicIP(key, instance, deleting)
+func (ec *IPInitializer) Token() string {
+	return "ip"
+}
+
+func (ec *IPInitializer) Initialize(obj runtime.Object) (updatedObj runtime.Object, err error, retryable bool) {
+	return ec.sync(obj, false)
+}
+
+func (ec *IPInitializer) Finalize(obj runtime.Object) (updatedObj runtime.Object, err error, retryable bool) {
+	return ec.sync(obj, true)
+}
+
+func (ec *IPInitializer) sync(obj runtime.Object, finalizing bool) (updatedObj runtime.Object, err error, retryable bool) {
+	instance, _ := obj.(*cluster.Instance)
+	err, retryable = ec.syncPublicIP(instance, finalizing)
 	if err != nil {
 		return
 	}
 
-	err, retryable = ec.syncPrivateIP(key, instance, deleting)
+	err, retryable = ec.syncPrivateIP(instance, finalizing)
+	if err != nil {
+		return
+	}
+
+	updatedObj = instance
 	return
 }
 
-func (ec *IPController) syncPublicIP(key string, instance *cluster.Instance, deleting bool) (err error, retryable bool) {
+func (ec *IPInitializer) syncPublicIP(instance *cluster.Instance, deleting bool) (err error, retryable bool) {
 	if ec.archon == nil {
 		return fmt.Errorf("cloudprovider doesn't support archon interface. aborting"), false
 	}
 
-	glog.V(2).Infof("Syncing Public IP %s", key)
-
-	options := cluster.InstanceOptions{}
-	if instance.Labels != nil {
-		err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
-		if err != nil {
-			return
-		}
-	}
+	glog.V(2).Infof("Syncing Public IP %s", instance.Name)
 
 	pip, supported := ec.archon.PublicIP()
 	if supported == false {
-		if options.PreallocatePublicIP == true {
-			return fmt.Errorf("Instance wants preallocated Public IP but the cloudprovider doesn't support it"), false
-		}
-		return nil, false
+		return fmt.Errorf("Instance wants preallocated Public IP but the cloudprovider doesn't support it"), false
 	}
 
 	previousStatus := *cluster.InstanceStatusDeepCopy(&instance.Status)
@@ -80,11 +92,11 @@ func (ec *IPController) syncPublicIP(key string, instance *cluster.Instance, del
 		util.MapCopy(previousAnnotations, instance.Annotations)
 	}
 
-	if options.PreallocatePublicIP == false || deleting {
-		glog.V(2).Infof("Deleting Public IP %s if needed", key)
+	if deleting {
+		glog.V(2).Infof("Deleting Public IP %s if needed", instance.Name)
 		err = pip.EnsurePublicIPDeleted(ec.clusterName, instance)
-	} else if options.PreallocatePublicIP {
-		glog.V(2).Infof("Ensuring Public IP %s", key)
+	} else {
+		glog.V(2).Infof("Ensuring Public IP %s", instance.Name)
 		_, err = pip.EnsurePublicIP(ec.clusterName, instance)
 	}
 
@@ -107,27 +119,16 @@ func (ec *IPController) syncPublicIP(key string, instance *cluster.Instance, del
 	return
 }
 
-func (ec *IPController) syncPrivateIP(key string, instance *cluster.Instance, deleting bool) (err error, retryable bool) {
+func (ec *IPInitializer) syncPrivateIP(instance *cluster.Instance, deleting bool) (err error, retryable bool) {
 	if ec.archon == nil {
 		return fmt.Errorf("cloudprovider doesn't support archon interface. aborting"), false
 	}
 
-	glog.V(2).Infof("Syncing Private IP %s", key)
-
-	options := cluster.InstanceOptions{}
-	if instance.Labels != nil {
-		err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
-		if err != nil {
-			return
-		}
-	}
+	glog.V(2).Infof("Syncing Private IP %s", instance.Name)
 
 	pip, supported := ec.archon.PrivateIP()
 	if supported == false {
-		if options.PreallocatePrivateIP == true {
-			return fmt.Errorf("Instance wants preallocated Private IP but the cloudprovider doesn't support it"), false
-		}
-		return nil, false
+		return fmt.Errorf("Instance wants preallocated Private IP but the cloudprovider doesn't support it"), false
 	}
 
 	previousStatus := *cluster.InstanceStatusDeepCopy(&instance.Status)
@@ -137,11 +138,11 @@ func (ec *IPController) syncPrivateIP(key string, instance *cluster.Instance, de
 		util.MapCopy(previousAnnotations, instance.Annotations)
 	}
 
-	if options.PreallocatePrivateIP == false || deleting {
-		glog.V(2).Infof("Deleting Private IP %s if needed", key)
+	if deleting {
+		glog.V(2).Infof("Deleting Private IP %s if needed", instance.Name)
 		err = pip.EnsurePrivateIPDeleted(ec.clusterName, instance)
-	} else if options.PreallocatePrivateIP {
-		glog.V(2).Infof("Ensuring Private IP %s", key)
+	} else {
+		glog.V(2).Infof("Ensuring Private IP %s", instance.Name)
 		_, err = pip.EnsurePrivateIP(ec.clusterName, instance)
 	}
 

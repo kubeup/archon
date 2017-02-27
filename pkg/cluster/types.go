@@ -176,10 +176,7 @@ type InstanceTemplateSpec struct {
 }
 
 type InstanceOptions struct {
-	// A set of provider specific annotations will be set by the eip controller when an eip is automatically allocated
-	PreallocatePublicIP bool `k8s:"preallocate-public-ip"`
-	// If this is set
-	PreallocatePrivateIP bool `k8s:"preallocate-private-ip"`
+	UsePrivateIP string `k8s:"use-private-ip"`
 }
 
 type InstanceDependency struct {

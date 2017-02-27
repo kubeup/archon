@@ -41,7 +41,7 @@ func (p *awsCloud) EnsurePrivateIP(clusterName string, instance *cluster.Instanc
 		}
 	}
 
-	if options.PreallocatePrivateIP && instance.Annotations != nil {
+	if instance.Annotations != nil {
 		err = util.MapToStruct(instance.Annotations, &pip, AWSAnnotationPrefix)
 		if err != nil {
 			return

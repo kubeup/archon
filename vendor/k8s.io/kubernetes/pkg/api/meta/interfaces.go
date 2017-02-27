@@ -60,6 +60,8 @@ type Object interface {
 	SetAnnotations(annotations map[string]string)
 	GetFinalizers() []string
 	SetFinalizers(finalizers []string)
+	GetInitializers() []string
+	SetInitializers(initializers []string)
 	GetOwnerReferences() []metatypes.OwnerReference
 	SetOwnerReferences([]metatypes.OwnerReference)
 	GetClusterName() string
