@@ -23,6 +23,7 @@ limitations under the License.
 package app
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -38,6 +39,7 @@ import (
 	"kubeup.com/archon/pkg/controller/instance"
 	"kubeup.com/archon/pkg/controller/instancegroup"
 	"kubeup.com/archon/pkg/controller/network"
+	"kubeup.com/archon/pkg/kuberunner"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
@@ -99,6 +101,18 @@ func Run(s *options.CMServer) error {
 	} else {
 		glog.Errorf("unable to register configz: %s", err)
 	}
+
+	if s.EnableLocalkube {
+		localKube := kuberunner.NewLocalkubeServer()
+		go kuberunner.StartLocalkubeServer(localKube)
+
+		s.Master = fmt.Sprintf("http://127.0.0.1:%d", localKube.APIServerInsecurePort)
+		if s.LeaderElection.LeaderElect == true {
+			s.LeaderElection.LeaderElect = false
+			glog.Warningf("Leader election is forced off when localkube is used")
+		}
+	}
+
 	kubeconfig, err := clientcmd.BuildConfigFromFlags(s.Master, s.Kubeconfig)
 	if err != nil {
 		return err
@@ -113,6 +127,8 @@ func Run(s *options.CMServer) error {
 	if err != nil {
 		glog.Fatalf("Invalid API configuration: %v", err)
 	}
+
+	kubeClient.EnsureResources(30 * time.Second)
 
 	go func() {
 		mux := http.NewServeMux()

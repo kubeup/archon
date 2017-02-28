@@ -71,6 +71,7 @@ type ArchonControllerManagerConfiguration struct {
 	// corresponding flag of the kube-apiserver. WARNING: the generic garbage
 	// collector is an alpha feature.
 	EnableGarbageCollector bool `json:"enableGarbageCollector"`
+	EnableLocalkube        bool `json:"enableLocalkube"`
 }
 
 // CMServer is the main context object for the controller manager.
@@ -99,6 +100,7 @@ func NewCMServer() *CMServer {
 			EnableGarbageCollector:  true,
 			ClusterSigningCertFile:  "/etc/kubernetes/ca/ca.pem",
 			ClusterSigningKeyFile:   "/etc/kubernetes/ca/ca.key",
+			EnableLocalkube:         false,
 		},
 		Namespace:      api.NamespaceAll,
 		ControllerName: ArchonControllerName,
@@ -109,6 +111,7 @@ func NewCMServer() *CMServer {
 
 // AddFlags adds flags for a specific CMServer to the specified FlagSet
 func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
+	fs.BoolVar(&s.EnableLocalkube, "local", false, "Enable localkube")
 	fs.Int32Var(&s.Port, "port", s.Port, "The port that the controller-manager's http service runs on")
 	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
