@@ -115,6 +115,8 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
 - split: strings.Split, but as `split SEP STRING`. The results are returned
   as a map with the indexes set to _N, where N is an integer starting from 0.
   Use it like this: `{{$v := "foo/bar/baz" | split "/"}}{{$v._0}}` (Prints `foo`)
+- splitList: strings.Split, but as `split SEP STRING`. The results are returned
+  as an array.
 
 ### Integer Slice Functions:
 
@@ -146,6 +148,14 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
 
 - env: Read an environment variable.
 - expandenv: Expand all environment variables in a string.
+
+### File Paths:
+- base: Return the last element of a path. https://golang.org/pkg/path#Base
+- dir: Remove the last element of a path. https://golang.org/pkg/path#Dir
+- clean: Clean a path to the shortest equivalent name.  (e.g. remove "foo/.."
+  from "foo/../bar.html") https://golang.org/pkg/path#Clean
+- ext: Get the extension for a file path: https://golang.org/pkg/path#Ext
+- isAbs: Returns true if a path is absolute: https://golang.org/pkg/path#IsAbs
 
 ### Encoding:
 
@@ -214,6 +224,16 @@ string is passed in, functions will attempt to conver with
   returns `3`.
 - min: Return the smallest of a series of integers. `min 1 2 3` returns
   `1`.
+
+### Cryptographic Functions:
+
+- derivePassword: Derive a password from the given parameters according to the "Master Password" algorithm (http://masterpasswordapp.com/algorithm.html)
+  Given parameters (in order) are:
+      `counter` (starting with 1), `password_type` (maximum, long, medium, short, basic, or pin), `password`,
+       `user`, and `site`. The following line generates a long password for the user "user" and with a master-password "password"  on the site "example.com":
+       ```
+       {{ derivePassword 1 "long" "password" "user" "example.com" }}
+       ```
 
 
 ## Principles:

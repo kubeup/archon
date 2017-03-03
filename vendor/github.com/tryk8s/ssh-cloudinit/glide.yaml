@@ -1,0 +1,9 @@
+package: tryk8s/ssh-cloudinit
+ignore:
+- net
+import:
+- package: github.com/pkg/sftp
+- package: golang.org/x/crypto
+  subpackages:
+  - ssh
+  - ssh/terminal

@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: registry-creds
+  namespace: kube-system
+  labels:
+    version: v1.6
+    kubernetes.io/cluster-service: "true"
+    kubernetes.io/minikube-addons: registry-creds
+spec:
+  replicas: 1
+  selector:
+    name: registry-creds
+    version: v1.6
+    kubernetes.io/cluster-service: "true"
+  template:
+    metadata:
+      labels:
+        name: registry-creds
+        version: v1.6
+        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - image: upmcenterprises/registry-creds:1.6
+        name: registry-creds
+        imagePullPolicy: Always
+        env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: registry-creds-ecr
+                key: AWS_ACCESS_KEY_ID
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: registry-creds-ecr
+                key: AWS_SECRET_ACCESS_KEY
+          - name: awsaccount
+            valueFrom:
+              secretKeyRef:
+                name: registry-creds-ecr
+                key: aws-account
+          - name: awsregion
+            valueFrom:
+              secretKeyRef:
+                name: registry-creds-ecr
+                key: aws-region
+        volumeMounts:
+        - name: gcr-creds
+          mountPath: "/root/.config/gcloud"
+          readOnly: true
+      volumes:
+      - name: gcr-creds
+        secret:
+          secretName: registry-creds-gcr

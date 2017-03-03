@@ -15,14 +15,14 @@ type InstanceStatus string
 
 // Constants of InstanceStatus
 const (
+	Creating = InstanceStatus("Creating") // For backward compatability
 	Pending  = InstanceStatus("Pending")
 	Running  = InstanceStatus("Running")
 	Starting = InstanceStatus("Starting")
 
 	Stopped  = InstanceStatus("Stopped")
 	Stopping = InstanceStatus("Stopping")
-
-	Deleted = InstanceStatus("Deleted")
+	Deleted  = InstanceStatus("Deleted")
 )
 
 type LockReason string
@@ -34,6 +34,39 @@ const (
 
 type LockReasonType struct {
 	LockReason LockReason
+}
+
+type DescribeUserdataArgs struct {
+	RegionId   common.Region
+	InstanceId string
+}
+
+//
+// You can read doc at http://docs.aliyun.com/#/pub/ecs/open-api/datatype&instancestatusitemtype
+type DescribeUserdataItemType struct {
+	UserData   string
+	InstanceId string
+	RegionId   string
+}
+
+type DescribeUserdataResponse struct {
+	common.Response
+	DescribeUserdataItemType
+}
+
+// DescribeInstanceStatus describes instance status
+//
+// You can read doc at https://intl.aliyun.com/help/doc-detail/49227.htm
+func (client *Client) DescribeUserdata(args *DescribeUserdataArgs) (userData *DescribeUserdataItemType, err error) {
+	response := DescribeUserdataResponse{}
+
+	err = client.Invoke("DescribeUserdata", args, &response)
+
+	if err == nil {
+		return &response.DescribeUserdataItemType, nil
+	}
+
+	return nil, err
 }
 
 type DescribeInstanceStatusArgs struct {
@@ -248,6 +281,7 @@ type ModifyInstanceAttributeArgs struct {
 	Description  string
 	Password     string
 	HostName     string
+	UserData     string
 }
 
 type ModifyInstanceAttributeResponse struct {
@@ -275,6 +309,38 @@ func (client *Client) WaitForInstance(instanceId string, status InstanceStatus, 
 		instance, err := client.DescribeInstanceAttribute(instanceId)
 		if err != nil {
 			return err
+		}
+		if instance.Status == status {
+			//TODO
+			//Sleep one more time for timing issues
+			time.Sleep(DefaultWaitForInterval * time.Second)
+			break
+		}
+		timeout = timeout - DefaultWaitForInterval
+		if timeout <= 0 {
+			return common.GetClientErrorFromString("Timeout")
+		}
+		time.Sleep(DefaultWaitForInterval * time.Second)
+
+	}
+	return nil
+}
+
+// WaitForInstance waits for instance to given status
+// when instance.NotFound wait until timeout
+func (client *Client) WaitForInstanceAsyn(instanceId string, status InstanceStatus, timeout int) error {
+	if timeout <= 0 {
+		timeout = InstanceDefaultTimeout
+	}
+	for {
+		instance, err := client.DescribeInstanceAttribute(instanceId)
+		if err != nil {
+			e, _ := err.(*common.Error)
+			if e.ErrorResponse.Code != "InvalidInstanceId.NotFound" {
+				return err
+			}
+			time.Sleep(DefaultWaitForInterval * time.Second)
+			continue
 		}
 		if instance.Status == status {
 			//TODO
@@ -477,6 +543,43 @@ func (client *Client) CreateInstance(args *CreateInstanceArgs) (instanceId strin
 		return "", err
 	}
 	return response.InstanceId, err
+}
+
+type RunInstanceArgs struct {
+	CreateInstanceArgs
+	MinAmount       int
+	MaxAmount       int
+	AutoReleaseTime string
+	NetworkType     string
+	InnerIpAddress  string
+	BusinessInfo    string
+}
+
+type RunInstanceResponse struct {
+	common.Response
+	InstanceIdSets InstanceIdSets
+}
+
+type InstanceIdSets struct {
+	InstanceIdSet []string
+}
+
+type BusinessInfo struct {
+	Pack       string `json:"pack,omitempty"`
+	ActivityId string `json:"activityId,omitempty"`
+}
+
+func (client *Client) RunInstances(args *RunInstanceArgs) (instanceIdSet []string, err error) {
+	if args.UserData != "" {
+		// Encode to base64 string
+		args.UserData = base64.StdEncoding.EncodeToString([]byte(args.UserData))
+	}
+	response := RunInstanceResponse{}
+	err = client.Invoke("RunInstances", args, &response)
+	if err != nil {
+		return nil, err
+	}
+	return response.InstanceIdSets.InstanceIdSet, err
 }
 
 type SecurityGroupArgs struct {
