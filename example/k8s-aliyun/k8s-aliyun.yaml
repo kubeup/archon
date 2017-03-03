@@ -11,6 +11,8 @@ spec:
     metadata:
       labels:
         app: k8s-aliyun
+      annotations:
+        initializers: public-ip,private-ip
     spec:
       networkName: k8s-net
       instanceType: ecs.n1.tiny
@@ -221,21 +223,9 @@ spec:
               - --leader-elect=true
               - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
               - --root-ca-file=/etc/kubernetes/ssl/ca.pem
-              - --flex-volume-plugin-dir=/opt/k8s/volume/plugins
               - --allocate-node-cidrs=true
               - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
               - --configure-cloud-routes=false
-              env:
-              - name: ALIYUN_ACCESS_KEY
-                valueFrom:
-                  secretKeyRef:
-                    name: aliyun-creds
-                    key: accessKey
-              - name: ALIYUN_ACCESS_KEY_SECRET
-                valueFrom:
-                  secretKeyRef:
-                    name: aliyun-creds
-                    key: accessKeySecret
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1

@@ -367,6 +367,11 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 		cachedInstance.mu.Unlock()
 	}()
 
+	// Instance is being initialized by InstanceGroup controller. so abort now.
+	if instance.Status.Phase == cluster.InstanceInitializing {
+		return nil, doNotRetry
+	}
+
 	// cache the instance, we need the info for instance deletion
 	cachedInstance.state = instance
 
@@ -427,7 +432,7 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 // should be retried.
 func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluster.Instance) (error, bool) {
 	// We will not recreate an instance
-	if instance.Status.InstanceID != "" {
+	if instance.Status.Phase == cluster.InstanceRunning {
 		return nil, notRetryable
 	}
 
@@ -561,7 +566,8 @@ func (s *instanceCache) delete(instanceName string) {
 }
 
 func (s *InstanceController) needsUpdate(oldInstance *cluster.Instance, newInstance *cluster.Instance) bool {
-	if newInstance.Status.Phase == cluster.InstancePending {
+	if newInstance.Status.Phase == cluster.InstancePending ||
+		(oldInstance.Status.Phase == cluster.InstancePending && newInstance.Status.Phase == cluster.InstanceInitializing) {
 		return true
 	}
 	return false

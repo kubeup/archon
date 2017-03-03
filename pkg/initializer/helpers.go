@@ -22,10 +22,12 @@ func RemoveInitializer(dst Object, removals ...string) {
 	dst.SetInitializers(removeStrings(s, removals...))
 }
 
-func HasInitializer(obj Object, name string) bool {
+// True if it has any one of them
+func HasInitializer(obj Object, names ...string) bool {
+	set := sets.NewString(names...)
 	s := obj.GetInitializers()
 	for _, i := range s {
-		if i == name {
+		if set.Has(i) {
 			return true
 		}
 	}

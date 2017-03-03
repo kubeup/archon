@@ -299,7 +299,7 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 	}
 	if len(template.Secrets) > 0 {
 		initializer.AddInitializer(instance, "csr")
-		instance.Status.Phase = cluster.InstancePending
+		instance.Status.Phase = cluster.InstanceInitializing
 	}
 	if newInstance, err := r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)

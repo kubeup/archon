@@ -26,8 +26,8 @@ import (
 )
 
 var (
-	PublicIPToken  = "private-ip"
-	PrivateIPToken = "public-ip"
+	PublicIPToken  = "public-ip"
+	PrivateIPToken = "private-ip"
 )
 
 type IPInitializer struct {
@@ -133,6 +133,12 @@ func (ec *IPInitializer) syncPublicIP(obj initializer.Object, deleting bool) (up
 }
 
 func (ec *IPInitializer) syncPrivateIP(obj initializer.Object, deleting bool) (updatedObj initializer.Object, err error, retryable bool) {
+	// Aliyun provider requires public ip to be provisioned first.
+	if initializer.HasInitializer(obj, PublicIPToken) {
+		err = initializer.ErrSkip
+		return
+	}
+
 	instance, _ := obj.(*cluster.Instance)
 	if ec.archon == nil {
 		err = fmt.Errorf("cloudprovider doesn't support archon interface. aborting")
@@ -160,6 +166,7 @@ func (ec *IPInitializer) syncPrivateIP(obj initializer.Object, deleting bool) (u
 	} else {
 		glog.V(2).Infof("Ensuring Private IP %s", instance.Name)
 		_, err = pip.EnsurePrivateIP(ec.clusterName, instance)
+		glog.Infof("Ensured private ip: %+v", instance.Status)
 	}
 
 	if err != nil {

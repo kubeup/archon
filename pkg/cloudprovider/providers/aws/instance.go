@@ -142,31 +142,10 @@ func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance
 	}
 
 	if instance.Status.InstanceID != "" {
-		status2 := (*cluster.InstanceStatus)(nil)
-		status2, err = p.getInstance(awsnetwork, instance.Status.InstanceID)
-
-		if err != nil {
-			if err == ErrorNotFound {
-				return p.createInstance(clusterName, instance)
-			}
-			return
-		}
-
-		switch status2.Phase {
-		case cluster.InstanceFailed, cluster.InstanceUnknown:
-			err = p.EnsureInstanceDeleted(clusterName, instance)
-			if err != nil {
-				return
-			}
-			return p.createInstance(clusterName, instance)
-		}
-
-		status = status2
-	} else {
-		return p.createInstance(clusterName, instance)
+		return &instance.Status, nil
 	}
 
-	return
+	return p.createInstance(clusterName, instance)
 }
 
 func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {

@@ -32,6 +32,7 @@ type ECS interface {
 	AllocateEipAddress(*ecs.AllocateEipAddressArgs) (string, string, error)
 	WaitForEip(common.Region, string, ecs.EipStatus, int) error
 	AssociateEipAddress(string, string) error
+	DescribeEipAddress(string, string) (ecs.EipAddressSetType, error)
 	UnassociateEipAddress(string, string) error
 	ReleaseEipAddress(string) error
 
@@ -124,6 +125,17 @@ func (p *aliyunECS) UnassociateEipAddress(instanceId string, eipId string) error
 
 func (p *aliyunECS) ReleaseEipAddress(id string) error {
 	return p.ecs.ReleaseEipAddress(id)
+}
+
+func (p *aliyunECS) DescribeEipAddress(region string, id string) (eip ecs.EipAddressSetType, err error) {
+	resp, _, err := p.ecs.DescribeEipAddresses(&ecs.DescribeEipAddressesArgs{
+		RegionId:     common.Region(region),
+		AllocationId: id,
+	})
+	if len(resp) > 0 {
+		eip = resp[0]
+	}
+	return
 }
 
 func (p *aliyunECS) CreateSecurityGroup(input *ecs.CreateSecurityGroupArgs) (string, error) {

@@ -61,8 +61,7 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 		return
 	}
 
-	if initializer.HasInitializer(instance, PublicIPToken) ||
-		initializer.HasInitializer(instance, PrivateIPToken) {
+	if initializer.HasInitializer(instance, PublicIPToken, PrivateIPToken) {
 		err = initializer.ErrSkip
 		return
 	}

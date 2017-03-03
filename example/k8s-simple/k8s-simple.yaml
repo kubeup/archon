@@ -11,8 +11,8 @@ spec:
     metadata:
       labels:
         app: k8s-simple
-        archon.kubeup.com/preallocate-public-ip: "true"
-        archon.kubeup.com/preallocate-private-ip: "true"
+      annotations:
+        initializers: public-ip,private-ip
     spec:
       networkName: k8s-net
       instanceType: t2.small

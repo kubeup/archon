@@ -11,10 +11,9 @@ spec:
     metadata:
       annotations:
         aws.archon.kubeup.com/instance-profile: "k8s-node"
+        initializers: public-ip,private-ip
       labels:
         app: k8s-node
-        archon.kubeup.com/preallocate-public-ip: "true"
-        archon.kubeup.com/preallocate-private-ip: "true"
     spec:
       networkName: k8s-net
       instanceType: t2.small
