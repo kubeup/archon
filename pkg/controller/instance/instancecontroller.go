@@ -57,9 +57,6 @@ const (
 	notRetryable = false
 
 	doNotRetry = time.Duration(0)
-
-	ResourceStatusKey = "archon.kubeup.com/status"
-	ResourceTypeKey   = "archon.kubeup.com/type"
 )
 
 type cachedInstance struct {
@@ -77,13 +74,12 @@ type instanceCache struct {
 }
 
 type InstanceController struct {
-	cloud              cloudprovider.Interface
-	kubeClient         clientset.Interface
-	certificateControl CertificateControlInterface
-	clusterName        string
-	namespace          string
-	archon             cloudprovider.ArchonInterface
-	cache              *instanceCache
+	cloud       cloudprovider.Interface
+	kubeClient  clientset.Interface
+	clusterName string
+	namespace   string
+	archon      cloudprovider.ArchonInterface
+	cache       *instanceCache
 	// Initializers
 	initializerManager *initializer.InitializerManager
 	// A store of instances, populated by the instanceController
@@ -107,15 +103,25 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_controller", kubeClient.Core().RESTClient().GetRateLimiter())
 	}
 
-	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
+	// Initializers
+	csrInit, err := NewCSRInitializer(kubeClient, caCertFile, caKeyFile)
 	if err != nil {
-		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
+		return nil, err
 	}
-
-	factories := initializer.Factories{
-		IPInitializerFactory,
+	publicIpInit, err := NewPublicIPInitializer(kubeClient, cloud, clusterName)
+	if err != nil {
+		return nil, err
 	}
-	manager, err := initializer.NewInitializerManager(factories, kubeClient, cloud, clusterName)
+	privateIpInit, err := NewPrivateIPInitializer(kubeClient, cloud, clusterName)
+	if err != nil {
+		return nil, err
+	}
+	inits := []initializer.Initializer{
+		publicIpInit,
+		privateIpInit,
+		csrInit,
+	}
+	manager, err := initializer.NewInitializerManager(inits, kubeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +130,6 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cloud:              cloud,
 		kubeClient:         kubeClient,
 		initializerManager: manager,
-		certificateControl: certControl,
 		clusterName:        clusterName,
 		namespace:          namespace,
 		cache:              &instanceCache{instanceMap: make(map[string]*cachedInstance)},
@@ -241,7 +246,7 @@ func (s *InstanceController) syncCloudInstances() {
 			cachedInstance := s.cache.getOrCreate(key)
 			if cachedInstance.mu.TryLock() {
 				instance.Status = *status
-				updatedInstance, err := s.kubeClient.Archon().Instances(s.namespace).Update(instance)
+				updatedInstance, err := s.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
 				if err != nil {
 					glog.Errorf("Couldn't update instance %s in k8s: %+v", key, err)
 					continue
@@ -316,30 +321,6 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		}
 	*/
 
-	secrets := make([]api.Secret, 0)
-
-	for _, n := range instance.Spec.Secrets {
-		secret, err := s.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
-		if err != nil {
-			return fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err), nil
-		}
-		if status, ok := secret.Annotations[ResourceStatusKey]; ok {
-			if status != "Ready" {
-				switch secret.Annotations[ResourceTypeKey] {
-				case "csr":
-					err = s.certificateControl.GenerateCertificate(secret, instance)
-					if err != nil {
-						return fmt.Errorf("Failed to generate certificate %s: %v", n.Name, err), nil
-					}
-					_, err = s.kubeClient.Core().Secrets(instance.Namespace).Update(secret)
-				default:
-					return fmt.Errorf("Secret resource %s is not ready", n.Name), nil
-				}
-			}
-		}
-		secrets = append(secrets, *secret)
-	}
-
 	users := make([]cluster.User, 0)
 
 	for _, u := range instance.Spec.Users {
@@ -352,10 +333,29 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 
 	deps := &cluster.InstanceDependency{
 		Network: *network,
-		Secrets: secrets,
 		Users:   users,
 	}
 	return err, deps
+}
+
+func (s *InstanceController) ensureSecrets(key string, instance *cluster.Instance) error {
+	secrets := make([]api.Secret, 0)
+
+	for _, n := range instance.Spec.Secrets {
+		secret, err := s.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err)
+		}
+		if status, ok := secret.Annotations[ResourceStatusKey]; ok {
+			if status != "Ready" {
+				return fmt.Errorf("Secret resource %s is not ready", n.Name)
+			}
+		}
+		secrets = append(secrets, *secret)
+	}
+
+	instance.Dependency.Secrets = secrets
+	return nil
 }
 
 // Returns an error if processing the instance update failed, along with a time.Duration
@@ -374,8 +374,15 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 		retry bool
 		obj   pkg_runtime.Object
 	)
+	glog.Infof("Updating instance: %+v, %v", instance, instance.GetInitializers())
+	err, deps := s.ensureDependency(key, instance)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure all dependencies %s: %v", key, err), cachedInstance.nextRetryDelay()
+	}
+	instance.Dependency = *deps
+
 	if instance.GetDeletionTimestamp() != nil {
-		obj, err, retry = s.initializerManager.Finalize(instance)
+		obj, err, retry = s.initializerManager.FinalizeAll(instance)
 		if obj != nil && err == nil {
 			instance, _ = obj.(*cluster.Instance)
 			cachedInstance.state = instance
@@ -420,16 +427,14 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 // should be retried.
 func (s *InstanceController) createInstanceIfNeeded(key string, instance *cluster.Instance) (error, bool) {
 	// We will not recreate an instance
-	if instance.Status.InstanceID != "" || instance.Status.Phase == cluster.InstanceInitializing {
+	if instance.Status.InstanceID != "" {
 		return nil, notRetryable
 	}
 
-	err, deps := s.ensureDependency(key, instance)
+	err := s.ensureSecrets(key, instance)
 	if err != nil {
-		return fmt.Errorf("Failed to ensure all dependencies %s: %v", key, err), retryable
+		return fmt.Errorf("Failed to ensure all secrets %s: %v", key, err), retryable
 	}
-
-	instance.Dependency = *deps
 
 	previousState := *cluster.InstanceStatusDeepCopy(&instance.Status)
 
@@ -556,7 +561,7 @@ func (s *instanceCache) delete(instanceName string) {
 }
 
 func (s *InstanceController) needsUpdate(oldInstance *cluster.Instance, newInstance *cluster.Instance) bool {
-	if newInstance.Status.Phase == cluster.InstancePending && (oldInstance.Status.Phase == "" || oldInstance.Status.Phase == cluster.InstanceInitializing) {
+	if newInstance.Status.Phase == cluster.InstancePending {
 		return true
 	}
 	return false
@@ -651,6 +656,22 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 		message += err.Error()
 		s.eventRecorder.Event(instance, api.EventTypeWarning, "DeletingInstanceFailed", message)
 		return err, cachedInstance.nextRetryDelay()
+	}
+
+	obj, err, retry := s.initializerManager.FinalizeAll(instance)
+	if err != nil {
+		message := "Error finalizing instance:"
+		message += err.Error()
+		s.eventRecorder.Event(instance, api.EventTypeWarning, "DeletingInstanceFailed", message)
+		if retry {
+			return err, cachedInstance.nextRetryDelay()
+		}
+		return err, doNotRetry
+	}
+
+	if obj != nil && err == nil {
+		instance, _ = obj.(*cluster.Instance)
+		cachedInstance.state = instance
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
 

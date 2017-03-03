@@ -3,40 +3,42 @@ package initializer
 import (
 	"fmt"
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api"
+	//"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/runtime"
 	"kubeup.com/archon/pkg/clientset"
-	"kubeup.com/archon/pkg/cloudprovider"
 )
 
 var (
 	ErrSkip = fmt.Errorf("This initializer will not process this resource")
 )
 
+type Object interface {
+	runtime.Object
+
+	GetInitializers() []string
+	SetInitializers([]string)
+
+	GetFinalizers() []string
+	SetFinalizers([]string)
+}
+
 type Initializer interface {
 	Token() string
-	Initialize(runtime.Object) (runtime.Object, error, bool)
-	Finalize(runtime.Object) (runtime.Object, error, bool)
+	Initialize(Object) (Object, error, bool)
+	Finalize(Object) (Object, error, bool)
 	//ResolveConflict(old runtime.Object, new runtime.Object) (runtime.Object, error)
 }
 
 type InitializerMap map[string]Initializer
-type InitializerFactory func(clientset.Interface, cloudprovider.Interface, string) (Initializer, error)
-type Factories []InitializerFactory
 
 type InitializerManager struct {
 	initializers InitializerMap
 	kubeClient   clientset.Interface
 }
 
-func NewInitializerManager(factories Factories, kubeClient clientset.Interface, cloud cloudprovider.Interface, clusterName string) (im *InitializerManager, err error) {
-	var i Initializer
+func NewInitializerManager(list []Initializer, kubeClient clientset.Interface) (im *InitializerManager, err error) {
 	imap := make(InitializerMap)
-	for _, f := range factories {
-		i, err = f(kubeClient, cloud, clusterName)
-		if err != nil {
-			return
-		}
+	for _, i := range list {
 		imap[i.Token()] = i
 	}
 
@@ -46,13 +48,9 @@ func NewInitializerManager(factories Factories, kubeClient clientset.Interface, 
 	}, nil
 }
 
-func (im *InitializerManager) Initialize(obj runtime.Object) (updatedObj runtime.Object, err error, retry bool) {
-	m, err := api.ObjectMetaFor(obj)
-	if err != nil {
-		return
-	}
-
-	tokens := m.Initializers
+func (im *InitializerManager) Initialize(obj Object) (updatedObj Object, err error, retry bool) {
+	tokens := obj.GetInitializers()
+	glog.Infof("Initializer manager is initializing %v", tokens)
 	for _, token := range tokens {
 		init, ok := im.initializers[token]
 		if !ok {
@@ -60,6 +58,7 @@ func (im *InitializerManager) Initialize(obj runtime.Object) (updatedObj runtime
 			continue
 		}
 
+		glog.Infof("Initializer manager is initializing %v", token)
 		updatedObj, err, retry = init.Initialize(obj)
 		if err == ErrSkip {
 			continue
@@ -74,13 +73,9 @@ func (im *InitializerManager) Initialize(obj runtime.Object) (updatedObj runtime
 	return
 }
 
-func (im *InitializerManager) Finalize(obj runtime.Object) (updatedObj runtime.Object, err error, retry bool) {
-	m, err := api.ObjectMetaFor(obj)
-	if err != nil {
-		return
-	}
-
-	tokens := m.Finalizers
+func (im *InitializerManager) Finalize(obj Object) (updatedObj Object, err error, retry bool) {
+	tokens := obj.GetFinalizers()
+	glog.Infof("Initializer manager is finalizing %v", tokens)
 	for _, token := range tokens {
 		init, ok := im.initializers[token]
 		if !ok {
@@ -88,6 +83,7 @@ func (im *InitializerManager) Finalize(obj runtime.Object) (updatedObj runtime.O
 			continue
 		}
 
+		glog.Infof("Initializer manager is finalizing %v", token)
 		updatedObj, err, retry = init.Finalize(obj)
 		if err == ErrSkip {
 			continue
@@ -99,5 +95,31 @@ func (im *InitializerManager) Finalize(obj runtime.Object) (updatedObj runtime.O
 		break
 	}
 
+	return
+}
+
+func (im *InitializerManager) FinalizeAll(obj Object) (updatedObj Object, err error, retry bool) {
+	retrys := 3
+	var obj2 Object
+	for retrys > 0 {
+		tokens := obj.GetFinalizers()
+		if len(tokens) == 0 {
+			break
+		}
+
+		obj2, err, retry = im.Finalize(obj)
+		if err != nil {
+			retrys -= 1
+			glog.Errorf("Unable to finalize object: %v", err)
+		} else if obj2 == nil {
+			glog.Warningf("Finalizer didn't return an update Object")
+		} else {
+			obj = obj2
+		}
+	}
+
+	if err == nil {
+		updatedObj = obj
+	}
 	return
 }

@@ -55,12 +55,10 @@ func (p *awsCloud) EnsurePrivateIP(clusterName string, instance *cluster.Instanc
 
 	// Create a network interface
 	awsnetwork := AWSNetwork{}
-	if instance.Annotations != nil {
-		err = util.MapToStruct(instance.Annotations, &awsnetwork, AWSAnnotationPrefix)
-		if err != nil {
-			err = fmt.Errorf("Network is not ready. Can't allocate private ip: %s", err.Error())
-			return
-		}
+	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Network is not ready. Can't allocate private ip: %s", err.Error())
+		return
 	}
 
 	if awsnetwork.Subnet == "" {

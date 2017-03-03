@@ -12,6 +12,7 @@ import (
 	"k8s.io/kubernetes/pkg/runtime"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/initializer"
 )
 
 // Reasons for instance events
@@ -297,7 +298,8 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		return fmt.Errorf("unable to create instances, no labels")
 	}
 	if len(template.Secrets) > 0 {
-		instance.Status.Phase = cluster.InstanceInitializing
+		initializer.AddInitializer(instance, "csr")
+		instance.Status.Phase = cluster.InstancePending
 	}
 	if newInstance, err := r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)

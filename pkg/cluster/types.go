@@ -218,8 +218,8 @@ type InstanceStatus struct {
 type InstancePhase string
 
 const (
+	InstancePending      InstancePhase = ""
 	InstanceInitializing InstancePhase = "Initializing"
-	InstancePending      InstancePhase = "Pending"
 	InstanceRunning      InstancePhase = "Running"
 	InstanceFailed       InstancePhase = "Failed"
 	InstanceUnknown      InstancePhase = "Unknown"

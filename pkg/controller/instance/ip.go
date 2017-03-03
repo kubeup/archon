@@ -15,7 +15,6 @@ package instance
 
 import (
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/runtime"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
@@ -26,63 +25,72 @@ import (
 	"reflect"
 )
 
+var (
+	PublicIPToken  = "private-ip"
+	PrivateIPToken = "public-ip"
+)
+
 type IPInitializer struct {
 	clusterName string
 	kubeClient  clientset.Interface
 	archon      cloudprovider.ArchonInterface
+	token       string
+	sync        func(obj initializer.Object, finalizing bool) (initializer.Object, error, bool)
 }
 
 var _ initializer.Initializer = &IPInitializer{}
 
-func IPInitializerFactory(kubeClient clientset.Interface, cloud cloudprovider.Interface, clusterName string) (initializer.Initializer, error) {
+func (ec *IPInitializer) Token() string {
+	return ec.token
+}
+
+func (ec *IPInitializer) Initialize(obj initializer.Object) (updatedObj initializer.Object, err error, retryable bool) {
+	return ec.sync(obj, false)
+}
+
+func (ec *IPInitializer) Finalize(obj initializer.Object) (updatedObj initializer.Object, err error, retryable bool) {
+	return ec.sync(obj, true)
+}
+
+func NewPrivateIPInitializer(kubeClient clientset.Interface, cloud cloudprovider.Interface, clusterName string) (initializer.Initializer, error) {
 	c := &IPInitializer{
 		clusterName: clusterName,
 		kubeClient:  kubeClient,
+		token:       PrivateIPToken,
 	}
+	c.sync = c.syncPrivateIP
 	if cloud != nil {
 		c.archon, _ = cloud.Archon()
 	}
 	return c, nil
 }
 
-func (ec *IPInitializer) Token() string {
-	return "ip"
+func NewPublicIPInitializer(kubeClient clientset.Interface, cloud cloudprovider.Interface, clusterName string) (initializer.Initializer, error) {
+	c := &IPInitializer{
+		clusterName: clusterName,
+		kubeClient:  kubeClient,
+		token:       PublicIPToken,
+	}
+	c.sync = c.syncPublicIP
+	if cloud != nil {
+		c.archon, _ = cloud.Archon()
+	}
+	return c, nil
 }
 
-func (ec *IPInitializer) Initialize(obj runtime.Object) (updatedObj runtime.Object, err error, retryable bool) {
-	return ec.sync(obj, false)
-}
-
-func (ec *IPInitializer) Finalize(obj runtime.Object) (updatedObj runtime.Object, err error, retryable bool) {
-	return ec.sync(obj, true)
-}
-
-func (ec *IPInitializer) sync(obj runtime.Object, finalizing bool) (updatedObj runtime.Object, err error, retryable bool) {
+func (ec *IPInitializer) syncPublicIP(obj initializer.Object, deleting bool) (updatedObj initializer.Object, err error, retryable bool) {
 	instance, _ := obj.(*cluster.Instance)
-	err, retryable = ec.syncPublicIP(instance, finalizing)
-	if err != nil {
-		return
-	}
-
-	err, retryable = ec.syncPrivateIP(instance, finalizing)
-	if err != nil {
-		return
-	}
-
-	updatedObj = instance
-	return
-}
-
-func (ec *IPInitializer) syncPublicIP(instance *cluster.Instance, deleting bool) (err error, retryable bool) {
 	if ec.archon == nil {
-		return fmt.Errorf("cloudprovider doesn't support archon interface. aborting"), false
+		err = fmt.Errorf("cloudprovider doesn't support archon interface. aborting")
+		return
 	}
 
 	glog.V(2).Infof("Syncing Public IP %s", instance.Name)
 
 	pip, supported := ec.archon.PublicIP()
 	if supported == false {
-		return fmt.Errorf("Instance wants preallocated Public IP but the cloudprovider doesn't support it"), false
+		err = fmt.Errorf("Instance wants preallocated Public IP but the cloudprovider doesn't support it")
+		return
 	}
 
 	previousStatus := *cluster.InstanceStatusDeepCopy(&instance.Status)
@@ -107,28 +115,36 @@ func (ec *IPInitializer) syncPublicIP(instance *cluster.Instance, deleting bool)
 
 	if !deleting && (!reflect.DeepEqual(previousAnnotations, instance.Annotations) || !cluster.InstanceStatusEqual(previousStatus, instance.Status)) {
 		// Persist instance
+		initializer.RemoveInitializer(instance, PublicIPToken)
+		initializer.AddFinalizer(instance, PublicIPToken)
 		ret, err2 := ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
 		if err2 != nil {
-			err = fmt.Errorf("Not able to persist instance after Public IP update: %s", err.Error())
+			err = fmt.Errorf("Not able to persist instance after Public IP update: %s", err2.Error())
 			retryable = false
 		} else {
-			*instance = *ret
+			updatedObj = ret
 		}
+	} else if deleting {
+		initializer.RemoveFinalizer(instance, PublicIPToken)
+		updatedObj = instance
 	}
 
 	return
 }
 
-func (ec *IPInitializer) syncPrivateIP(instance *cluster.Instance, deleting bool) (err error, retryable bool) {
+func (ec *IPInitializer) syncPrivateIP(obj initializer.Object, deleting bool) (updatedObj initializer.Object, err error, retryable bool) {
+	instance, _ := obj.(*cluster.Instance)
 	if ec.archon == nil {
-		return fmt.Errorf("cloudprovider doesn't support archon interface. aborting"), false
+		err = fmt.Errorf("cloudprovider doesn't support archon interface. aborting")
+		return
 	}
 
 	glog.V(2).Infof("Syncing Private IP %s", instance.Name)
 
 	pip, supported := ec.archon.PrivateIP()
 	if supported == false {
-		return fmt.Errorf("Instance wants preallocated Private IP but the cloudprovider doesn't support it"), false
+		err = fmt.Errorf("Instance wants preallocated Private IP but the cloudprovider doesn't support it")
+		return
 	}
 
 	previousStatus := *cluster.InstanceStatusDeepCopy(&instance.Status)
@@ -153,13 +169,19 @@ func (ec *IPInitializer) syncPrivateIP(instance *cluster.Instance, deleting bool
 
 	if !deleting && (!reflect.DeepEqual(previousAnnotations, instance.Annotations) || !cluster.InstanceStatusEqual(previousStatus, instance.Status)) {
 		// Persist instance
+		initializer.RemoveInitializer(instance, PrivateIPToken)
+		initializer.AddFinalizer(instance, PrivateIPToken)
 		ret, err2 := ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
 		if err2 != nil {
-			err = fmt.Errorf("Not able to persist instance after Private IP update: %s", err.Error())
+			err = fmt.Errorf("Not able to persist instance after Private IP update: %s", err2.Error())
 			retryable = false
 		} else {
-			*instance = *ret
+			ret.Dependency = instance.Dependency
+			updatedObj = ret
 		}
+	} else if deleting {
+		initializer.RemoveFinalizer(instance, PrivateIPToken)
+		updatedObj = instance
 	}
 
 	return

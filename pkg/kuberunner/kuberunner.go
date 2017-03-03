@@ -78,8 +78,8 @@ func StartLocalkubeServer(s *localkube.LocalkubeServer) {
 	s.AddServer(apiserver)
 
 	// setup controller-manager
-	controllerManager := s.NewControllerManagerServer()
-	s.AddServer(controllerManager)
+	//controllerManager := s.NewControllerManagerServer()
+	//s.AddServer(controllerManager)
 
 	s.StartAll()
 	defer s.StopAll()
