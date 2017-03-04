@@ -14,7 +14,7 @@ dependencies:
   override:
     - mkdir -p $HOME/.go_workspace/src/kubeup.com
     - ln -sf $HOME/$CIRCLE_PROJECT_REPONAME $HOME/.go_workspace/src/kubeup.com/$CIRCLE_PROJECT_REPONAME
-    - CGO_ENABLED=0 GOOS=linux go build -installsuffix cgo -o archon-controller kubeup.com/archon/cmd/archon-controller
+    - GOOS=linux go build -o archon-controller kubeup.com/archon/cmd/archon-controller
     - |
       if [ -n "$CIRCLE_TAG" ]; then
         make docker DOCKER_IMAGE_NAME=$DOCKER_IMAGE_NAME DOCKER_IMAGE_TAG=$CIRCLE_TAG
