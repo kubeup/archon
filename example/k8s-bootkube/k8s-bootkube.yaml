@@ -12,10 +12,9 @@ spec:
       annotations:
         aws.archon.kubeup.com/instance-profile: "k8s-master"
         aws.archon.kubeup.com/cloud-init-s3-path: "s3://YOUR_S3_BUCKET/cloudinit/"
+        initializers: public-ip,private-ip
       labels:
         app: k8s-bootkube
-        archon.kubeup.com/preallocate-public-ip: "true"
-        archon.kubeup.com/preallocate-private-ip: "true"
     spec:
       networkName: k8s-net
       instanceType: t2.small

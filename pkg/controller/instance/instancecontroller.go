@@ -379,7 +379,7 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 		retry bool
 		obj   pkg_runtime.Object
 	)
-	glog.Infof("Updating instance: %+v, %v", instance, instance.GetInitializers())
+	glog.Infof("Updating instance: %+v", key)
 	err, deps := s.ensureDependency(key, instance)
 	if err != nil {
 		return fmt.Errorf("Failed to ensure all dependencies %s: %v", key, err), cachedInstance.nextRetryDelay()

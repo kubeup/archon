@@ -125,7 +125,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: s.enqueueNetwork,
 			UpdateFunc: func(old, cur interface{}) {
-				glog.Warningf("Network changes in registry are ignored")
+				n, _ := cur.(*cluster.Network)
+				if n != nil {
+					glog.V(2).Infof("Network changes in registry are ignored: %v", n.Name)
+				}
 				// TODO?
 				// oldSvc, ok1 := old.(*cluster.network)
 				// curSvc, ok2 := cur.(*cluster.network)

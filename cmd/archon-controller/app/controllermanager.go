@@ -103,10 +103,16 @@ func Run(s *options.CMServer) error {
 	}
 
 	if s.EnableLocalkube {
-		localKube := kuberunner.NewLocalkubeServer()
-		go kuberunner.StartLocalkubeServer(localKube)
+		lk := kuberunner.NewLocalkubeServer()
+		lk.LocalkubeDirectory = s.LocalkubeDirectory
+		lk.APIServerAddress = s.APIServerAddress
+		lk.APIServerPort = s.APIServerPort
+		lk.APIServerInsecureAddress = s.APIServerInsecureAddress
+		lk.APIServerInsecurePort = s.APIServerInsecurePort
 
-		s.Master = fmt.Sprintf("http://127.0.0.1:%d", localKube.APIServerInsecurePort)
+		go kuberunner.StartLocalkubeServer(lk)
+
+		s.Master = fmt.Sprintf("http://127.0.0.1:%d", lk.APIServerInsecurePort)
 		if s.LeaderElection.LeaderElect == true {
 			s.LeaderElection.LeaderElect = false
 			glog.Warningf("Leader election is forced off when localkube is used")

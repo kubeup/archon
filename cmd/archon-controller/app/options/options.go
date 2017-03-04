@@ -21,6 +21,7 @@ limitations under the License.
 package options
 
 import (
+	"net"
 	"time"
 
 	"k8s.io/kubernetes/pkg/api"
@@ -71,7 +72,14 @@ type ArchonControllerManagerConfiguration struct {
 	// corresponding flag of the kube-apiserver. WARNING: the generic garbage
 	// collector is an alpha feature.
 	EnableGarbageCollector bool `json:"enableGarbageCollector"`
-	EnableLocalkube        bool `json:"enableLocalkube"`
+
+	// Localkube stuff
+	EnableLocalkube          bool   `json:"enableLocalkube"`
+	APIServerAddress         net.IP `json:"apiServerAddress"`
+	APIServerPort            int    `json:"apiServerPort"`
+	APIServerInsecureAddress net.IP `json:"apiServerInsecureAddress"`
+	APIServerInsecurePort    int    `json:"apiServerInsecurePort"`
+	LocalkubeDirectory       string `json:"localkubeDirectory"`
 }
 
 // CMServer is the main context object for the controller manager.
@@ -88,19 +96,24 @@ type CMServer struct {
 func NewCMServer() *CMServer {
 	s := CMServer{
 		ArchonControllerManagerConfiguration: ArchonControllerManagerConfiguration{
-			Port:                    12312,
-			Address:                 "0.0.0.0",
-			MinResyncPeriod:         unversioned.Duration{Duration: 12 * time.Hour},
-			ClusterName:             "kubernetes",
-			ContentType:             "application/vnd.kubernetes.protobuf",
-			KubeAPIQPS:              20.0,
-			KubeAPIBurst:            30,
-			LeaderElection:          leaderelection.DefaultLeaderElectionConfiguration(),
-			ControllerStartInterval: unversioned.Duration{Duration: 0 * time.Second},
-			EnableGarbageCollector:  true,
-			ClusterSigningCertFile:  "/etc/kubernetes/ca/ca.pem",
-			ClusterSigningKeyFile:   "/etc/kubernetes/ca/ca.key",
-			EnableLocalkube:         false,
+			Port:                     12312,
+			Address:                  "0.0.0.0",
+			MinResyncPeriod:          unversioned.Duration{Duration: 12 * time.Hour},
+			ClusterName:              "kubernetes",
+			ContentType:              "application/vnd.kubernetes.protobuf",
+			KubeAPIQPS:               20.0,
+			KubeAPIBurst:             30,
+			LeaderElection:           leaderelection.DefaultLeaderElectionConfiguration(),
+			ControllerStartInterval:  unversioned.Duration{Duration: 0 * time.Second},
+			EnableGarbageCollector:   true,
+			ClusterSigningCertFile:   "/etc/kubernetes/ca/ca.pem",
+			ClusterSigningKeyFile:    "/etc/kubernetes/ca/ca.key",
+			EnableLocalkube:          false,
+			LocalkubeDirectory:       "./.localkube",
+			APIServerAddress:         net.ParseIP("127.0.0.1"),
+			APIServerPort:            443,
+			APIServerInsecureAddress: net.ParseIP("127.0.0.1"),
+			APIServerInsecurePort:    8080,
 		},
 		Namespace:      api.NamespaceAll,
 		ControllerName: ArchonControllerName,
@@ -112,6 +125,11 @@ func NewCMServer() *CMServer {
 // AddFlags adds flags for a specific CMServer to the specified FlagSet
 func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&s.EnableLocalkube, "local", false, "Enable localkube")
+	fs.StringVar(&s.LocalkubeDirectory, "localkube-directory", s.LocalkubeDirectory, "The directory localkube will store files in")
+	fs.IPVar(&s.APIServerAddress, "apiserver-address", s.APIServerAddress, "The address the localkube apiserver will listen securely on")
+	fs.IntVar(&s.APIServerPort, "apiserver-port", s.APIServerPort, "The port the localkube apiserver will listen securely on")
+	fs.IPVar(&s.APIServerInsecureAddress, "apiserver-insecure-address", s.APIServerInsecureAddress, "The address the localkube apiserver will listen insecurely on")
+	fs.IntVar(&s.APIServerInsecurePort, "apiserver-insecure-port", s.APIServerInsecurePort, "The port the localkube apiserver will listen insecurely on")
 	fs.Int32Var(&s.Port, "port", s.Port, "The port that the controller-manager's http service runs on")
 	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
