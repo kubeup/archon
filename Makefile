@@ -37,5 +37,9 @@ docker:
 	@echo ">> building docker image"
 	@docker build -t "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" .
 
+test-docker:
+	@echo ">> test docker image"
+	@docker run "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" /archon-controller --test-run
+
 .PHONY: all style format test vet docker
 

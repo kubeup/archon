@@ -1,3 +1,2 @@
-FROM alpine
-RUN apk add --update ca-certificates
+FROM debian:jessie
 ADD archon-controller /archon-controller

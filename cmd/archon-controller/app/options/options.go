@@ -73,6 +73,8 @@ type ArchonControllerManagerConfiguration struct {
 	// collector is an alpha feature.
 	EnableGarbageCollector bool `json:"enableGarbageCollector"`
 
+	TestRun bool
+
 	// Localkube stuff
 	EnableLocalkube          bool   `json:"enableLocalkube"`
 	APIServerAddress         net.IP `json:"apiServerAddress"`
@@ -114,6 +116,7 @@ func NewCMServer() *CMServer {
 			APIServerPort:            443,
 			APIServerInsecureAddress: net.ParseIP("127.0.0.1"),
 			APIServerInsecurePort:    8080,
+			TestRun:                  false,
 		},
 		Namespace:      api.NamespaceAll,
 		ControllerName: ArchonControllerName,
@@ -148,6 +151,7 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Int32Var(&s.KubeAPIBurst, "kube-api-burst", s.KubeAPIBurst, "Burst to use while talking with kubernetes apiserver")
 	fs.DurationVar(&s.ControllerStartInterval.Duration, "controller-start-interval", s.ControllerStartInterval.Duration, "Interval between starting controller managers.")
 	fs.BoolVar(&s.EnableGarbageCollector, "enable-garbage-collector", s.EnableGarbageCollector, "Enables the generic garbage collector. MUST be synced with the corresponding flag of the kube-apiserver.")
+	fs.BoolVar(&s.TestRun, "test-run", s.TestRun, "Test if the binary is working correctly")
 
 	leaderelection.BindFlags(&s.LeaderElection, fs)
 	config.DefaultFeatureGate.AddFlag(fs)

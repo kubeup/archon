@@ -96,6 +96,10 @@ func ResyncPeriod(s *options.CMServer) func() time.Duration {
 
 // Run runs the CMServer.  This should never exit.
 func Run(s *options.CMServer) error {
+	if s.TestRun {
+		os.Exit(0)
+	}
+
 	if c, err := configz.New("componentconfig"); err == nil {
 		c.Set(s.ArchonControllerManagerConfiguration)
 	} else {
