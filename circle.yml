@@ -2,7 +2,7 @@ machine:
   environment:
     DOCKER_IMAGE_NAME: kubeup/archon-controller
     USER: kubeup
-    REPO: archon-controller
+    REPO: archon
   pre:
     - sudo curl -L -o /usr/bin/docker 'https://s3-external-1.amazonaws.com/circle-downloads/docker-1.9.1-circleci'
     - sudo chmod 0755 /usr/bin/docker
@@ -46,7 +46,9 @@ deployment:
           docker tag "$DOCKER_IMAGE_NAME:$CIRCLE_TAG" "$DOCKER_IMAGE_NAME:latest"
           github-release release --user $USER --repo $REPO --tag $CIRCLE_TAG \
           --name "archon-controller $CIRCLE_TAG" --pre-release
+          mv archon-controller archon-controller-linux-amd64
+          gzip archon-controller-linux-amd64
           github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
-          --name "archon-controller-linux-amd64" --file archon-controller
+          --name "archon-controller-linux-amd64.gz" --file archon-controller-linux-amd64.gz
         fi
       - docker push $DOCKER_IMAGE_NAME
