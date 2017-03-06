@@ -256,6 +256,8 @@ func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject
 			return nil, fmt.Errorf("secret has no name or alias: %v", secret)
 		}
 
+		secret.Annotations["archon.kubeup.com/instance"] = accessor.GetName()
+
 		if controllerRef != nil {
 			secret.OwnerReferences = append(secret.OwnerReferences, *controllerRef)
 		}

@@ -136,3 +136,42 @@ func (s *StoreToInstanceGroupLister) GetInstanceGroup(instance *cluster.Instance
 	}
 	return
 }
+
+// StoreToSecretLister helps list secrets
+type StoreToSecretLister struct {
+	Indexer cache.Indexer
+}
+
+func (s *StoreToSecretLister) List(selector labels.Selector) (ret []*api.Secret, err error) {
+	err = cache.ListAll(s.Indexer, selector, func(m interface{}) {
+		ret = append(ret, m.(*api.Secret))
+	})
+	return ret, err
+}
+
+func (s *StoreToSecretLister) Secrets(namespace string) storeSecretsNamespacer {
+	return storeSecretsNamespacer{s.Indexer, namespace}
+}
+
+type storeSecretsNamespacer struct {
+	indexer   cache.Indexer
+	namespace string
+}
+
+func (s storeSecretsNamespacer) List(selector labels.Selector) (ret []*api.Secret, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*api.Secret))
+	})
+	return ret, err
+}
+
+func (s storeSecretsNamespacer) Get(name string) (*api.Secret, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.NewNotFound(api.Resource("secret"), name)
+	}
+	return obj.(*api.Secret), nil
+}

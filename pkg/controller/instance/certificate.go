@@ -77,18 +77,21 @@ func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *
 	if len(csrTemplate) == 0 {
 		return fmt.Errorf("No CSR template in secret annotations")
 	}
-	renderer, err := render.NewInstanceRenderer(instance)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize renderer: %v", err)
-	}
 
-	csrString, err := renderer.Render("csr", csrTemplate)
-	if err != nil {
-		return fmt.Errorf("Failed to render csr template: %v", err)
+	if instance != nil {
+		renderer, err := render.NewInstanceRenderer(instance)
+		if err != nil {
+			return fmt.Errorf("Failed to initialize renderer: %v", err)
+		}
+
+		csrTemplate, err = renderer.Render("csr", csrTemplate)
+		if err != nil {
+			return fmt.Errorf("Failed to render csr template: %v", err)
+		}
 	}
 
 	csrReq := csr.New()
-	err = json.Unmarshal([]byte(csrString), csrReq)
+	err := json.Unmarshal([]byte(csrTemplate), csrReq)
 	if err != nil {
 		return fmt.Errorf("Failed to unmarshal csr: %v", err)
 	}

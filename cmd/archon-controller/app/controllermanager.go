@@ -36,6 +36,7 @@ import (
 	archonclientset "kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	_ "kubeup.com/archon/pkg/cloudprovider/providers"
+	"kubeup.com/archon/pkg/controller/certificate"
 	"kubeup.com/archon/pkg/controller/instance"
 	"kubeup.com/archon/pkg/controller/instancegroup"
 	"kubeup.com/archon/pkg/controller/network"
@@ -236,6 +237,14 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 		glog.Errorf("Failed to start network controller: %v", err)
 	} else {
 		networkController.Run(3)
+	}
+
+	glog.Infof("Starting Certificate controller")
+	certificateController, err := certificate.New(kubeClient, 30*time.Second, s.ClusterSigningCertFile, s.ClusterSigningKeyFile, s.Namespace)
+	if err != nil {
+		glog.Errorf("Failed to start certificate controller: %v", err)
+	} else {
+		certificateController.Run(3, wait.NeverStop)
 	}
 
 	//sharedInformers.Start(stop)

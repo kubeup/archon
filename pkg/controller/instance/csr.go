@@ -24,9 +24,10 @@ import (
 )
 
 var (
-	ResourceStatusKey = "archon.kubeup.com/status"
-	ResourceTypeKey   = "archon.kubeup.com/type"
-	CSRToken          = "csr"
+	ResourceStatusKey   = "archon.kubeup.com/status"
+	ResourceTypeKey     = "archon.kubeup.com/type"
+	ResourceInstanceKey = "archon.kubeup.com/instance"
+	CSRToken            = "csr"
 )
 
 type CSRInitializer struct {
@@ -77,6 +78,10 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 			if status != "Ready" {
 				switch secret.Annotations[ResourceTypeKey] {
 				case "csr":
+					if secret.Annotations[ResourceInstanceKey] != instance.Name {
+						err = fmt.Errorf("Failed to generate certificate. CSR doesn't belong to this instance")
+						return
+					}
 					if ci.certificateControl == nil {
 						err = fmt.Errorf("Failed to generated certificate. Certficate control is not there")
 						return
