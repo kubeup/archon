@@ -19,7 +19,6 @@ import (
 
 	archoncache "kubeup.com/archon/pkg/cache"
 	"kubeup.com/archon/pkg/clientset"
-	"kubeup.com/archon/pkg/controller/instance"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/cache"
@@ -38,7 +37,7 @@ import (
 type CertificateController struct {
 	kubeClient         clientset.Interface
 	namespace          string
-	certificateControl instance.CertificateControlInterface
+	certificateControl CertificateControlInterface
 
 	// CSR framework and store
 	csrController *cache.Controller
@@ -55,7 +54,7 @@ func New(kubeClient clientset.Interface, syncPeriod time.Duration, caCertFile, c
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&unversionedcore.EventSinkImpl{Interface: kubeClient.Core().Events("")})
 
-	certControl, err := instance.NewCertificateControl(caCertFile, caKeyFile)
+	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
 		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
 		return nil, err
@@ -155,10 +154,10 @@ func (cc *CertificateController) processNextWorkItem() bool {
 
 func (cc *CertificateController) enqueueCertificateRequest(obj interface{}) {
 	csr := obj.(*api.Secret)
-	if csr.Annotations[instance.ResourceStatusKey] == "Ready" || csr.Annotations[instance.ResourceInstanceKey] != "" {
+	if csr.Annotations[ResourceStatusKey] == "Ready" || csr.Annotations[ResourceInstanceKey] != "" {
 		return
 	}
-	if csr.Annotations[instance.ResourceTypeKey] == "csr" || csr.Annotations[instance.ResourceTypeKey] == "ca" {
+	if csr.Annotations[ResourceTypeKey] == "csr" || csr.Annotations[ResourceTypeKey] == "ca" {
 		key, err := controller.KeyFunc(obj)
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
@@ -187,15 +186,15 @@ func (cc *CertificateController) maybeSignCertificate(key string) error {
 	}
 	secret := obj.(*api.Secret)
 
-	switch secret.Annotations[instance.ResourceTypeKey] {
+	switch secret.Annotations[ResourceTypeKey] {
 	case "csr":
 		certControl := cc.certificateControl
-		if caName := secret.Annotations[instance.ResourceCAKey]; caName != "" {
+		if caName := secret.Annotations[ResourceCAKey]; caName != "" {
 			caSecret, err := cc.kubeClient.Core().Secrets(cc.namespace).Get(caName)
 			if err != nil {
 				return fmt.Errorf("Failed to get ca certificate %s: %v", secret.Name, err)
 			}
-			certControl, err = instance.NewCertificateControlFromSecret(caSecret)
+			certControl, err = NewCertificateControlFromSecret(caSecret)
 			if err != nil {
 				return fmt.Errorf("Failed to initialize ca from secret %s: %v", caSecret.Name, err)
 			}

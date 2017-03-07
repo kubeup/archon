@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package instance
+package certificate
 
 import (
 	"encoding/json"
@@ -30,7 +30,11 @@ import (
 )
 
 const (
-	CSRKey = "archon.kubeup.com/csr"
+	ResourceStatusKey   = "archon.kubeup.com/status"
+	ResourceTypeKey     = "archon.kubeup.com/type"
+	ResourceInstanceKey = "archon.kubeup.com/instance"
+	ResourceCAKey       = "archon.kubeup.com/ca"
+	CSRKey              = "archon.kubeup.com/csr"
 )
 
 type CertificateControlInterface interface {

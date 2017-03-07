@@ -24,6 +24,7 @@ import (
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/controller/certificate"
 	"kubeup.com/archon/pkg/initializer"
 	"kubeup.com/archon/pkg/util"
 
@@ -346,7 +347,7 @@ func (s *InstanceController) ensureSecrets(key string, instance *cluster.Instanc
 		if err != nil {
 			return fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err)
 		}
-		if status, ok := secret.Annotations[ResourceStatusKey]; ok {
+		if status, ok := secret.Annotations[certificate.ResourceStatusKey]; ok {
 			if status != "Ready" {
 				return fmt.Errorf("Secret resource %s is not ready", n.Name)
 			}

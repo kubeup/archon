@@ -18,27 +18,25 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/controller/certificate"
 	"kubeup.com/archon/pkg/initializer"
 
 	"fmt"
 )
 
 var (
-	ResourceStatusKey   = "archon.kubeup.com/status"
-	ResourceTypeKey     = "archon.kubeup.com/type"
-	ResourceInstanceKey = "archon.kubeup.com/instance"
-	CSRToken            = "csr"
+	CSRToken = "csr"
 )
 
 type CSRInitializer struct {
-	certificateControl CertificateControlInterface
+	certificateControl certificate.CertificateControlInterface
 	kubeClient         clientset.Interface
 }
 
 var _ initializer.Initializer = &CSRInitializer{}
 
 func NewCSRInitializer(kubeClient clientset.Interface, caCertFile, caKeyFile string) (initializer.Initializer, error) {
-	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
+	certControl, err := certificate.NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
 		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
 		//return
@@ -74,11 +72,11 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 			err = fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err)
 			return
 		}
-		if status, ok := secret.Annotations[ResourceStatusKey]; ok {
+		if status, ok := secret.Annotations[certificate.ResourceStatusKey]; ok {
 			if status != "Ready" {
-				switch secret.Annotations[ResourceTypeKey] {
+				switch secret.Annotations[certificate.ResourceTypeKey] {
 				case "csr":
-					if secret.Annotations[ResourceInstanceKey] != instance.Name {
+					if secret.Annotations[certificate.ResourceInstanceKey] != instance.Name {
 						err = fmt.Errorf("Failed to generate certificate. CSR doesn't belong to this instance")
 						return
 					}
