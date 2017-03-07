@@ -220,7 +220,7 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 	}
 
 	glog.Infof("Starting Instance controller")
-	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.Namespace, s.ClusterSigningCertFile, s.ClusterSigningKeyFile)
+	instanceController, err := instance.New(cloud, kubeClient, s.ClusterName, s.Namespace)
 	if err != nil {
 		glog.Errorf("Failed to start instance controller: %v", err)
 	} else {

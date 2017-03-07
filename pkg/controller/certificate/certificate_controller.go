@@ -19,6 +19,7 @@ import (
 
 	archoncache "kubeup.com/archon/pkg/cache"
 	"kubeup.com/archon/pkg/clientset"
+	"kubeup.com/archon/pkg/cluster"
 
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/client/cache"
@@ -57,7 +58,6 @@ func New(kubeClient clientset.Interface, syncPeriod time.Duration, caCertFile, c
 	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
 		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
-		return nil, err
 	}
 
 	cc := &CertificateController{
@@ -154,16 +154,15 @@ func (cc *CertificateController) processNextWorkItem() bool {
 
 func (cc *CertificateController) enqueueCertificateRequest(obj interface{}) {
 	csr := obj.(*api.Secret)
-	if csr.Annotations[ResourceStatusKey] == "Ready" || csr.Annotations[ResourceInstanceKey] != "" {
-		return
-	}
-	if csr.Annotations[ResourceTypeKey] == "csr" || csr.Annotations[ResourceTypeKey] == "ca" {
-		key, err := controller.KeyFunc(obj)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
-			return
+	if csr.Annotations[ResourceStatusKey] == "Approved" {
+		if csr.Annotations[ResourceTypeKey] == "csr" || csr.Annotations[ResourceTypeKey] == "ca" {
+			key, err := controller.KeyFunc(obj)
+			if err != nil {
+				utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
+				return
+			}
+			cc.queue.Add(key)
 		}
-		cc.queue.Add(key)
 	}
 }
 
@@ -199,12 +198,26 @@ func (cc *CertificateController) maybeSignCertificate(key string) error {
 				return fmt.Errorf("Failed to initialize ca from secret %s: %v", caSecret.Name, err)
 			}
 		}
-		err = certControl.GenerateCertificate(secret, nil)
+
+		if certControl == nil {
+			return fmt.Errorf("Failed to generate certificate. Certificate control is not there")
+		}
+
+		var instance *cluster.Instance
+		if instanceName := secret.Annotations[ResourceInstanceKey]; instanceName != "" {
+			var err error
+			instance, err = cc.kubeClient.Archon().Instances(cc.namespace).Get(instanceName)
+			if err != nil {
+				return fmt.Errorf("Failed to get instance %s: %v", secret.Name, err)
+			}
+		}
+
+		err = certControl.GenerateCertificate(secret, instance)
 		if err != nil {
 			return fmt.Errorf("Failed to generate certificate %s: %v", secret.Name, err)
 		}
 	case "ca":
-		err = cc.certificateControl.GenerateCA(secret)
+		err = GenerateCA(secret)
 		if err != nil {
 			return fmt.Errorf("Failed to generate ca certificate %s: %v", secret.Name, err)
 		}

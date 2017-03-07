@@ -39,7 +39,6 @@ const (
 
 type CertificateControlInterface interface {
 	GenerateCertificate(secret *api.Secret, instance *cluster.Instance) error
-	GenerateCA(secret *api.Secret) error
 }
 
 type CertificateControl struct {
@@ -151,7 +150,7 @@ func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *
 	return nil
 }
 
-func (cc *CertificateControl) GenerateCA(secret *api.Secret) error {
+func GenerateCA(secret *api.Secret) error {
 	csrTemplate := secret.Annotations[CSRKey]
 	if len(csrTemplate) == 0 {
 		return fmt.Errorf("No CSR template in secret annotations")

@@ -14,7 +14,6 @@ limitations under the License.
 package instance
 
 import (
-	"github.com/golang/glog"
 	"k8s.io/kubernetes/pkg/api"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
@@ -29,22 +28,15 @@ var (
 )
 
 type CSRInitializer struct {
-	certificateControl certificate.CertificateControlInterface
-	kubeClient         clientset.Interface
+	kubeClient clientset.Interface
 }
 
 var _ initializer.Initializer = &CSRInitializer{}
 
-func NewCSRInitializer(kubeClient clientset.Interface, caCertFile, caKeyFile string) (initializer.Initializer, error) {
-	certControl, err := certificate.NewCertificateControl(caCertFile, caKeyFile)
-	if err != nil {
-		glog.Errorf("WARNING: Unable to start certificate controller: %s", err.Error())
-		//return
-	}
+func NewCSRInitializer(kubeClient clientset.Interface) (initializer.Initializer, error) {
 
 	c := &CSRInitializer{
-		certificateControl: certControl,
-		kubeClient:         kubeClient,
+		kubeClient: kubeClient,
 	}
 	return c, nil
 }
@@ -66,6 +58,7 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 	}
 
 	var secret *api.Secret
+	notReady := 0
 	for _, n := range instance.Spec.Secrets {
 		secret, err = ci.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
 		if err != nil {
@@ -74,25 +67,22 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 		}
 		if status, ok := secret.Annotations[certificate.ResourceStatusKey]; ok {
 			if status != "Ready" {
-				switch secret.Annotations[certificate.ResourceTypeKey] {
-				case "csr":
-					if secret.Annotations[certificate.ResourceInstanceKey] != instance.Name {
-						err = fmt.Errorf("Failed to generate certificate. CSR doesn't belong to this instance")
-						return
-					}
-					if ci.certificateControl == nil {
-						err = fmt.Errorf("Failed to generated certificate. Certficate control is not there")
-						return
-					}
-					err = ci.certificateControl.GenerateCertificate(secret, instance)
+				if status == "Pending" {
+					secret.Annotations[certificate.ResourceStatusKey] = "Approved"
+					_, err = ci.kubeClient.Core().Secrets(instance.Namespace).Update(secret)
 					if err != nil {
 						err = fmt.Errorf("Failed to generate certificate %s: %v", n.Name, err)
 						return
 					}
-					_, err = ci.kubeClient.Core().Secrets(instance.Namespace).Update(secret)
 				}
+				notReady += 1
 			}
 		}
+	}
+
+	if notReady > 0 {
+		err = initializer.ErrSkip
+		return
 	}
 
 	initializer.RemoveInitializer(instance, CSRToken)

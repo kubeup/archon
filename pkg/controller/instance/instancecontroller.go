@@ -95,7 +95,7 @@ type InstanceController struct {
 
 // New returns a new instance controller to keep cloud provider instance resources
 // in sync with the registry.
-func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace, caCertFile, caKeyFile string) (*InstanceController, error) {
+func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
 	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
 	recorder := broadcaster.NewRecorder(api.EventSource{Component: "instance-controller"})
@@ -105,7 +105,7 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	}
 
 	// Initializers
-	csrInit, err := NewCSRInitializer(kubeClient, caCertFile, caKeyFile)
+	csrInit, err := NewCSRInitializer(kubeClient)
 	if err != nil {
 		return nil, err
 	}
