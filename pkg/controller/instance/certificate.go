@@ -18,6 +18,8 @@ import (
 	"fmt"
 	"github.com/cloudflare/cfssl/config"
 	"github.com/cloudflare/cfssl/csr"
+	"github.com/cloudflare/cfssl/helpers"
+	"github.com/cloudflare/cfssl/initca"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
 	"k8s.io/kubernetes/pkg/api"
@@ -33,6 +35,7 @@ const (
 
 type CertificateControlInterface interface {
 	GenerateCertificate(secret *api.Secret, instance *cluster.Instance) error
+	GenerateCA(secret *api.Secret) error
 }
 
 type CertificateControl struct {
@@ -44,6 +47,31 @@ func NewCertificateControl(caCertFile, caKeyFile string) (*CertificateControl, e
 		Default: config.DefaultConfig(),
 	}
 	ca, err := local.NewSignerFromFile(caCertFile, caKeyFile, policy)
+	if err != nil {
+		return nil, err
+	}
+	cc := &CertificateControl{
+		signer: ca,
+	}
+	return cc, nil
+}
+
+func NewCertificateControlFromSecret(secret *api.Secret) (*CertificateControl, error) {
+	cacert := secret.Data["tls-cert"]
+	cakey := secret.Data["tls-key"]
+	policy := &config.Signing{
+		Default: config.DefaultConfig(),
+	}
+	parsedCa, err := helpers.ParseCertificatePEM(cacert)
+	if err != nil {
+		return nil, err
+	}
+	priv, err := helpers.ParsePrivateKeyPEMWithPassword(cakey, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	ca, err := local.NewSigner(priv, parsedCa, signer.DefaultSigAlgo(priv), policy)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +141,35 @@ func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *
 
 	secret.Data["tls-key"] = key
 	secret.Data["tls-cert"] = certBytes
+
+	secret.Annotations["archon.kubeup.com/status"] = "Ready"
+
+	return nil
+}
+
+func (cc *CertificateControl) GenerateCA(secret *api.Secret) error {
+	csrTemplate := secret.Annotations[CSRKey]
+	if len(csrTemplate) == 0 {
+		return fmt.Errorf("No CSR template in secret annotations")
+	}
+
+	csrReq := csr.New()
+	err := json.Unmarshal([]byte(csrTemplate), csrReq)
+	if err != nil {
+		return fmt.Errorf("Failed to unmarshal csr: %v", err)
+	}
+
+	cert, _, key, err := initca.New(csrReq)
+	if err != nil {
+		return fmt.Errorf("Failed to initialize ca: %v", err)
+	}
+
+	if secret.Data == nil {
+		secret.Data = make(map[string][]byte)
+	}
+
+	secret.Data["tls-key"] = key
+	secret.Data["tls-cert"] = cert
 
 	secret.Annotations["archon.kubeup.com/status"] = "Ready"
 

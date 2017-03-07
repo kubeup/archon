@@ -155,8 +155,10 @@ func (cc *CertificateController) processNextWorkItem() bool {
 
 func (cc *CertificateController) enqueueCertificateRequest(obj interface{}) {
 	csr := obj.(*api.Secret)
-	if csr.Annotations[instance.ResourceTypeKey] == "csr" && csr.Annotations[instance.ResourceStatusKey] != "Ready" && csr.Annotations[instance.ResourceInstanceKey] == "" {
-		glog.V(4).Infof("enqueue %s", csr.Name)
+	if csr.Annotations[instance.ResourceStatusKey] == "Ready" || csr.Annotations[instance.ResourceInstanceKey] != "" {
+		return
+	}
+	if csr.Annotations[instance.ResourceTypeKey] == "csr" || csr.Annotations[instance.ResourceTypeKey] == "ca" {
 		key, err := controller.KeyFunc(obj)
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("Couldn't get key for object %+v: %v", obj, err))
@@ -183,13 +185,32 @@ func (cc *CertificateController) maybeSignCertificate(key string) error {
 		glog.V(3).Infof("csr has been deleted: %v", key)
 		return nil
 	}
-	csr := obj.(*api.Secret)
+	secret := obj.(*api.Secret)
 
-	err = cc.certificateControl.GenerateCertificate(csr, nil)
-	if err != nil {
-		return fmt.Errorf("Failed to generate certificate %s: %v", csr.Name, err)
+	switch secret.Annotations[instance.ResourceTypeKey] {
+	case "csr":
+		certControl := cc.certificateControl
+		if caName := secret.Annotations[instance.ResourceCAKey]; caName != "" {
+			caSecret, err := cc.kubeClient.Core().Secrets(cc.namespace).Get(caName)
+			if err != nil {
+				return fmt.Errorf("Failed to get ca certificate %s: %v", secret.Name, err)
+			}
+			certControl, err = instance.NewCertificateControlFromSecret(caSecret)
+			if err != nil {
+				return fmt.Errorf("Failed to initialize ca from secret %s: %v", caSecret.Name, err)
+			}
+		}
+		err = certControl.GenerateCertificate(secret, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to generate certificate %s: %v", secret.Name, err)
+		}
+	case "ca":
+		err = cc.certificateControl.GenerateCA(secret)
+		if err != nil {
+			return fmt.Errorf("Failed to generate ca certificate %s: %v", secret.Name, err)
+		}
 	}
-	_, err = cc.kubeClient.Core().Secrets(cc.namespace).Update(csr)
+	_, err = cc.kubeClient.Core().Secrets(cc.namespace).Update(secret)
 	if err != nil {
 		return err
 	}
