@@ -230,8 +230,8 @@ func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObjec
 	return instance, nil
 }
 
-func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *api.OwnerReference) ([]*api.Secret, error) {
-	secrets := make([]*api.Secret, 0)
+func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *api.OwnerReference) ([]api.Secret, error) {
+	secrets := make([]api.Secret, 0)
 	for _, secret := range template.Secrets {
 		accessor, err := meta.Accessor(parentObject)
 		if err != nil {
@@ -261,7 +261,7 @@ func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject
 		if controllerRef != nil {
 			secret.OwnerReferences = append(secret.OwnerReferences, *controllerRef)
 		}
-		secrets = append(secrets, &secret)
+		secrets = append(secrets, secret)
 	}
 
 	return secrets, nil
@@ -274,7 +274,7 @@ func (r RealInstanceControl) createSecrets(namespace string, template *cluster.I
 	}
 	secrets := make([]*api.Secret, 0)
 	for _, secret := range secretTemplates {
-		if newSecret, err := r.KubeClient.Core().Secrets(namespace).Create(secret); err != nil {
+		if newSecret, err := r.KubeClient.Core().Secrets(namespace).Create(&secret); err != nil {
 			r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
 			return nil, fmt.Errorf("unable to create secrets: %v", err)
 		} else {
