@@ -49,6 +49,6 @@ deployment:
           mv archon-controller archon-controller-linux-amd64
           gzip archon-controller-linux-amd64
           github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
-          --name "archon-controller-linux-amd64.gz" --file archon-controller-linux-amd64.gz
+          --name "archon-controller-$CIRCLE_TAG-linux-amd64.gz" --file archon-controller-linux-amd64.gz
         fi
       - docker push $DOCKER_IMAGE_NAME
