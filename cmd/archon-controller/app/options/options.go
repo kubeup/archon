@@ -24,7 +24,6 @@ import (
 	"net"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
@@ -118,7 +117,7 @@ func NewCMServer() *CMServer {
 			APIServerInsecurePort:    8080,
 			TestRun:                  false,
 		},
-		Namespace:      api.NamespaceAll,
+		Namespace:      "default",
 		ControllerName: ArchonControllerName,
 	}
 	s.LeaderElection.LeaderElect = true
@@ -137,7 +136,7 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(componentconfig.IPVar{Val: &s.Address}, "address", "The IP address to serve on (set to 0.0.0.0 for all interfaces)")
 	fs.StringVar(&s.CloudProvider, "cloud-provider", s.CloudProvider, "The provider for cloud services.  Empty string for no provider.")
 	fs.StringVar(&s.CloudConfigFile, "cloud-config", s.CloudConfigFile, "The path to the cloud provider configuration file.  Empty string for no configuration file.")
-	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "The namespace that the controller will work in. Empty for all namespaces")
+	fs.StringVar(&s.Namespace, "namespace", s.Namespace, "The namespace that the controller will work in. Empty for default namespace")
 	fs.DurationVar(&s.MinResyncPeriod.Duration, "min-resync-period", s.MinResyncPeriod.Duration, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod")
 	fs.StringVar(&s.ClusterSigningCertFile, "cluster-signing-cert-file", s.ClusterSigningCertFile, "Filename containing a PEM-encoded X509 CA certificate used to issue cluster-scoped certificates")
 	fs.StringVar(&s.ClusterSigningKeyFile, "cluster-signing-key-file", s.ClusterSigningKeyFile, "Filename containing a PEM-encoded RSA or ECDSA private key used to sign cluster-scoped certificates")
