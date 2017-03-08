@@ -20,8 +20,7 @@ kubectl create k8s-simple
 Step 3
 ------
 
-Modify `k8s-user.yaml`. Replace `YOUR_SSH_KEY` with your public key which will be
-used for authentication with the server. And create the user resource.
+Create the default user. The username is `core` and password is `archon`:
 
 ```
 kubectl create -f k8s-user.yaml --namespace=k8s-simple
@@ -39,8 +38,11 @@ kubectl create -f k8s-net.yaml --namespace=k8s-simple
 Step 5
 ------
 
-Modify `k8s-simple.yaml`. Replace `PUT YOUR CA CERTIFICATE HERE` with the content of
-`ca.pem` file you generated with `cfssl` during the installation process.
+Create the ca:
+
+```
+kubectl create -f k8s-ca.yaml --namespace=k8s-simple
+```
 
 Step 6
 ------

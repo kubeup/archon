@@ -72,7 +72,7 @@ spec:
         permissions: "0644"
         owner: "root"
         template: |-
-          {{ index .Configs "k8s" "ca-cert" }}
+          {{ index .Secrets "ca" "tls-cert" | printf "%s" }}
       - name: apiserver.pem
         path: "/etc/kubernetes/ssl/apiserver.pem"
         permissions: "0644"
@@ -255,10 +255,10 @@ spec:
           k8s-service-ip: 10.3.0.1
           k8s-version: v1.5.1_coreos.0
           admin-password: kubeup
-          ca-cert: |-
-            PUT YOUR CA CERTIFICATE HERE
       users:
       - name: core
+      secrets:
+      - name: k8s-ca
     secrets:
     - metadata:
         name: apiserver
@@ -288,5 +288,6 @@ spec:
                 ]
               }
             archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
             archon.kubeup.com/type: csr
       type: Opaque

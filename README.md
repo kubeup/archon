@@ -70,6 +70,73 @@ and operating systems support will be added when the core is stable.
 Installation
 ------------
 
+You could launch Archon locally or install it into your cluster.
+
+### Download
+
+Download the latest release from Github.
+
+```
+wget https://github.com/kubeup/archon/releases/download/v0.0.1/archon-controller-v0.0.1-linux-amd64.gz
+gunzip archon-controller-v0.0.1-linux-amd64.gz
+chmod +x archon-controller-v0.0.1-linux-amd64
+mv archon-controller-v0.0.1-linux-amd64 /usr/local/bin/archon-controller
+```
+
+On OSX, just change `linux` to `darwin`:
+
+```
+wget https://github.com/kubeup/archon/releases/download/v0.0.1/archon-controller-v0.0.1-darwin-amd64.gz
+gunzip archon-controller-v0.0.1-darwin-amd64.gz
+chmod +x archon-controller-v0.0.1-darwin-amd64
+mv archon-controller-v0.0.1-darwin-amd64 /usr/local/bin/archon-controller
+```
+
+### Launch locally
+
+Then config AWS credentials and start running the embeded Kubernetes server along with `archon-controller`:
+
+```
+export AWS_ACCESS_KEY_ID=YOUR_AWS_KEY_ID
+export AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET
+export AWS_ZONE=YOUR_CLUSTER_ZONE
+archon-controller --local --cloud-provider aws
+```
+
+You can also use Aliyun:
+
+```
+export ALIYUN_ACCESS_KEY=YOUR_ALIYUN_KEY_ID
+export ALIYUN_ACCESS_KEY_SECRET=YOUR_ALIYUN_SECRET
+archon-controller --local --cloud-provider aliyun
+```
+
+The server will listen on `localhost:8080` and server data will be saved to `./.localkube` folder.
+
+### Create cluster resource with kubectl
+
+By default, `kubectl` will talk with the server on `localhost:8080`, you can create an example cluster with:
+
+```
+kubectl create -f examples/k8s-simple
+```
+
+After a while, you could get the ip address for the server:
+
+```
+kubectl get instance -o yaml
+```
+
+And ssh into the server with the default password `archon`:
+
+```
+ssh core@SERVER_IP
+```
+
+### In cluster deployment
+
+Please follow these instructions if you plan to deploy Archon into your cluster:
+
   - [AWS installation instructions]
   - [Aliyun installation instructions]
 
