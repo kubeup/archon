@@ -112,7 +112,7 @@ func NewCMServer() *CMServer {
 			EnableLocalkube:          false,
 			LocalkubeDirectory:       "./.localkube",
 			APIServerAddress:         net.ParseIP("127.0.0.1"),
-			APIServerPort:            443,
+			APIServerPort:            8443,
 			APIServerInsecureAddress: net.ParseIP("127.0.0.1"),
 			APIServerInsecurePort:    8080,
 			TestRun:                  false,
