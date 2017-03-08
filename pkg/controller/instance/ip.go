@@ -22,6 +22,7 @@ import (
 	"kubeup.com/archon/pkg/util"
 
 	"fmt"
+	"k8s.io/kubernetes/pkg/api/errors"
 	"reflect"
 )
 
@@ -126,7 +127,23 @@ func (ec *IPInitializer) syncPublicIP(obj initializer.Object, deleting bool) (up
 		}
 	} else if deleting {
 		initializer.RemoveFinalizer(instance, PublicIPToken)
-		updatedObj = instance
+		_, err2 := ec.kubeClient.Archon().Instances(instance.Namespace).Get(instance.Name)
+		if err2 != nil {
+			if errors.IsNotFound(err2) {
+				updatedObj = instance
+			} else {
+				err = fmt.Errorf("Not able to get instance status: %s", err2.Error())
+				retryable = false
+			}
+		} else {
+			ret, err3 := ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
+			if err3 != nil {
+				err = fmt.Errorf("Not able to persist instance after Public IP update: %s", err3.Error())
+				retryable = false
+			} else {
+				updatedObj = ret
+			}
+		}
 	}
 
 	return
@@ -188,7 +205,23 @@ func (ec *IPInitializer) syncPrivateIP(obj initializer.Object, deleting bool) (u
 		}
 	} else if deleting {
 		initializer.RemoveFinalizer(instance, PrivateIPToken)
-		updatedObj = instance
+		_, err2 := ec.kubeClient.Archon().Instances(instance.Namespace).Get(instance.Name)
+		if err2 != nil {
+			if errors.IsNotFound(err2) {
+				updatedObj = instance
+			} else {
+				err = fmt.Errorf("Not able to get instance status: %s", err2.Error())
+				retryable = false
+			}
+		} else {
+			ret, err3 := ec.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
+			if err3 != nil {
+				err = fmt.Errorf("Not able to persist instance after Public IP update: %s", err3.Error())
+				retryable = false
+			} else {
+				updatedObj = ret
+			}
+		}
 	}
 
 	return

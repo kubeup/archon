@@ -567,6 +567,9 @@ func (s *instanceCache) delete(instanceName string) {
 }
 
 func (s *InstanceController) needsUpdate(oldInstance *cluster.Instance, newInstance *cluster.Instance) bool {
+	if newInstance.GetDeletionTimestamp() != nil {
+		return true
+	}
 	if newInstance.Status.Phase == cluster.InstancePending ||
 		(oldInstance.Status.Phase == cluster.InstancePending && newInstance.Status.Phase == cluster.InstanceInitializing) {
 		return true
@@ -614,8 +617,12 @@ func (s *InstanceController) syncInstance(key string) error {
 	} else {
 		instance, ok := obj.(*cluster.Instance)
 		if ok {
-			cachedInstance = s.cache.getOrCreate(key)
-			err, retryDelay = s.processInstanceUpdate(cachedInstance, instance, key)
+			if instance.GetDeletionTimestamp() != nil {
+				err, retryDelay = s.processInstanceDeletion(key)
+			} else {
+				cachedInstance = s.cache.getOrCreate(key)
+				err, retryDelay = s.processInstanceUpdate(cachedInstance, instance, key)
+			}
 		} else {
 			tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 			if !ok {
@@ -655,9 +662,18 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}()
 	instance := cachedInstance.state
 
+	obj, exists, err := s.instanceStore.Indexer.GetByKey(key)
+	if err != nil {
+		glog.Infof("Unable to retrieve instance %v from store: %v", key, err)
+		return err, cachedInstance.nextRetryDelay()
+	}
+	if exists {
+		instance = obj.(*cluster.Instance)
+	}
+
 	// Instance
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletingInstance", "Deleting instance")
-	err := s.archon.EnsureInstanceDeleted(s.clusterName, instance)
+	err = s.archon.EnsureInstanceDeleted(s.clusterName, instance)
 	if err != nil {
 		message := "Error deleting instance:"
 		message += err.Error()
