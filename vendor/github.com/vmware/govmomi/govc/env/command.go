@@ -17,12 +17,11 @@ limitations under the License.
 package env
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -61,6 +60,7 @@ func (cmd *env) Process(ctx context.Context) error {
 
 func (cmd *env) Description() string {
 	return `Output the environment variables for this client.
+
 If credentials are included in the url, they are split into separate variables.
 Useful as bash scripting helper to parse GOVC_URL.`
 }

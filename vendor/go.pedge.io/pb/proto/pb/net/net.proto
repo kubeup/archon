@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package pb.net;
+
+option go_package = "pbnet";
+
+message EmailAddress {
+  string local_part = 1;
+  string domain_part = 2;
+}

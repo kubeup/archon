@@ -17,6 +17,7 @@ limitations under the License.
 package ls
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -27,7 +28,6 @@ import (
 	"github.com/vmware/govmomi/list"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type ls struct {
@@ -51,6 +51,15 @@ func (cmd *ls) Register(ctx context.Context, f *flag.FlagSet) {
 	f.BoolVar(&cmd.ToRef, "i", false, "Print the managed object reference")
 	f.BoolVar(&cmd.DeRef, "L", false, "Follow managed object references")
 	f.StringVar(&cmd.Type, "t", "", "Object type")
+}
+
+func (cmd *ls) Description() string {
+	return `List inventory items.
+
+Examples:
+  govc ls -l '*'
+  govc ls -t ClusterComputeResource host
+  govc ls -t Datastore host/ClusterA/* | grep -v local | xargs -n1 basename | sort | uniq`
 }
 
 func (cmd *ls) Process(ctx context.Context) error {
@@ -95,13 +104,18 @@ func (cmd *ls) Run(ctx context.Context, f *flag.FlagSet) error {
 			e, err := finder.Element(ctx, *ref)
 			if err == nil {
 				if cmd.typeMatch(*ref) {
+					if e.Path == "/" && ref.Type != "Folder" {
+						// Special case: when given a moref with no ancestors,
+						// just echo the moref.
+						e.Path = ref.String()
+					}
 					lr.Elements = append(lr.Elements, *e)
 				}
 				continue
 			}
 		}
 
-		es, err := finder.ManagedObjectListChildren(context.TODO(), arg)
+		es, err := finder.ManagedObjectListChildren(ctx, arg)
 		if err != nil {
 			return err
 		}

@@ -17,9 +17,8 @@ limitations under the License.
 package account
 
 import (
+	"context"
 	"flag"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 )
@@ -35,6 +34,13 @@ func init() {
 func (cmd *create) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.AccountFlag, ctx = newAccountFlag(ctx)
 	cmd.AccountFlag.Register(ctx, f)
+}
+
+func (cmd *create) Description() string {
+	return `Create local account on HOST.
+
+Examples:
+  govc host.account.create -id $USER -password password-for-esx60`
 }
 
 func (cmd *create) Process(ctx context.Context) error {

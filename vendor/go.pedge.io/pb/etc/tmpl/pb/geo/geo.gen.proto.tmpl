@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package pb.geo;
+
+option go_package = "pbgeo";
+
+enum CountryAlpha2Code {
+  COUNTRY_ALPHA_2_CODE_NONE = 0;{{range $i, $elem := .Data.ElemsAlpha2CodeSorted}}
+  COUNTRY_ALPHA_2_CODE_{{$elem.CountryAlpha2Code}} = {{add $i 1}};{{end}}
+}
+
+enum CountryAlpha3Code {
+  COUNTRY_ALPHA_3_CODE_NONE = 0;{{range $i, $elem := .Data.ElemsAlpha3CodeSorted}}
+  COUNTRY_ALPHA_3_CODE_{{$elem.CountryAlpha3Code}} = {{add $i 1}};{{end}}
+}

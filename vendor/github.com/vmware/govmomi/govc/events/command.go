@@ -17,6 +17,7 @@ limitations under the License.
 package events
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -27,7 +28,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type events struct {
@@ -49,8 +49,21 @@ func (cmd *events) Register(ctx context.Context, f *flag.FlagSet) {
 
 	cmd.Max = 25 // default
 	f.Var(flags.NewInt32(&cmd.Max), "n", "Output the last N events")
-	f.BoolVar(&cmd.Tail, "f", false, "Tail event stream")
-	f.BoolVar(&cmd.Force, "force", false, "Force event collection: use with CAUTION ")
+	f.BoolVar(&cmd.Tail, "f", false, "Follow event stream")
+	f.BoolVar(&cmd.Force, "force", false, "Disable number objects to monitor limit")
+}
+
+func (cmd *events) Description() string {
+	return `Display events.
+
+Examples:
+  govc events vm/my-vm1 vm/my-vm2
+  govc events /dc1/vm/* /dc2/vm/*
+  govc ls -t HostSystem host/* | xargs govc events | grep -i vsan`
+}
+
+func (cmd *events) Usage() string {
+	return "[PATH]..."
 }
 
 func (cmd *events) Process(ctx context.Context) error {
@@ -60,8 +73,12 @@ func (cmd *events) Process(ctx context.Context) error {
 	return nil
 }
 
-func (cmd *events) printEvents(ctx context.Context, page []types.BaseEvent, m *event.Manager) error {
+func (cmd *events) printEvents(ctx context.Context, obj *types.ManagedObjectReference, page []types.BaseEvent, m *event.Manager) error {
 	event.Sort(page)
+	if obj != nil {
+		// print the object reference
+		fmt.Fprintf(os.Stdout, "\n==> %s <==\n", obj.String())
+	}
 	for _, e := range page {
 		cat, err := m.EventCategory(ctx, e)
 		if err != nil {
@@ -81,13 +98,10 @@ func (cmd *events) printEvents(ctx context.Context, page []types.BaseEvent, m *e
 
 		fmt.Fprintf(os.Stdout, "[%s] [%s] %s\n",
 			event.CreatedTime.Local().Format(time.ANSIC),
-			cat, msg)
+			cat,
+			msg)
 	}
 	return nil
-}
-
-func (cmd *events) Usage() string {
-	return "[PATH]..."
 }
 
 func (cmd *events) Run(ctx context.Context, f *flag.FlagSet) error {
@@ -106,8 +120,12 @@ func (cmd *events) Run(ctx context.Context, f *flag.FlagSet) error {
 		m := event.NewManager(c)
 
 		// get the event stream
-		err := m.Events(ctx, objs, cmd.Max, cmd.Tail, cmd.Force, func(ee []types.BaseEvent) error {
-			err = cmd.printEvents(ctx, ee, m)
+		err = m.Events(ctx, objs, cmd.Max, cmd.Tail, cmd.Force, func(obj types.ManagedObjectReference, ee []types.BaseEvent) error {
+			var o *types.ManagedObjectReference
+			if len(objs) > 1 {
+				o = &obj
+			}
+			err = cmd.printEvents(ctx, o, ee, m)
 			if err != nil {
 				return err
 			}

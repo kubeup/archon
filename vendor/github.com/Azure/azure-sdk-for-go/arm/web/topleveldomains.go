@@ -29,9 +29,8 @@ import (
 // to the HTTP/1.1 protocol specification and each operation returns an
 // x-ms-request-id header that can be used to obtain information about the
 // request. You must make sure that requests made to these resources are
-// secure. For more information, see <a
-// href="https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx">Authenticating
-// Azure Resource Manager requests.</a>
+// secure. For more information, see
+// https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx.
 type TopLevelDomainsClient struct {
 	ManagementClient
 }
@@ -110,7 +109,7 @@ func (client TopLevelDomainsClient) GetGetTopLevelDomainsResponder(resp *http.Re
 func (client TopLevelDomainsClient) GetGetTopLevelDomainsNextResults(lastResults TopLevelDomainCollection) (result TopLevelDomainCollection, err error) {
 	req, err := lastResults.TopLevelDomainCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -119,12 +118,12 @@ func (client TopLevelDomainsClient) GetGetTopLevelDomainsNextResults(lastResults
 	resp, err := client.GetGetTopLevelDomainsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetGetTopLevelDomainsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "GetGetTopLevelDomains", resp, "Failure responding to next results request")
 	}
 
 	return
@@ -260,7 +259,7 @@ func (client TopLevelDomainsClient) ListTopLevelDomainAgreementsResponder(resp *
 func (client TopLevelDomainsClient) ListTopLevelDomainAgreementsNextResults(lastResults TldLegalAgreementCollection) (result TldLegalAgreementCollection, err error) {
 	req, err := lastResults.TldLegalAgreementCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -269,12 +268,12 @@ func (client TopLevelDomainsClient) ListTopLevelDomainAgreementsNextResults(last
 	resp, err := client.ListTopLevelDomainAgreementsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListTopLevelDomainAgreementsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.TopLevelDomainsClient", "ListTopLevelDomainAgreements", resp, "Failure responding to next results request")
 	}
 
 	return

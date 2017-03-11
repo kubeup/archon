@@ -24,8 +24,12 @@ import (
 	"net/http"
 )
 
-// ClassicAdministratorsClient is the client for the ClassicAdministrators
-// methods of the Authorization service.
+// ClassicAdministratorsClient is the role based access control provides you a
+// way to apply granular level policy administration down to individual
+// resources or resource groups. These operations enable you to manage role
+// definitions and role assignments. A role definition describes the set of
+// actions that can be performed on resources. A role assignment grants
+// access to Azure Active Directory users.
 type ClassicAdministratorsClient struct {
 	ManagementClient
 }
@@ -42,7 +46,8 @@ func NewClassicAdministratorsClientWithBaseURI(baseURI string, subscriptionID st
 	return ClassicAdministratorsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// List gets a list of classic administrators for the subscription.
+// List gets service administrator, account administrator, and
+// co-administrators for the subscription.
 func (client ClassicAdministratorsClient) List() (result ClassicAdministratorListResult, err error) {
 	req, err := client.ListPreparer()
 	if err != nil {
@@ -104,7 +109,7 @@ func (client ClassicAdministratorsClient) ListResponder(resp *http.Response) (re
 func (client ClassicAdministratorsClient) ListNextResults(lastResults ClassicAdministratorListResult) (result ClassicAdministratorListResult, err error) {
 	req, err := lastResults.ClassicAdministratorListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -113,12 +118,12 @@ func (client ClassicAdministratorsClient) ListNextResults(lastResults ClassicAdm
 	resp, err := client.ListSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "authorization.ClassicAdministratorsClient", "List", resp, "Failure responding to next results request")
 	}
 
 	return

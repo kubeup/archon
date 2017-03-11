@@ -1,6 +1,6 @@
-// Package logic implements the Azure ARM Logic service API version
-// 2015-08-01-preview.
+// Package logic implements the Azure ARM Logic service API version 2016-06-01.
 //
+// REST API for Azure Logic Apps.
 package logic
 
 // Copyright (c) Microsoft and contributors.  All rights reserved.
@@ -27,7 +27,7 @@ import (
 
 const (
 	// APIVersion is the version of the Logic
-	APIVersion = "2015-08-01-preview"
+	APIVersion = "2016-06-01"
 
 	// DefaultBaseURI is the default URI used for the service Logic
 	DefaultBaseURI = "https://management.azure.com"

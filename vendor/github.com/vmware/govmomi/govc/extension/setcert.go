@@ -18,6 +18,7 @@ package extension
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -33,7 +34,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/object"
-	"golang.org/x/net/context"
 )
 
 type setcert struct {
@@ -69,11 +69,12 @@ func (cmd *setcert) Usage() string {
 }
 
 func (cmd *setcert) Description() string {
-	return `The '-cert-pem' option can be one of the following:
+	return `Set certificate for the extension ID.
+
+The '-cert-pem' option can be one of the following:
 '-' : Read the certificate from stdin
 '+' : Generate a new key pair and save locally to ID.crt and ID.key
-... : Any other value is passed as-is to ExtensionManager.SetCertificate
-`
+... : Any other value is passed as-is to ExtensionManager.SetCertificate`
 }
 
 func (cmd *setcert) create(id string) error {

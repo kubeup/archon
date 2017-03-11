@@ -28,6 +28,8 @@ import (
 type DayOfWeek string
 
 const (
+	// Everyday specifies the everyday state for day of week.
+	Everyday DayOfWeek = "Everyday"
 	// Friday specifies the friday state for day of week.
 	Friday DayOfWeek = "Friday"
 	// Monday specifies the monday state for day of week.
@@ -42,6 +44,8 @@ const (
 	Tuesday DayOfWeek = "Tuesday"
 	// Wednesday specifies the wednesday state for day of week.
 	Wednesday DayOfWeek = "Wednesday"
+	// Weekend specifies the weekend state for day of week.
+	Weekend DayOfWeek = "Weekend"
 )
 
 // KeyType enumerates the values for key type.
@@ -90,42 +94,46 @@ const (
 
 // AccessKeys is redis cache access keys.
 type AccessKeys struct {
-	PrimaryKey   *string `json:"primaryKey,omitempty"`
-	SecondaryKey *string `json:"secondaryKey,omitempty"`
+	autorest.Response `json:"-"`
+	PrimaryKey        *string `json:"primaryKey,omitempty"`
+	SecondaryKey      *string `json:"secondaryKey,omitempty"`
 }
 
-// CreateOrUpdateParameters is parameters supplied to the CreateOrUpdate Redis
-// operation.
-type CreateOrUpdateParameters struct {
-	ID         *string             `json:"id,omitempty"`
-	Name       *string             `json:"name,omitempty"`
-	Type       *string             `json:"type,omitempty"`
-	Location   *string             `json:"location,omitempty"`
-	Tags       *map[string]*string `json:"tags,omitempty"`
-	Properties *Properties         `json:"properties,omitempty"`
+// CreateParameters is parameters supplied to the Create Redis operation.
+type CreateParameters struct {
+	ID                *string             `json:"id,omitempty"`
+	Name              *string             `json:"name,omitempty"`
+	Type              *string             `json:"type,omitempty"`
+	Location          *string             `json:"location,omitempty"`
+	Tags              *map[string]*string `json:"tags,omitempty"`
+	*CreateProperties `json:"properties,omitempty"`
 }
 
-// ExportRDBParameters is parameters for redis export operation.
+// CreateProperties is properties supplied to Create Redis operation.
+type CreateProperties struct {
+	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
+	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
+	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
+	ShardCount         *int32              `json:"shardCount,omitempty"`
+	SubnetID           *string             `json:"subnetId,omitempty"`
+	StaticIP           *string             `json:"staticIP,omitempty"`
+	Sku                *Sku                `json:"sku,omitempty"`
+}
+
+// ExportRDBParameters is parameters for Redis export operation.
 type ExportRDBParameters struct {
 	Format    *string `json:"format,omitempty"`
 	Prefix    *string `json:"prefix,omitempty"`
 	Container *string `json:"container,omitempty"`
 }
 
-// ImportRDBParameters is parameters for redis import operation.
+// ImportRDBParameters is parameters for Redis import operation.
 type ImportRDBParameters struct {
 	Format *string   `json:"format,omitempty"`
 	Files  *[]string `json:"files,omitempty"`
 }
 
-// ListKeysResult is the response of redis list keys operation.
-type ListKeysResult struct {
-	autorest.Response `json:"-"`
-	PrimaryKey        *string `json:"primaryKey,omitempty"`
-	SecondaryKey      *string `json:"secondaryKey,omitempty"`
-}
-
-// ListResult is the response of list redis operation.
+// ListResult is the response of list Redis operation.
 type ListResult struct {
 	autorest.Response `json:"-"`
 	Value             *[]ResourceType `json:"value,omitempty"`
@@ -144,26 +152,18 @@ func (client ListResult) ListResultPreparer() (*http.Request, error) {
 		autorest.WithBaseURL(to.String(client.NextLink)))
 }
 
-// PatchSchedulesRequest is parameters to set patch schedules for redis cache.
-type PatchSchedulesRequest struct {
-	Properties *ScheduleEntries `json:"properties,omitempty"`
-}
-
-// PatchSchedulesResponse is response to put/get patch schedules for redis
-// cache.
-type PatchSchedulesResponse struct {
+// PatchSchedule is response to put/get patch schedules for Redis cache.
+type PatchSchedule struct {
 	autorest.Response `json:"-"`
-	ID                *string          `json:"id,omitempty"`
-	Name              *string          `json:"name,omitempty"`
-	Type              *string          `json:"type,omitempty"`
-	Location          *string          `json:"location,omitempty"`
-	Properties        *ScheduleEntries `json:"properties,omitempty"`
+	ID                *string `json:"id,omitempty"`
+	Name              *string `json:"name,omitempty"`
+	Type              *string `json:"type,omitempty"`
+	Location          *string `json:"location,omitempty"`
+	*ScheduleEntries  `json:"properties,omitempty"`
 }
 
-// Properties is properties supplied to CreateOrUpdate redis operation.
+// Properties is properties supplied to Create or Update Redis operation.
 type Properties struct {
-	RedisVersion       *string             `json:"redisVersion,omitempty"`
-	Sku                *Sku                `json:"sku,omitempty"`
 	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
 	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
 	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
@@ -172,52 +172,18 @@ type Properties struct {
 	StaticIP           *string             `json:"staticIP,omitempty"`
 }
 
-// ReadableProperties is parameters describing a redis instance
-type ReadableProperties struct {
-	RedisVersion       *string             `json:"redisVersion,omitempty"`
-	Sku                *Sku                `json:"sku,omitempty"`
-	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
-	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
-	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
-	ShardCount         *int32              `json:"shardCount,omitempty"`
-	SubnetID           *string             `json:"subnetId,omitempty"`
-	StaticIP           *string             `json:"staticIP,omitempty"`
-	ProvisioningState  *string             `json:"provisioningState,omitempty"`
-	HostName           *string             `json:"hostName,omitempty"`
-	Port               *int32              `json:"port,omitempty"`
-	SslPort            *int32              `json:"sslPort,omitempty"`
-}
-
-// ReadablePropertiesWithAccessKey is properties generated only in response to
-// CreateOrUpdate redis operation.
-type ReadablePropertiesWithAccessKey struct {
-	RedisVersion       *string             `json:"redisVersion,omitempty"`
-	Sku                *Sku                `json:"sku,omitempty"`
-	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
-	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
-	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
-	ShardCount         *int32              `json:"shardCount,omitempty"`
-	SubnetID           *string             `json:"subnetId,omitempty"`
-	StaticIP           *string             `json:"staticIP,omitempty"`
-	ProvisioningState  *string             `json:"provisioningState,omitempty"`
-	HostName           *string             `json:"hostName,omitempty"`
-	Port               *int32              `json:"port,omitempty"`
-	SslPort            *int32              `json:"sslPort,omitempty"`
-	AccessKeys         *AccessKeys         `json:"accessKeys,omitempty"`
-}
-
-// RebootParameters is specifies which redis node(s) to reboot.
+// RebootParameters is specifies which Redis node(s) to reboot.
 type RebootParameters struct {
 	RebootType RebootType `json:"rebootType,omitempty"`
 	ShardID    *int32     `json:"shardId,omitempty"`
 }
 
-// RegenerateKeyParameters is specifies which redis access keys to reset.
+// RegenerateKeyParameters is specifies which Redis access keys to reset.
 type RegenerateKeyParameters struct {
 	KeyType KeyType `json:"keyType,omitempty"`
 }
 
-// Resource is
+// Resource is the Resource definition.
 type Resource struct {
 	ID       *string             `json:"id,omitempty"`
 	Name     *string             `json:"name,omitempty"`
@@ -226,43 +192,65 @@ type Resource struct {
 	Tags     *map[string]*string `json:"tags,omitempty"`
 }
 
-// ResourceType is a single redis item in List or Get Operation.
+// ResourceProperties is parameters describing a Redis instance.
+type ResourceProperties struct {
+	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
+	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
+	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
+	ShardCount         *int32              `json:"shardCount,omitempty"`
+	SubnetID           *string             `json:"subnetId,omitempty"`
+	StaticIP           *string             `json:"staticIP,omitempty"`
+	Sku                *Sku                `json:"sku,omitempty"`
+	RedisVersion       *string             `json:"redisVersion,omitempty"`
+	ProvisioningState  *string             `json:"provisioningState,omitempty"`
+	HostName           *string             `json:"hostName,omitempty"`
+	Port               *int32              `json:"port,omitempty"`
+	SslPort            *int32              `json:"sslPort,omitempty"`
+}
+
+// ResourceType is a single Redis item in List or Get Operation.
 type ResourceType struct {
-	autorest.Response `json:"-"`
-	ID                *string             `json:"id,omitempty"`
-	Name              *string             `json:"name,omitempty"`
-	Type              *string             `json:"type,omitempty"`
-	Location          *string             `json:"location,omitempty"`
-	Tags              *map[string]*string `json:"tags,omitempty"`
-	Properties        *ReadableProperties `json:"properties,omitempty"`
+	autorest.Response   `json:"-"`
+	ID                  *string             `json:"id,omitempty"`
+	Name                *string             `json:"name,omitempty"`
+	Type                *string             `json:"type,omitempty"`
+	Location            *string             `json:"location,omitempty"`
+	Tags                *map[string]*string `json:"tags,omitempty"`
+	*ResourceProperties `json:"properties,omitempty"`
 }
 
-// ResourceWithAccessKey is a redis item in CreateOrUpdate Operation response.
-type ResourceWithAccessKey struct {
-	autorest.Response `json:"-"`
-	ID                *string                          `json:"id,omitempty"`
-	Name              *string                          `json:"name,omitempty"`
-	Type              *string                          `json:"type,omitempty"`
-	Location          *string                          `json:"location,omitempty"`
-	Tags              *map[string]*string              `json:"tags,omitempty"`
-	Properties        *ReadablePropertiesWithAccessKey `json:"properties,omitempty"`
-}
-
-// ScheduleEntries is list of patch schedules for redis cache.
+// ScheduleEntries is list of patch schedules for a Redis cache.
 type ScheduleEntries struct {
 	ScheduleEntriesProperty *[]ScheduleEntry `json:"scheduleEntries,omitempty"`
 }
 
-// ScheduleEntry is
+// ScheduleEntry is patch schedule entry for a Premium Redis Cache.
 type ScheduleEntry struct {
 	DayOfWeek         DayOfWeek `json:"dayOfWeek,omitempty"`
 	StartHourUtc      *int32    `json:"startHourUtc,omitempty"`
 	MaintenanceWindow *string   `json:"maintenanceWindow,omitempty"`
 }
 
-// Sku is sku parameters supplied to the create redis operation.
+// Sku is sKU parameters supplied to the create Redis operation.
 type Sku struct {
 	Name     SkuName   `json:"name,omitempty"`
 	Family   SkuFamily `json:"family,omitempty"`
 	Capacity *int32    `json:"capacity,omitempty"`
+}
+
+// UpdateParameters is parameters supplied to the Update Redis operation.
+type UpdateParameters struct {
+	*UpdateProperties `json:"properties,omitempty"`
+}
+
+// UpdateProperties is properties supplied to Update Redis operation.
+type UpdateProperties struct {
+	RedisConfiguration *map[string]*string `json:"redisConfiguration,omitempty"`
+	EnableNonSslPort   *bool               `json:"enableNonSslPort,omitempty"`
+	TenantSettings     *map[string]*string `json:"tenantSettings,omitempty"`
+	ShardCount         *int32              `json:"shardCount,omitempty"`
+	SubnetID           *string             `json:"subnetId,omitempty"`
+	StaticIP           *string             `json:"staticIP,omitempty"`
+	Sku                *Sku                `json:"sku,omitempty"`
+	Tags               *map[string]*string `json:"tags,omitempty"`
 }

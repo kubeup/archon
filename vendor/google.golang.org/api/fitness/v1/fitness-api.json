@@ -1,18 +1,18 @@
 {
  "kind": "discovery#restDescription",
- "etag": "\"C5oy1hgQsABtYOYIOXWcR3BgYqU/C_efOoRNuMwDVzh1-1r-3k_wkJo\"",
+ "etag": "\"tbys6C40o18GZwyMen5GMkdK-3s/BGGdGHRirBgse4vGkz5llVRWBM8\"",
  "discoveryVersion": "v1",
  "id": "fitness:v1",
  "name": "fitness",
  "version": "v1",
- "revision": "20160801",
+ "revision": "20160907",
  "title": "Fitness",
  "description": "Stores and accesses user data in the fitness store from apps on any platform.",
  "ownerDomain": "google.com",
  "ownerName": "Google",
  "icons": {
-  "x16": "http://www.google.com/images/icons/product/search-16.gif",
-  "x32": "http://www.google.com/images/icons/product/search-32.gif"
+  "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+  "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
  },
  "documentationLink": "https://developers.google.com/fit/rest/",
  "protocol": "rest",
@@ -165,6 +165,7 @@
   "AggregateRequest": {
    "id": "AggregateRequest",
    "type": "object",
+   "description": "Next id: 10",
    "properties": {
     "aggregateBy": {
      "type": "array",
@@ -755,6 +756,10 @@
      "items": {
       "$ref": "Session"
      }
+    },
+    "hasMoreData": {
+     "type": "boolean",
+     "description": "Flag to indicate server has more data to transfer"
     },
     "nextPageToken": {
      "type": "string",

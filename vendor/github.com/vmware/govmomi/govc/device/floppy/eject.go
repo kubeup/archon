@@ -17,11 +17,11 @@ limitations under the License.
 package floppy
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type eject struct {
@@ -51,7 +51,10 @@ func (cmd *eject) Process(ctx context.Context) error {
 func (cmd *eject) Description() string {
 	return `Eject image from floppy device.
 
-If device is not specified, the first floppy device is used.`
+If device is not specified, the first floppy device is used.
+
+Examples:
+  govc device.floppy.eject -vm vm-1`
 }
 
 func (cmd *eject) Run(ctx context.Context, f *flag.FlagSet) error {
@@ -64,7 +67,7 @@ func (cmd *eject) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,5 +77,5 @@ func (cmd *eject) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return vm.EditDevice(context.TODO(), devices.EjectImg(c))
+	return vm.EditDevice(ctx, devices.EjectImg(c))
 }

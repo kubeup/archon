@@ -21,6 +21,7 @@ package mediaservices
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
@@ -40,32 +41,44 @@ func NewOperationsClientWithBaseURI(baseURI string, subscriptionID string) Opera
 	return OperationsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// CheckNameAvailabilty sends the check name availabilty request.
+// CheckNameAvailability checks whether the Media Service resource name is
+// available. The name must be globally unique.
 //
 // checkNameAvailabilityInput is properties needed to check the availability
 // of a name.
-func (client OperationsClient) CheckNameAvailabilty(checkNameAvailabilityInput CheckNameAvailabilityInput) (result CheckNameAvailabilityOutput, err error) {
-	req, err := client.CheckNameAvailabiltyPreparer(checkNameAvailabilityInput)
-	if err != nil {
-		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailabilty", nil, "Failure preparing request")
+func (client OperationsClient) CheckNameAvailability(checkNameAvailabilityInput CheckNameAvailabilityInput) (result CheckNameAvailabilityOutput, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: checkNameAvailabilityInput,
+			Constraints: []validation.Constraint{{Target: "checkNameAvailabilityInput.Name", Name: validation.Null, Rule: true,
+				Chain: []validation.Constraint{{Target: "checkNameAvailabilityInput.Name", Name: validation.MaxLength, Rule: 24, Chain: nil},
+					{Target: "checkNameAvailabilityInput.Name", Name: validation.MinLength, Rule: 3, Chain: nil},
+					{Target: "checkNameAvailabilityInput.Name", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil},
+				}},
+				{Target: "checkNameAvailabilityInput.Type", Name: validation.Null, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "CheckNameAvailability")
 	}
 
-	resp, err := client.CheckNameAvailabiltySender(req)
+	req, err := client.CheckNameAvailabilityPreparer(checkNameAvailabilityInput)
+	if err != nil {
+		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailability", nil, "Failure preparing request")
+	}
+
+	resp, err := client.CheckNameAvailabilitySender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailabilty", resp, "Failure sending request")
+		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailability", resp, "Failure sending request")
 	}
 
-	result, err = client.CheckNameAvailabiltyResponder(resp)
+	result, err = client.CheckNameAvailabilityResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailabilty", resp, "Failure responding to request")
+		err = autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "CheckNameAvailability", resp, "Failure responding to request")
 	}
 
 	return
 }
 
-// CheckNameAvailabiltyPreparer prepares the CheckNameAvailabilty request.
-func (client OperationsClient) CheckNameAvailabiltyPreparer(checkNameAvailabilityInput CheckNameAvailabilityInput) (*http.Request, error) {
+// CheckNameAvailabilityPreparer prepares the CheckNameAvailability request.
+func (client OperationsClient) CheckNameAvailabilityPreparer(checkNameAvailabilityInput CheckNameAvailabilityInput) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
 	}
@@ -84,15 +97,15 @@ func (client OperationsClient) CheckNameAvailabiltyPreparer(checkNameAvailabilit
 	return preparer.Prepare(&http.Request{})
 }
 
-// CheckNameAvailabiltySender sends the CheckNameAvailabilty request. The method will close the
+// CheckNameAvailabilitySender sends the CheckNameAvailability request. The method will close the
 // http.Response Body if it receives an error.
-func (client OperationsClient) CheckNameAvailabiltySender(req *http.Request) (*http.Response, error) {
+func (client OperationsClient) CheckNameAvailabilitySender(req *http.Request) (*http.Response, error) {
 	return autorest.SendWithSender(client, req)
 }
 
-// CheckNameAvailabiltyResponder handles the response to the CheckNameAvailabilty request. The method always
+// CheckNameAvailabilityResponder handles the response to the CheckNameAvailability request. The method always
 // closes the http.Response Body.
-func (client OperationsClient) CheckNameAvailabiltyResponder(resp *http.Response) (result CheckNameAvailabilityOutput, err error) {
+func (client OperationsClient) CheckNameAvailabilityResponder(resp *http.Response) (result CheckNameAvailabilityOutput, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
@@ -103,12 +116,23 @@ func (client OperationsClient) CheckNameAvailabiltyResponder(resp *http.Response
 	return
 }
 
-// Create sends the create request.
+// Create creates a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service. mediaService
 // is media Service properties needed for creation.
 func (client OperationsClient) Create(resourceGroupName string, mediaServiceName string, mediaService MediaService) (result MediaService, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}},
+		{TargetValue: mediaService,
+			Constraints: []validation.Constraint{{Target: "mediaService.MediaServiceProperties", Name: validation.Null, Rule: false,
+				Chain: []validation.Constraint{{Target: "mediaService.MediaServiceProperties.APIEndpoints", Name: validation.ReadOnly, Rule: true, Chain: nil}}}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "Create")
+	}
+
 	req, err := client.CreatePreparer(resourceGroupName, mediaServiceName, mediaService)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "Create", nil, "Failure preparing request")
@@ -169,11 +193,19 @@ func (client OperationsClient) CreateResponder(resp *http.Response) (result Medi
 	return
 }
 
-// Delete sends the delete request.
+// Delete deletes a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service.
 func (client OperationsClient) Delete(resourceGroupName string, mediaServiceName string) (result autorest.Response, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "Delete")
+	}
+
 	req, err := client.DeletePreparer(resourceGroupName, mediaServiceName)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "Delete", nil, "Failure preparing request")
@@ -225,17 +257,25 @@ func (client OperationsClient) DeleteResponder(resp *http.Response) (result auto
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK),
+		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusNoContent),
 		autorest.ByClosing())
 	result.Response = resp
 	return
 }
 
-// Get sends the get request.
+// Get gets a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service.
 func (client OperationsClient) Get(resourceGroupName string, mediaServiceName string) (result MediaService, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "Get")
+	}
+
 	req, err := client.GetPreparer(resourceGroupName, mediaServiceName)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "Get", nil, "Failure preparing request")
@@ -294,7 +334,7 @@ func (client OperationsClient) GetResponder(resp *http.Response) (result MediaSe
 	return
 }
 
-// ListByResourceGroup sends the list by resource group request.
+// ListByResourceGroup lists all of the Media Services in a resource group.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription.
@@ -356,11 +396,19 @@ func (client OperationsClient) ListByResourceGroupResponder(resp *http.Response)
 	return
 }
 
-// ListKeys sends the list keys request.
+// ListKeys lists the keys for a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service.
 func (client OperationsClient) ListKeys(resourceGroupName string, mediaServiceName string) (result ServiceKeys, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "ListKeys")
+	}
+
 	req, err := client.ListKeysPreparer(resourceGroupName, mediaServiceName)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "ListKeys", nil, "Failure preparing request")
@@ -412,20 +460,28 @@ func (client OperationsClient) ListKeysResponder(resp *http.Response) (result Se
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
 	return
 }
 
-// RegenerateKey sends the regenerate key request.
+// RegenerateKey regenerates a primary or secondary key for a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service.
 // regenerateKeyInput is properties needed to regenerate the Media Service
 // key.
 func (client OperationsClient) RegenerateKey(resourceGroupName string, mediaServiceName string, regenerateKeyInput RegenerateKeyInput) (result RegenerateKeyOutput, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "RegenerateKey")
+	}
+
 	req, err := client.RegenerateKeyPreparer(resourceGroupName, mediaServiceName, regenerateKeyInput)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "RegenerateKey", nil, "Failure preparing request")
@@ -479,20 +535,31 @@ func (client OperationsClient) RegenerateKeyResponder(resp *http.Response) (resu
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
 	return
 }
 
-// SyncStorageKeys sends the sync storage keys request.
+// SyncStorageKeys synchronizes storage account keys for a storage account
+// associated with the Media Service account.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service.
-// syncStorageKeysInput is properties needed to sycnronize the keys for a
+// syncStorageKeysInput is properties needed to synchronize the keys for a
 // storage account to the Media Service.
-func (client OperationsClient) SyncStorageKeys(resourceGroupName string, mediaServiceName string, syncStorageKeysInput SyncStorageKeysInput) (result MediaService, err error) {
+func (client OperationsClient) SyncStorageKeys(resourceGroupName string, mediaServiceName string, syncStorageKeysInput SyncStorageKeysInput) (result autorest.Response, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}},
+		{TargetValue: syncStorageKeysInput,
+			Constraints: []validation.Constraint{{Target: "syncStorageKeysInput.ID", Name: validation.Null, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "SyncStorageKeys")
+	}
+
 	req, err := client.SyncStorageKeysPreparer(resourceGroupName, mediaServiceName, syncStorageKeysInput)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "SyncStorageKeys", nil, "Failure preparing request")
@@ -500,7 +567,7 @@ func (client OperationsClient) SyncStorageKeys(resourceGroupName string, mediaSe
 
 	resp, err := client.SyncStorageKeysSender(req)
 	if err != nil {
-		result.Response = autorest.Response{Response: resp}
+		result.Response = resp
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "SyncStorageKeys", resp, "Failure sending request")
 	}
 
@@ -542,23 +609,30 @@ func (client OperationsClient) SyncStorageKeysSender(req *http.Request) (*http.R
 
 // SyncStorageKeysResponder handles the response to the SyncStorageKeys request. The method always
 // closes the http.Response Body.
-func (client OperationsClient) SyncStorageKeysResponder(resp *http.Response) (result MediaService, err error) {
+func (client OperationsClient) SyncStorageKeysResponder(resp *http.Response) (result autorest.Response, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusAccepted),
-		autorest.ByUnmarshallingJSON(&result),
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByClosing())
-	result.Response = autorest.Response{Response: resp}
+	result.Response = resp
 	return
 }
 
-// Update sends the update request.
+// Update updates a Media Service.
 //
 // resourceGroupName is name of the resource group within the Azure
 // subscription. mediaServiceName is name of the Media Service. mediaService
 // is media Service properties needed for update.
 func (client OperationsClient) Update(resourceGroupName string, mediaServiceName string, mediaService MediaService) (result MediaService, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: mediaServiceName,
+			Constraints: []validation.Constraint{{Target: "mediaServiceName", Name: validation.MaxLength, Rule: 24, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.MinLength, Rule: 3, Chain: nil},
+				{Target: "mediaServiceName", Name: validation.Pattern, Rule: `^[a-z0-9]`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "mediaservices.OperationsClient", "Update")
+	}
+
 	req, err := client.UpdatePreparer(resourceGroupName, mediaServiceName, mediaService)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "mediaservices.OperationsClient", "Update", nil, "Failure preparing request")

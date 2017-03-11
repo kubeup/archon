@@ -17,12 +17,12 @@ limitations under the License.
 package folder
 
 import (
+	"context"
 	"flag"
 	"path"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type create struct {
@@ -48,9 +48,12 @@ func (cmd *create) Usage() string {
 
 func (cmd *create) Description() string {
 	return `Create folder with PATH.
-Example:
-govc folder.create /dc1/vm/folder-foo
-`
+
+Examples:
+  govc folder.create /dc1/vm/folder-foo
+  govc object.mv /dc1/vm/vm-foo-* /dc1/vm/folder-foo
+  govc folder.create -pod /dc1/datastore/sdrs
+  govc object.mv /dc1/datastore/iscsi-* /dc1/datastore/sdrs`
 }
 
 func (cmd *create) Process(ctx context.Context) error {

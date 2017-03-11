@@ -1,5 +1,107 @@
 # changelog
 
+### 0.12.1 (2016-12-19)
+
+* Add '-f' flag to logs command
+
+* Add storage support to vm.migrate
+
+* Add support for file backed serialport devices
+
+### 0.12.0 (2016-12-01)
+
+* Add optional '-host' flag to datastore download/tail commands
+
+* Support InjectOvfEnv without PowerOn when importing
+
+* Support stdin as import options source
+
+* Add basic NVME controller support
+
+### 0.11.4 (2016-11-15)
+
+* Add role create, remove, update, ls and usage commands
+
+### 0.11.3 (2016-11-08)
+
+* Add `-product-version` flag to dvs.create
+
+* datastore.tail -f will exit without error if the file no longer exists
+
+### 0.11.2 (2016-11-01)
+
+* Add object.reload command
+
+* Add ESX 5.5 support to host.account commands
+
+### 0.11.1 (2016-10-27)
+
+* Add support for VirtualApp in pool.change command
+
+### 0.11.0 (2016-10-25)
+
+* Add object.destroy and object.rename commands
+
+* Remove datacenter.destroy command (use object.destroy instead)
+
+* Remove folder.destroy command (use object.destroy instead)
+
+* Rename folder.move_into -> object.mv
+
+* Add dvs.portgroup.change command
+
+* Add vlan flag to dvs.portgroup.add command
+
+### 0.10.0 (2016-10-20)
+
+* Add generated govc/USAGE.md
+
+* Add host.date info and change commands
+
+* Add session ls and rm commands
+
+* Add `-tls-known-hosts` and `-tls-ca-certs` flags
+
+* Add host.cert commands : info, csr, import
+
+* Add about.cert command (similar to the Chrome Certificate Viewer)
+
+* Add `-vspc-proxy` flag to device.serial.connect command
+
+* Rename license.list -> license.ls, license.assigned.list -> license.assigned.ls
+
+### 0.9.0 (2016-09-09)
+
+* Add `-R` option to datastore.ls
+
+* Add datastore.tail command
+
+* Add vm.migrate command
+
+* Add govc vm.register and vm.unregister commands
+
+* Add govc vm snapshot commands: create, remove, revert, tree
+
+* Add device.usb.add command
+
+* Support stdin/stdout in datastore upload/download
+
+* Add host.portgroup.change command
+
+* Add host.portgroup.info command
+
+* Add HostNetworkPolicy to host.vswitch.info
+
+* Add `-json` support to host.vswitch.info command
+
+* Support instance uuid in SearchFlag
+
+* Add `-json` support to esxcli command
+
+* Add `-unclaimed` flag to host.storage.info command
+
+* Support Network mapping in import.{ova,ovf} commands
+
 ### 0.8.0 (2016-06-30)
 
 * If username (`-u` / GOVC_USERNAME) is empty, attempt login via local ticket (Workstation)

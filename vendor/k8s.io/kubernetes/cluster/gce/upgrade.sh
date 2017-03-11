@@ -88,6 +88,7 @@ function upgrade-master() {
 
   detect-master
   parse-master-env
+  backfile-kubeletauth-certs
 
   # Delete the master instance. Note that the master-pd is created
   # with auto-delete=no, so it should not be deleted.
@@ -99,6 +100,51 @@ function upgrade-master() {
 
   create-master-instance "${MASTER_NAME}-ip"
   wait-for-master
+}
+
+# TODO(mikedanese): delete when we don't support < 1.6
+function backfile-kubeletauth-certs() {
+  if [[ ! -z "${KUBEAPISERVER_CERT_BASE64:-}" && ! -z "${KUBEAPISERVER_CERT_BASE64:-}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "${KUBE_TEMP}/pki"
+  echo "${CA_KEY_BASE64}" | base64 -d > "${KUBE_TEMP}/pki/ca.key"
+  echo "${CA_CERT_BASE64}" | base64 -d > "${KUBE_TEMP}/pki/ca.crt"
+  (cd "${KUBE_TEMP}/pki"
+    download-cfssl
+    cat <<EOF > ca-config.json
+{
+  "signing": {
+    "client": {
+      "expiry": "43800h",
+      "usages": [
+        "signing",
+        "key encipherment",
+        "client auth"
+      ]
+    }
+  }
+}
+EOF
+    # the name kube-apiserver is bound to the node proxy
+    # subpaths required for the apiserver to hit proxy
+    # endpoints on the kubelet's handler.
+    cat <<EOF \
+      | "${KUBE_TEMP}/cfssl/cfssl" gencert \
+        -ca=ca.crt \
+        -ca-key=ca.key \
+        -config=ca-config.json \
+        -profile=client \
+        - \
+      | "${KUBE_TEMP}/cfssl/cfssljson" -bare kube-apiserver
+{
+  "CN": "kube-apiserver"
+}
+EOF
+  )
+  KUBEAPISERVER_CERT_BASE64=$(cat "${KUBE_TEMP}/pki/kube-apiserver.pem" | base64 | tr -d '\r\n')
+  KUBEAPISERVER_KEY_BASE64=$(cat "${KUBE_TEMP}/pki/kube-apiserver-key.pem" | base64 | tr -d '\r\n')
 }
 
 function wait-for-master() {
@@ -172,6 +218,7 @@ function get-node-os() {
 # Vars set:
 #   KUBELET_TOKEN
 #   KUBE_PROXY_TOKEN
+#   NODE_PROBLEM_DETECTOR_TOKEN
 #   CA_CERT_BASE64
 #   EXTRA_DOCKER_OPTS
 #   KUBELET_CERT_BASE64
@@ -206,6 +253,7 @@ fi
 #   INSTANCE_GROUPS
 #   KUBELET_TOKEN
 #   KUBE_PROXY_TOKEN
+#   NODE_PROBLEM_DETECTOR_TOKEN
 #   CA_CERT_BASE64
 #   EXTRA_DOCKER_OPTS
 #   KUBELET_CERT_BASE64
@@ -228,6 +276,7 @@ function prepare-node-upgrade() {
   local node_env=$(get-node-env)
   KUBELET_TOKEN=$(get-env-val "${node_env}" "KUBELET_TOKEN")
   KUBE_PROXY_TOKEN=$(get-env-val "${node_env}" "KUBE_PROXY_TOKEN")
+  NODE_PROBLEM_DETECTOR_TOKEN=$(get-env-val "${node_env}" "NODE_PROBLEM_DETECTOR_TOKEN")
   CA_CERT_BASE64=$(get-env-val "${node_env}" "CA_CERT")
   EXTRA_DOCKER_OPTS=$(get-env-val "${node_env}" "EXTRA_DOCKER_OPTS")
   KUBELET_CERT_BASE64=$(get-env-val "${node_env}" "KUBELET_CERT")

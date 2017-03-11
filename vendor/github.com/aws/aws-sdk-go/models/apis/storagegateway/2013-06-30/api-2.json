@@ -4,10 +4,11 @@
     "apiVersion":"2013-06-30",
     "endpointPrefix":"storagegateway",
     "jsonVersion":"1.1",
+    "protocol":"json",
     "serviceFullName":"AWS Storage Gateway",
     "signatureVersion":"v4",
     "targetPrefix":"StorageGateway_20130630",
-    "protocol":"json"
+    "uid":"storagegateway-2013-06-30"
   },
   "operations":{
     "ActivateGateway":{
@@ -19,16 +20,8 @@
       "input":{"shape":"ActivateGatewayInput"},
       "output":{"shape":"ActivateGatewayOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "AddCache":{
@@ -40,16 +33,8 @@
       "input":{"shape":"AddCacheInput"},
       "output":{"shape":"AddCacheOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "AddTagsToResource":{
@@ -61,16 +46,8 @@
       "input":{"shape":"AddTagsToResourceInput"},
       "output":{"shape":"AddTagsToResourceOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "AddUploadBuffer":{
@@ -82,16 +59,8 @@
       "input":{"shape":"AddUploadBufferInput"},
       "output":{"shape":"AddUploadBufferOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "AddWorkingStorage":{
@@ -103,16 +72,8 @@
       "input":{"shape":"AddWorkingStorageInput"},
       "output":{"shape":"AddWorkingStorageOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "CancelArchival":{
@@ -124,16 +85,8 @@
       "input":{"shape":"CancelArchivalInput"},
       "output":{"shape":"CancelArchivalOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "CancelRetrieval":{
@@ -145,16 +98,8 @@
       "input":{"shape":"CancelRetrievalInput"},
       "output":{"shape":"CancelRetrievalOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "CreateCachediSCSIVolume":{
@@ -166,16 +111,21 @@
       "input":{"shape":"CreateCachediSCSIVolumeInput"},
       "output":{"shape":"CreateCachediSCSIVolumeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "CreateNFSFileShare":{
+      "name":"CreateNFSFileShare",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"CreateNFSFileShareInput"},
+      "output":{"shape":"CreateNFSFileShareOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "CreateSnapshot":{
@@ -187,16 +137,9 @@
       "input":{"shape":"CreateSnapshotInput"},
       "output":{"shape":"CreateSnapshotOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"},
+        {"shape":"ServiceUnavailableError"}
       ]
     },
     "CreateSnapshotFromVolumeRecoveryPoint":{
@@ -208,16 +151,9 @@
       "input":{"shape":"CreateSnapshotFromVolumeRecoveryPointInput"},
       "output":{"shape":"CreateSnapshotFromVolumeRecoveryPointOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"},
+        {"shape":"ServiceUnavailableError"}
       ]
     },
     "CreateStorediSCSIVolume":{
@@ -229,16 +165,21 @@
       "input":{"shape":"CreateStorediSCSIVolumeInput"},
       "output":{"shape":"CreateStorediSCSIVolumeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "CreateTapeWithBarcode":{
+      "name":"CreateTapeWithBarcode",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"CreateTapeWithBarcodeInput"},
+      "output":{"shape":"CreateTapeWithBarcodeOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "CreateTapes":{
@@ -250,16 +191,8 @@
       "input":{"shape":"CreateTapesInput"},
       "output":{"shape":"CreateTapesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteBandwidthRateLimit":{
@@ -271,16 +204,8 @@
       "input":{"shape":"DeleteBandwidthRateLimitInput"},
       "output":{"shape":"DeleteBandwidthRateLimitOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteChapCredentials":{
@@ -292,16 +217,21 @@
       "input":{"shape":"DeleteChapCredentialsInput"},
       "output":{"shape":"DeleteChapCredentialsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "DeleteFileShare":{
+      "name":"DeleteFileShare",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"DeleteFileShareInput"},
+      "output":{"shape":"DeleteFileShareOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteGateway":{
@@ -313,16 +243,8 @@
       "input":{"shape":"DeleteGatewayInput"},
       "output":{"shape":"DeleteGatewayOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteSnapshotSchedule":{
@@ -334,16 +256,8 @@
       "input":{"shape":"DeleteSnapshotScheduleInput"},
       "output":{"shape":"DeleteSnapshotScheduleOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteTape":{
@@ -355,16 +269,8 @@
       "input":{"shape":"DeleteTapeInput"},
       "output":{"shape":"DeleteTapeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteTapeArchive":{
@@ -376,16 +282,8 @@
       "input":{"shape":"DeleteTapeArchiveInput"},
       "output":{"shape":"DeleteTapeArchiveOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DeleteVolume":{
@@ -397,16 +295,8 @@
       "input":{"shape":"DeleteVolumeInput"},
       "output":{"shape":"DeleteVolumeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeBandwidthRateLimit":{
@@ -418,16 +308,8 @@
       "input":{"shape":"DescribeBandwidthRateLimitInput"},
       "output":{"shape":"DescribeBandwidthRateLimitOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeCache":{
@@ -439,16 +321,8 @@
       "input":{"shape":"DescribeCacheInput"},
       "output":{"shape":"DescribeCacheOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeCachediSCSIVolumes":{
@@ -460,16 +334,8 @@
       "input":{"shape":"DescribeCachediSCSIVolumesInput"},
       "output":{"shape":"DescribeCachediSCSIVolumesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeChapCredentials":{
@@ -481,16 +347,8 @@
       "input":{"shape":"DescribeChapCredentialsInput"},
       "output":{"shape":"DescribeChapCredentialsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeGatewayInformation":{
@@ -502,16 +360,8 @@
       "input":{"shape":"DescribeGatewayInformationInput"},
       "output":{"shape":"DescribeGatewayInformationOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeMaintenanceStartTime":{
@@ -523,16 +373,21 @@
       "input":{"shape":"DescribeMaintenanceStartTimeInput"},
       "output":{"shape":"DescribeMaintenanceStartTimeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "DescribeNFSFileShares":{
+      "name":"DescribeNFSFileShares",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"DescribeNFSFileSharesInput"},
+      "output":{"shape":"DescribeNFSFileSharesOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeSnapshotSchedule":{
@@ -544,16 +399,8 @@
       "input":{"shape":"DescribeSnapshotScheduleInput"},
       "output":{"shape":"DescribeSnapshotScheduleOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeStorediSCSIVolumes":{
@@ -565,16 +412,8 @@
       "input":{"shape":"DescribeStorediSCSIVolumesInput"},
       "output":{"shape":"DescribeStorediSCSIVolumesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeTapeArchives":{
@@ -586,16 +425,8 @@
       "input":{"shape":"DescribeTapeArchivesInput"},
       "output":{"shape":"DescribeTapeArchivesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeTapeRecoveryPoints":{
@@ -607,16 +438,8 @@
       "input":{"shape":"DescribeTapeRecoveryPointsInput"},
       "output":{"shape":"DescribeTapeRecoveryPointsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeTapes":{
@@ -628,16 +451,8 @@
       "input":{"shape":"DescribeTapesInput"},
       "output":{"shape":"DescribeTapesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeUploadBuffer":{
@@ -649,16 +464,8 @@
       "input":{"shape":"DescribeUploadBufferInput"},
       "output":{"shape":"DescribeUploadBufferOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeVTLDevices":{
@@ -670,16 +477,8 @@
       "input":{"shape":"DescribeVTLDevicesInput"},
       "output":{"shape":"DescribeVTLDevicesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DescribeWorkingStorage":{
@@ -691,16 +490,8 @@
       "input":{"shape":"DescribeWorkingStorageInput"},
       "output":{"shape":"DescribeWorkingStorageOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "DisableGateway":{
@@ -712,16 +503,21 @@
       "input":{"shape":"DisableGatewayInput"},
       "output":{"shape":"DisableGatewayOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "ListFileShares":{
+      "name":"ListFileShares",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"ListFileSharesInput"},
+      "output":{"shape":"ListFileSharesOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListGateways":{
@@ -733,16 +529,8 @@
       "input":{"shape":"ListGatewaysInput"},
       "output":{"shape":"ListGatewaysOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListLocalDisks":{
@@ -754,16 +542,8 @@
       "input":{"shape":"ListLocalDisksInput"},
       "output":{"shape":"ListLocalDisksOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListTagsForResource":{
@@ -775,16 +555,21 @@
       "input":{"shape":"ListTagsForResourceInput"},
       "output":{"shape":"ListTagsForResourceOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "ListTapes":{
+      "name":"ListTapes",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"ListTapesInput"},
+      "output":{"shape":"ListTapesOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListVolumeInitiators":{
@@ -796,16 +581,8 @@
       "input":{"shape":"ListVolumeInitiatorsInput"},
       "output":{"shape":"ListVolumeInitiatorsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListVolumeRecoveryPoints":{
@@ -817,16 +594,8 @@
       "input":{"shape":"ListVolumeRecoveryPointsInput"},
       "output":{"shape":"ListVolumeRecoveryPointsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ListVolumes":{
@@ -838,16 +607,8 @@
       "input":{"shape":"ListVolumesInput"},
       "output":{"shape":"ListVolumesOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "RemoveTagsFromResource":{
@@ -859,16 +620,8 @@
       "input":{"shape":"RemoveTagsFromResourceInput"},
       "output":{"shape":"RemoveTagsFromResourceOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ResetCache":{
@@ -880,16 +633,8 @@
       "input":{"shape":"ResetCacheInput"},
       "output":{"shape":"ResetCacheOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "RetrieveTapeArchive":{
@@ -901,16 +646,8 @@
       "input":{"shape":"RetrieveTapeArchiveInput"},
       "output":{"shape":"RetrieveTapeArchiveOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "RetrieveTapeRecoveryPoint":{
@@ -922,16 +659,21 @@
       "input":{"shape":"RetrieveTapeRecoveryPointInput"},
       "output":{"shape":"RetrieveTapeRecoveryPointOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "SetLocalConsolePassword":{
+      "name":"SetLocalConsolePassword",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"SetLocalConsolePasswordInput"},
+      "output":{"shape":"SetLocalConsolePasswordOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "ShutdownGateway":{
@@ -943,16 +685,8 @@
       "input":{"shape":"ShutdownGatewayInput"},
       "output":{"shape":"ShutdownGatewayOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "StartGateway":{
@@ -964,16 +698,8 @@
       "input":{"shape":"StartGatewayInput"},
       "output":{"shape":"StartGatewayOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateBandwidthRateLimit":{
@@ -985,16 +711,8 @@
       "input":{"shape":"UpdateBandwidthRateLimitInput"},
       "output":{"shape":"UpdateBandwidthRateLimitOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateChapCredentials":{
@@ -1006,16 +724,8 @@
       "input":{"shape":"UpdateChapCredentialsInput"},
       "output":{"shape":"UpdateChapCredentialsOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateGatewayInformation":{
@@ -1027,16 +737,8 @@
       "input":{"shape":"UpdateGatewayInformationInput"},
       "output":{"shape":"UpdateGatewayInformationOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateGatewaySoftwareNow":{
@@ -1048,16 +750,8 @@
       "input":{"shape":"UpdateGatewaySoftwareNowInput"},
       "output":{"shape":"UpdateGatewaySoftwareNowOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateMaintenanceStartTime":{
@@ -1069,16 +763,21 @@
       "input":{"shape":"UpdateMaintenanceStartTimeInput"},
       "output":{"shape":"UpdateMaintenanceStartTimeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
+      ]
+    },
+    "UpdateNFSFileShare":{
+      "name":"UpdateNFSFileShare",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"UpdateNFSFileShareInput"},
+      "output":{"shape":"UpdateNFSFileShareOutput"},
+      "errors":[
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateSnapshotSchedule":{
@@ -1090,16 +789,8 @@
       "input":{"shape":"UpdateSnapshotScheduleInput"},
       "output":{"shape":"UpdateSnapshotScheduleOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     },
     "UpdateVTLDeviceType":{
@@ -1111,16 +802,8 @@
       "input":{"shape":"UpdateVTLDeviceTypeInput"},
       "output":{"shape":"UpdateVTLDeviceTypeOutput"},
       "errors":[
-        {
-          "shape":"InvalidGatewayRequestException",
-          "error":{"httpStatusCode":400},
-          "exception":true
-        },
-        {
-          "shape":"InternalServerError",
-          "error":{"httpStatusCode":500},
-          "exception":true
-        }
+        {"shape":"InvalidGatewayRequestException"},
+        {"shape":"InternalServerError"}
       ]
     }
   },
@@ -1151,8 +834,8 @@
     },
     "ActivationKey":{
       "type":"string",
-      "min":1,
-      "max":50
+      "max":50,
+      "min":1
     },
     "AddCacheInput":{
       "type":"structure",
@@ -1228,13 +911,14 @@
     },
     "BandwidthType":{
       "type":"string",
-      "min":3,
-      "max":25
+      "max":25,
+      "min":3
     },
     "BandwidthUploadRateLimit":{
       "type":"long",
       "min":51200
     },
+    "Boolean":{"type":"boolean"},
     "CachediSCSIVolume":{
       "type":"structure",
       "members":{
@@ -1245,7 +929,8 @@
         "VolumeSizeInBytes":{"shape":"long"},
         "VolumeProgress":{"shape":"DoubleObject"},
         "SourceSnapshotId":{"shape":"SnapshotId"},
-        "VolumeiSCSIAttributes":{"shape":"VolumeiSCSIAttributes"}
+        "VolumeiSCSIAttributes":{"shape":"VolumeiSCSIAttributes"},
+        "CreatedDate":{"shape":"CreatedDate"}
       }
     },
     "CachediSCSIVolumes":{
@@ -1301,13 +986,13 @@
     },
     "ChapSecret":{
       "type":"string",
-      "min":1,
-      "max":100
+      "max":100,
+      "min":1
     },
     "ClientToken":{
       "type":"string",
-      "min":5,
-      "max":100
+      "max":100,
+      "min":5
     },
     "CreateCachediSCSIVolumeInput":{
       "type":"structure",
@@ -1323,6 +1008,7 @@
         "VolumeSizeInBytes":{"shape":"long"},
         "SnapshotId":{"shape":"SnapshotId"},
         "TargetName":{"shape":"TargetName"},
+        "SourceVolumeARN":{"shape":"VolumeARN"},
         "NetworkInterfaceId":{"shape":"NetworkInterfaceId"},
         "ClientToken":{"shape":"ClientToken"}
       }
@@ -1332,6 +1018,31 @@
       "members":{
         "VolumeARN":{"shape":"VolumeARN"},
         "TargetARN":{"shape":"TargetARN"}
+      }
+    },
+    "CreateNFSFileShareInput":{
+      "type":"structure",
+      "required":[
+        "ClientToken",
+        "GatewayARN",
+        "Role",
+        "LocationARN"
+      ],
+      "members":{
+        "ClientToken":{"shape":"ClientToken"},
+        "NFSFileShareDefaults":{"shape":"NFSFileShareDefaults"},
+        "GatewayARN":{"shape":"GatewayARN"},
+        "KMSEncrypted":{"shape":"Boolean"},
+        "KMSKey":{"shape":"KMSKey"},
+        "Role":{"shape":"Role"},
+        "LocationARN":{"shape":"LocationARN"},
+        "DefaultStorageClass":{"shape":"StorageClass"}
+      }
+    },
+    "CreateNFSFileShareOutput":{
+      "type":"structure",
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"}
       }
     },
     "CreateSnapshotFromVolumeRecoveryPointInput":{
@@ -1397,6 +1108,25 @@
         "TargetARN":{"shape":"TargetARN"}
       }
     },
+    "CreateTapeWithBarcodeInput":{
+      "type":"structure",
+      "required":[
+        "GatewayARN",
+        "TapeSizeInBytes",
+        "TapeBarcode"
+      ],
+      "members":{
+        "GatewayARN":{"shape":"GatewayARN"},
+        "TapeSizeInBytes":{"shape":"TapeSize"},
+        "TapeBarcode":{"shape":"TapeBarcode"}
+      }
+    },
+    "CreateTapeWithBarcodeOutput":{
+      "type":"structure",
+      "members":{
+        "TapeARN":{"shape":"TapeARN"}
+      }
+    },
     "CreateTapesInput":{
       "type":"structure",
       "required":[
@@ -1420,10 +1150,11 @@
         "TapeARNs":{"shape":"TapeARNs"}
       }
     },
+    "CreatedDate":{"type":"timestamp"},
     "DayOfWeek":{
       "type":"integer",
-      "min":0,
-      "max":6
+      "max":6,
+      "min":0
     },
     "DeleteBandwidthRateLimitInput":{
       "type":"structure",
@@ -1458,6 +1189,19 @@
       "members":{
         "TargetARN":{"shape":"TargetARN"},
         "InitiatorName":{"shape":"IqnName"}
+      }
+    },
+    "DeleteFileShareInput":{
+      "type":"structure",
+      "required":["FileShareARN"],
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"}
+      }
+    },
+    "DeleteFileShareOutput":{
+      "type":"structure",
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"}
       }
     },
     "DeleteGatewayInput":{
@@ -1627,6 +1371,19 @@
         "Timezone":{"shape":"GatewayTimezone"}
       }
     },
+    "DescribeNFSFileSharesInput":{
+      "type":"structure",
+      "required":["FileShareARNList"],
+      "members":{
+        "FileShareARNList":{"shape":"FileShareARNList"}
+      }
+    },
+    "DescribeNFSFileSharesOutput":{
+      "type":"structure",
+      "members":{
+        "NFSFileShareInfoList":{"shape":"NFSFileShareInfoList"}
+      }
+    },
     "DescribeSnapshotScheduleInput":{
       "type":"structure",
       "required":["VolumeARN"],
@@ -1758,13 +1515,13 @@
     },
     "Description":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "DeviceType":{
       "type":"string",
-      "min":2,
-      "max":50
+      "max":50,
+      "min":2
     },
     "DeviceiSCSIAttributes":{
       "type":"structure",
@@ -1802,13 +1559,13 @@
     },
     "DiskAllocationType":{
       "type":"string",
-      "min":3,
-      "max":100
+      "max":100,
+      "min":3
     },
     "DiskId":{
       "type":"string",
-      "min":1,
-      "max":300
+      "max":300,
+      "min":1
     },
     "DiskIds":{
       "type":"list",
@@ -1885,19 +1642,54 @@
         "VolumeNotReady"
       ]
     },
+    "FileShareARN":{
+      "type":"string",
+      "max":500,
+      "min":50
+    },
+    "FileShareARNList":{
+      "type":"list",
+      "member":{"shape":"FileShareARN"},
+      "max":10,
+      "min":1
+    },
+    "FileShareId":{
+      "type":"string",
+      "max":30,
+      "min":12
+    },
+    "FileShareInfo":{
+      "type":"structure",
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"},
+        "FileShareId":{"shape":"FileShareId"},
+        "FileShareStatus":{"shape":"FileShareStatus"},
+        "GatewayARN":{"shape":"GatewayARN"}
+      }
+    },
+    "FileShareInfoList":{
+      "type":"list",
+      "member":{"shape":"FileShareInfo"}
+    },
+    "FileShareStatus":{
+      "type":"string",
+      "max":50,
+      "min":3
+    },
     "GatewayARN":{
       "type":"string",
-      "min":50,
-      "max":500
+      "max":500,
+      "min":50
     },
     "GatewayId":{
       "type":"string",
-      "min":12,
-      "max":30
+      "max":30,
+      "min":12
     },
     "GatewayInfo":{
       "type":"structure",
       "members":{
+        "GatewayId":{"shape":"GatewayId"},
         "GatewayARN":{"shape":"GatewayARN"},
         "GatewayType":{"shape":"GatewayType"},
         "GatewayOperationalState":{"shape":"GatewayOperationalState"},
@@ -1906,8 +1698,8 @@
     },
     "GatewayName":{
       "type":"string",
-      "min":2,
       "max":255,
+      "min":2,
       "pattern":"^[ -\\.0-\\[\\]-~]*[!-\\.0-\\[\\]-~][ -\\.0-\\[\\]-~]*$"
     },
     "GatewayNetworkInterfaces":{
@@ -1916,23 +1708,23 @@
     },
     "GatewayOperationalState":{
       "type":"string",
-      "min":2,
-      "max":25
+      "max":25,
+      "min":2
     },
     "GatewayState":{
       "type":"string",
-      "min":2,
-      "max":25
+      "max":25,
+      "min":2
     },
     "GatewayTimezone":{
       "type":"string",
-      "min":3,
-      "max":10
+      "max":10,
+      "min":3
     },
     "GatewayType":{
       "type":"string",
-      "min":2,
-      "max":20
+      "max":20,
+      "min":2
     },
     "Gateways":{
       "type":"list",
@@ -1940,13 +1732,13 @@
     },
     "HourOfDay":{
       "type":"integer",
-      "min":0,
-      "max":23
+      "max":23,
+      "min":0
     },
     "Initiator":{
       "type":"string",
-      "min":1,
-      "max":50
+      "max":50,
+      "min":1
     },
     "Initiators":{
       "type":"list",
@@ -1958,7 +1750,6 @@
         "message":{"shape":"string"},
         "error":{"shape":"StorageGatewayError"}
       },
-      "error":{"httpStatusCode":500},
       "exception":true
     },
     "InvalidGatewayRequestException":{
@@ -1967,19 +1758,39 @@
         "message":{"shape":"string"},
         "error":{"shape":"StorageGatewayError"}
       },
-      "error":{"httpStatusCode":400},
       "exception":true
     },
     "IqnName":{
       "type":"string",
-      "min":1,
       "max":255,
+      "min":1,
       "pattern":"[0-9a-z:.-]+"
+    },
+    "KMSKey":{
+      "type":"string",
+      "max":2048,
+      "min":20
     },
     "LastSoftwareUpdate":{
       "type":"string",
-      "min":1,
-      "max":25
+      "max":25,
+      "min":1
+    },
+    "ListFileSharesInput":{
+      "type":"structure",
+      "members":{
+        "GatewayARN":{"shape":"GatewayARN"},
+        "Limit":{"shape":"PositiveIntObject"},
+        "Marker":{"shape":"Marker"}
+      }
+    },
+    "ListFileSharesOutput":{
+      "type":"structure",
+      "members":{
+        "Marker":{"shape":"Marker"},
+        "NextMarker":{"shape":"Marker"},
+        "FileShareInfoList":{"shape":"FileShareInfoList"}
+      }
     },
     "ListGatewaysInput":{
       "type":"structure",
@@ -2011,6 +1822,7 @@
     },
     "ListTagsForResourceInput":{
       "type":"structure",
+      "required":["ResourceARN"],
       "members":{
         "ResourceARN":{"shape":"ResourceARN"},
         "Marker":{"shape":"Marker"},
@@ -2023,6 +1835,21 @@
         "ResourceARN":{"shape":"ResourceARN"},
         "Marker":{"shape":"Marker"},
         "Tags":{"shape":"Tags"}
+      }
+    },
+    "ListTapesInput":{
+      "type":"structure",
+      "members":{
+        "TapeARNs":{"shape":"TapeARNs"},
+        "Marker":{"shape":"Marker"},
+        "Limit":{"shape":"PositiveIntObject"}
+      }
+    },
+    "ListTapesOutput":{
+      "type":"structure",
+      "members":{
+        "TapeInfos":{"shape":"TapeInfos"},
+        "Marker":{"shape":"Marker"}
       }
     },
     "ListVolumeInitiatorsInput":{
@@ -2054,7 +1881,6 @@
     },
     "ListVolumesInput":{
       "type":"structure",
-      "required":["GatewayARN"],
       "members":{
         "GatewayARN":{"shape":"GatewayARN"},
         "Marker":{"shape":"Marker"},
@@ -2069,20 +1895,61 @@
         "VolumeInfos":{"shape":"VolumeInfos"}
       }
     },
+    "LocalConsolePassword":{
+      "type":"string",
+      "max":512,
+      "min":6,
+      "pattern":"^[ -~]+$",
+      "sensitive":true
+    },
+    "LocationARN":{
+      "type":"string",
+      "max":310,
+      "min":16
+    },
     "Marker":{
       "type":"string",
-      "min":1,
-      "max":1000
+      "max":1000,
+      "min":1
     },
     "MediumChangerType":{
       "type":"string",
-      "min":2,
-      "max":50
+      "max":50,
+      "min":2
     },
     "MinuteOfHour":{
       "type":"integer",
-      "min":0,
-      "max":59
+      "max":59,
+      "min":0
+    },
+    "NFSFileShareDefaults":{
+      "type":"structure",
+      "members":{
+        "FileMode":{"shape":"PermissionMode"},
+        "DirectoryMode":{"shape":"PermissionMode"},
+        "GroupId":{"shape":"PermissionId"},
+        "OwnerId":{"shape":"PermissionId"}
+      }
+    },
+    "NFSFileShareInfo":{
+      "type":"structure",
+      "members":{
+        "NFSFileShareDefaults":{"shape":"NFSFileShareDefaults"},
+        "FileShareARN":{"shape":"FileShareARN"},
+        "FileShareId":{"shape":"FileShareId"},
+        "FileShareStatus":{"shape":"FileShareStatus"},
+        "GatewayARN":{"shape":"GatewayARN"},
+        "KMSEncrypted":{"shape":"boolean"},
+        "KMSKey":{"shape":"KMSKey"},
+        "Path":{"shape":"Path"},
+        "Role":{"shape":"Role"},
+        "LocationARN":{"shape":"LocationARN"},
+        "DefaultStorageClass":{"shape":"StorageClass"}
+      }
+    },
+    "NFSFileShareInfoList":{
+      "type":"list",
+      "member":{"shape":"NFSFileShareInfo"}
     },
     "NetworkInterface":{
       "type":"structure",
@@ -2098,13 +1965,25 @@
     },
     "NextUpdateAvailabilityDate":{
       "type":"string",
-      "min":1,
-      "max":25
+      "max":25,
+      "min":1
     },
     "NumTapesToCreate":{
       "type":"integer",
+      "max":10,
+      "min":1
+    },
+    "Path":{"type":"string"},
+    "PermissionId":{
+      "type":"long",
+      "max":4294967294,
+      "min":0
+    },
+    "PermissionMode":{
+      "type":"string",
+      "max":4,
       "min":1,
-      "max":10
+      "pattern":"^[0-7]{4}$"
     },
     "PositiveIntObject":{
       "type":"integer",
@@ -2112,16 +1991,20 @@
     },
     "RecurrenceInHours":{
       "type":"integer",
-      "min":1,
-      "max":24
+      "max":24,
+      "min":1
     },
     "RegionId":{
       "type":"string",
-      "min":1,
-      "max":25
+      "max":25,
+      "min":1
     },
     "RemoveTagsFromResourceInput":{
       "type":"structure",
+      "required":[
+        "ResourceARN",
+        "TagKeys"
+      ],
       "members":{
         "ResourceARN":{"shape":"ResourceARN"},
         "TagKeys":{"shape":"TagKeys"}
@@ -2148,8 +2031,8 @@
     },
     "ResourceARN":{
       "type":"string",
-      "min":50,
-      "max":500
+      "max":500,
+      "min":50
     },
     "RetrieveTapeArchiveInput":{
       "type":"structure",
@@ -2185,6 +2068,36 @@
         "TapeARN":{"shape":"TapeARN"}
       }
     },
+    "Role":{
+      "type":"string",
+      "max":2048,
+      "min":20
+    },
+    "ServiceUnavailableError":{
+      "type":"structure",
+      "members":{
+        "message":{"shape":"string"},
+        "error":{"shape":"StorageGatewayError"}
+      },
+      "exception":true
+    },
+    "SetLocalConsolePasswordInput":{
+      "type":"structure",
+      "required":[
+        "GatewayARN",
+        "LocalConsolePassword"
+      ],
+      "members":{
+        "GatewayARN":{"shape":"GatewayARN"},
+        "LocalConsolePassword":{"shape":"LocalConsolePassword"}
+      }
+    },
+    "SetLocalConsolePasswordOutput":{
+      "type":"structure",
+      "members":{
+        "GatewayARN":{"shape":"GatewayARN"}
+      }
+    },
     "ShutdownGatewayInput":{
       "type":"structure",
       "required":["GatewayARN"],
@@ -2200,12 +2113,12 @@
     },
     "SnapshotDescription":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "SnapshotId":{
       "type":"string",
-      "pattern":"\\Asnap-[0-9a-fA-F]{8}\\z"
+      "pattern":"\\Asnap-([0-9A-Fa-f]{8}|[0-9A-Fa-f]{17})\\z"
     },
     "StartGatewayInput":{
       "type":"structure",
@@ -2219,6 +2132,11 @@
       "members":{
         "GatewayARN":{"shape":"GatewayARN"}
       }
+    },
+    "StorageClass":{
+      "type":"string",
+      "max":20,
+      "min":5
     },
     "StorageGatewayError":{
       "type":"structure",
@@ -2239,7 +2157,8 @@
         "VolumeDiskId":{"shape":"DiskId"},
         "SourceSnapshotId":{"shape":"SnapshotId"},
         "PreservedExistingData":{"shape":"boolean"},
-        "VolumeiSCSIAttributes":{"shape":"VolumeiSCSIAttributes"}
+        "VolumeiSCSIAttributes":{"shape":"VolumeiSCSIAttributes"},
+        "CreatedDate":{"shape":"CreatedDate"}
       }
     },
     "StorediSCSIVolumes":{
@@ -2259,8 +2178,8 @@
     },
     "TagKey":{
       "type":"string",
-      "min":1,
       "max":128,
+      "min":1,
       "pattern":"^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-%@]*)$"
     },
     "TagKeys":{
@@ -2280,6 +2199,7 @@
       "members":{
         "TapeARN":{"shape":"TapeARN"},
         "TapeBarcode":{"shape":"TapeBarcode"},
+        "TapeCreatedDate":{"shape":"Time"},
         "TapeSizeInBytes":{"shape":"TapeSize"},
         "TapeStatus":{"shape":"TapeStatus"},
         "VTLDevice":{"shape":"VTLDeviceARN"},
@@ -2288,8 +2208,9 @@
     },
     "TapeARN":{
       "type":"string",
+      "max":500,
       "min":50,
-      "max":500
+      "pattern":"^arn:(aws|aws-cn):storagegateway:[a-z\\-0-9]+:[0-9]+:tape\\/[0-9A-Z]{7,16}$"
     },
     "TapeARNs":{
       "type":"list",
@@ -2300,6 +2221,7 @@
       "members":{
         "TapeARN":{"shape":"TapeARN"},
         "TapeBarcode":{"shape":"TapeBarcode"},
+        "TapeCreatedDate":{"shape":"Time"},
         "TapeSizeInBytes":{"shape":"TapeSize"},
         "CompletionTime":{"shape":"Time"},
         "RetrievedTo":{"shape":"GatewayARN"},
@@ -2313,20 +2235,34 @@
     },
     "TapeBarcode":{
       "type":"string",
-      "min":7,
       "max":16,
+      "min":7,
       "pattern":"^[A-Z0-9]*$"
     },
     "TapeBarcodePrefix":{
       "type":"string",
-      "min":1,
       "max":4,
+      "min":1,
       "pattern":"^[A-Z]*$"
     },
     "TapeDriveType":{
       "type":"string",
-      "min":2,
-      "max":50
+      "max":50,
+      "min":2
+    },
+    "TapeInfo":{
+      "type":"structure",
+      "members":{
+        "TapeARN":{"shape":"TapeARN"},
+        "TapeBarcode":{"shape":"TapeBarcode"},
+        "TapeSizeInBytes":{"shape":"TapeSize"},
+        "TapeStatus":{"shape":"TapeStatus"},
+        "GatewayARN":{"shape":"GatewayARN"}
+      }
+    },
+    "TapeInfos":{
+      "type":"list",
+      "member":{"shape":"TapeInfo"}
     },
     "TapeRecoveryPointInfo":{
       "type":"structure",
@@ -2350,13 +2286,13 @@
     },
     "TargetARN":{
       "type":"string",
-      "min":50,
-      "max":800
+      "max":800,
+      "min":50
     },
     "TargetName":{
       "type":"string",
-      "min":1,
       "max":200,
+      "min":1,
       "pattern":"^[-\\.;a-z0-9]+$"
     },
     "Time":{"type":"timestamp"},
@@ -2446,6 +2382,23 @@
         "GatewayARN":{"shape":"GatewayARN"}
       }
     },
+    "UpdateNFSFileShareInput":{
+      "type":"structure",
+      "required":["FileShareARN"],
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"},
+        "KMSEncrypted":{"shape":"Boolean"},
+        "KMSKey":{"shape":"KMSKey"},
+        "NFSFileShareDefaults":{"shape":"NFSFileShareDefaults"},
+        "DefaultStorageClass":{"shape":"StorageClass"}
+      }
+    },
+    "UpdateNFSFileShareOutput":{
+      "type":"structure",
+      "members":{
+        "FileShareARN":{"shape":"FileShareARN"}
+      }
+    },
     "UpdateSnapshotScheduleInput":{
       "type":"structure",
       "required":[
@@ -2495,8 +2448,8 @@
     },
     "VTLDeviceARN":{
       "type":"string",
-      "min":50,
-      "max":500
+      "max":500,
+      "min":50
     },
     "VTLDeviceARNs":{
       "type":"list",
@@ -2511,8 +2464,8 @@
     },
     "VolumeARN":{
       "type":"string",
-      "min":50,
-      "max":500
+      "max":500,
+      "min":50
     },
     "VolumeARNs":{
       "type":"list",
@@ -2520,14 +2473,18 @@
     },
     "VolumeId":{
       "type":"string",
-      "min":12,
-      "max":30
+      "max":30,
+      "min":12
     },
     "VolumeInfo":{
       "type":"structure",
       "members":{
         "VolumeARN":{"shape":"VolumeARN"},
-        "VolumeType":{"shape":"VolumeType"}
+        "VolumeId":{"shape":"VolumeId"},
+        "GatewayARN":{"shape":"GatewayARN"},
+        "GatewayId":{"shape":"GatewayId"},
+        "VolumeType":{"shape":"VolumeType"},
+        "VolumeSizeInBytes":{"shape":"long"}
       }
     },
     "VolumeInfos":{
@@ -2549,13 +2506,13 @@
     },
     "VolumeStatus":{
       "type":"string",
-      "min":3,
-      "max":50
+      "max":50,
+      "min":3
     },
     "VolumeType":{
       "type":"string",
-      "min":3,
-      "max":100
+      "max":100,
+      "min":3
     },
     "VolumeiSCSIAttributes":{
       "type":"structure",

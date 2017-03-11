@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+import "pb/geo/geo.gen.proto";
+import "pb/money/money.gen.proto";
+
+package pb.geo;
+
+option go_package = "pbgeo";
+
+enum StreetDirection {
+  STREET_DIRECTION_NONE = 0;
+  STREET_DIRECTION_N = 1;
+  STREET_DIRECTION_S = 2;
+  STREET_DIRECTION_E = 3;
+  STREET_DIRECTION_W = 4;
+  STREET_DIRECTION_NE = 5;
+  STREET_DIRECTION_SE = 6;
+  STREET_DIRECTION_NW = 7;
+  STREET_DIRECTION_SW = 8;
+}
+
+message Country {
+  string name = 1;
+  CountryAlpha2Code alpha_2_code = 2;
+  CountryAlpha3Code alpha_3_code = 3;
+  uint32 numeric_code = 4;
+  pb.money.CurrencyCode currency_code = 5;
+}
+
+message LatLng {
+  int64 lat_picos = 1;
+  int64 long_picos = 2;
+}
+
+message PostalAddress {
+  uint64 street_number = 1;
+  string street_number_postfix = 2;
+  string street_name = 3;
+  StreetDirection pre_street_direction = 4;
+  StreetDirection post_street_direction = 5;
+  string street_type_abbreviation = 6;
+  string secondary_address_type_abbreviation = 7;
+  string secondary_address_value = 8;
+  string locality_name = 9;
+  string region_code = 10;
+  string postal_code = 11;
+  CountryAlpha2Code country_alpha_2_code = 12;
+}
+
+message SimplePostalAddress {
+  string street_address = 1;
+  string street_address_2 = 2;
+  string locality_name = 3;
+  string region_code = 4;
+  string postal_code = 5;
+  CountryAlpha2Code country_alpha_2_code = 6;
+}

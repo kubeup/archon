@@ -17,11 +17,11 @@ limitations under the License.
 package cdrom
 
 import (
+	"context"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type insert struct {
@@ -61,7 +61,10 @@ func (cmd *insert) Usage() string {
 func (cmd *insert) Description() string {
 	return `Insert media on datastore into CD-ROM device.
 
-If device is not specified, the first CD-ROM device is used.`
+If device is not specified, the first CD-ROM device is used.
+
+Examples:
+  govc device.cdrom.insert -vm vm-1 -device cdrom-3000 images/boot.iso`
 }
 
 func (cmd *insert) Run(ctx context.Context, f *flag.FlagSet) error {
@@ -74,7 +77,7 @@ func (cmd *insert) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -89,5 +92,5 @@ func (cmd *insert) Run(ctx context.Context, f *flag.FlagSet) error {
 		return nil
 	}
 
-	return vm.EditDevice(context.TODO(), devices.InsertIso(c, iso))
+	return vm.EditDevice(ctx, devices.InsertIso(c, iso))
 }

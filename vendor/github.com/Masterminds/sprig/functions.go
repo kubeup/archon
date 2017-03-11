@@ -60,6 +60,7 @@ String Functions
 	- replace: Replace an old with a new in a string: `$name | replace " " "-"`
 	- plural: Choose singular or plural based on length: `len $fish | plural "one anchovy" "many anchovies"`
 	- sha256sum: Generate a hex encoded sha256 hash of the input
+	- toString: Convert something to a string
 
 String Slice Functions:
 
@@ -69,6 +70,8 @@ String Slice Functions:
 	  Use it like this: `{{$v := "foo/bar/baz" | split "/"}}{{$v._0}}` (Prints `foo`)
     - splitList: strings.Split, but as `split SEP STRING`. The results are returned
 	  as an array.
+	- toStrings: convert a list to a list of strings. 'list 1 2 3 | toStrings' produces '["1" "2" "3"]'
+	- sortAlpha: sort a list lexicographically.
 
 Integer Slice Functions:
 
@@ -96,6 +99,12 @@ Defaults:
 	- empty: Return true if the given value is the zero value for its type.
 	  Caveats: structs are always non-empty. This should match the behavior of
 	  {{if pipeline}}, but can be used inside of a pipeline.
+	- coalesce: Given a list of items, return the first non-empty one.
+	  This follows the same rules as 'empty'. '{{ coalesce .someVal 0 "hello" }}`
+	  will return `.someVal` if set, or else return "hello". The 0 is skipped
+	  because it is an empty value.
+	- compact: Return a copy of a list with all of the empty values removed.
+	  'list 0 1 2 "" | compact' will return '[1 2]'
 
 OS:
 	- env: Resolve an environment variable
@@ -136,7 +145,9 @@ Data Structures:
 
 	- tuple: Takes an arbitrary list of items and returns a slice of items. Its
 	  tuple-ish properties are mainly gained through the template idiom, and not
-	  through an API provided here.
+	  through an API provided here. WARNING: The implementation of tuple will
+	  change in the future.
+	- list: An arbitrary ordered list of items. (This is prefered over tuple.)
 	- dict: Takes a list of name/values and returns a map[string]interface{}.
 	  The first parameter is converted to a string and stored as a key, the
 	  second parameter is treated as the value. And so on, with odds as keys and
@@ -145,6 +156,22 @@ Data Structures:
 	  follows: []byte are converted, fmt.Stringers will have String() called.
 	  errors will have Error() called. All others will be passed through
 	  fmt.Sprtinf("%v").
+
+Lists Functions:
+
+These are used to manipulate lists: '{{ list 1 2 3 | reverse | first }}'
+
+	- first: Get the first item in a 'list'. 'list 1 2 3 | first' prints '1'
+	- last: Get the last item in a 'list': 'list 1 2 3 | last ' prints '3'
+	- rest: Get all but the first item in a list: 'list 1 2 3 | rest' returns '[2 3]'
+	- initial: Get all but the last item in a list: 'list 1 2 3 | initial' returns '[1 2]'
+	- append: Add an item to the end of a list: 'append $list 4' adds '4' to the end of '$list'
+	- prepend: Add an item to the beginning of a list: 'prepend $list 4' puts 4 at the beginning of the list.
+
+Dict Functions:
+
+These are used to manipulate dicts.
+
 	- set: Takes a dict, a key, and a value, and sets that key/value pair in
 	  the dict. `set $dict $key $value`. For convenience, it returns the dict,
 	  even though the dict was modified in place.
@@ -152,6 +179,8 @@ Data Structures:
 	  dict. `unset $dict $key`. This returns the dict for convenience.
 	- hasKey: Takes a dict and a key, and returns boolean true if the key is in
 	  the dict.
+	- pluck: Given a key and one or more maps, get all of the values for that key.
+	- keys: Get an array of all of the keys in a dict.
 
 Math Functions:
 
@@ -204,6 +233,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	ttemplate "text/template"
@@ -329,6 +359,7 @@ var genericMap = map[string]interface{}{
 	"replace":   replace,
 	"plural":    plural,
 	"sha256sum": sha256sum,
+	"toString":  strval,
 
 	// Wrap Atoi to stop errors.
 	"atoi":    func(a string) int { i, _ := strconv.Atoi(a); return i },
@@ -344,6 +375,7 @@ var genericMap = map[string]interface{}{
 	// split "/" foo/bar returns map[int]string{0: foo, 1: bar}
 	"split":     split,
 	"splitList": func(sep, orig string) []string { return strings.Split(orig, sep) },
+	"toStrings": strslice,
 
 	"until":     until,
 	"untilStep": untilStep,
@@ -373,11 +405,14 @@ var genericMap = map[string]interface{}{
 
 	// string slices. Note that we reverse the order b/c that's better
 	// for template processing.
-	"join": func(sep string, ss []string) string { return strings.Join(ss, sep) },
+	"join":      join,
+	"sortAlpha": sortAlpha,
 
 	// Defaults
-	"default": dfault,
-	"empty":   empty,
+	"default":  dfault,
+	"empty":    empty,
+	"coalesce": coalesce,
+	"compact":  compact,
 
 	// Reflection
 	"typeOf":     typeOf,
@@ -404,14 +439,25 @@ var genericMap = map[string]interface{}{
 	"b32dec": base32decode,
 
 	// Data Structures:
-	"tuple":  tuple,
+	"tuple":  list, // FIXME: with the addition of append/prepend these are no longer immutable.
+	"list":   list,
 	"dict":   dict,
 	"set":    set,
 	"unset":  unset,
 	"hasKey": hasKey,
+	"pluck":  pluck,
+	"keys":   keys,
+
+	"append": push, "push": push,
+	"prepend": prepend,
+	"first":   first,
+	"rest":    rest,
+	"last":    last,
+	"initial": initial,
+	"reverse": reverse,
 
 	// Crypto:
-	"genPrivateKey":   generatePrivateKey,
+	"genPrivateKey":  generatePrivateKey,
 	"derivePassword": derivePassword,
 
 	// UUIDs:
@@ -561,6 +607,26 @@ func empty(given interface{}) bool {
 	return true
 }
 
+// coalesce returns the first non-empty value.
+func coalesce(v ...interface{}) interface{} {
+	for _, val := range v {
+		if !empty(val) {
+			return val
+		}
+	}
+	return nil
+}
+
+func compact(list []interface{}) []interface{} {
+	res := []interface{}{}
+	for _, item := range list {
+		if !empty(item) {
+			res = append(res, item)
+		}
+	}
+	return res
+}
+
 // typeIs returns true if the src is the type named in target.
 func typeIs(target string, src interface{}) bool {
 	return target == typeOf(src)
@@ -668,8 +734,46 @@ func squote(str ...interface{}) string {
 	return strings.Join(out, " ")
 }
 
-func tuple(v ...interface{}) []interface{} {
+func list(v ...interface{}) []interface{} {
 	return v
+}
+
+func push(list []interface{}, v interface{}) []interface{} {
+	return append(list, v)
+}
+
+func prepend(list []interface{}, v interface{}) []interface{} {
+	return append([]interface{}{v}, list...)
+}
+
+func last(list []interface{}) interface{} {
+	l := len(list)
+	if l == 0 {
+		return nil
+	}
+	return list[l-1]
+}
+
+func first(list []interface{}) interface{} {
+	if len(list) == 0 {
+		return nil
+	}
+	return list[0]
+}
+
+func rest(list []interface{}) []interface{} {
+	if len(list) == 0 {
+		return list
+	}
+	return list[1:]
+}
+
+func initial(list []interface{}) []interface{} {
+	l := len(list)
+	if l == 0 {
+		return list
+	}
+	return list[:l-1]
 }
 
 func set(d map[string]interface{}, key string, value interface{}) map[string]interface{} {
@@ -687,6 +791,24 @@ func hasKey(d map[string]interface{}, key string) bool {
 	return ok
 }
 
+func pluck(key string, d ...map[string]interface{}) []interface{} {
+	res := []interface{}{}
+	for _, dict := range d {
+		if val, ok := dict[key]; ok {
+			res = append(res, val)
+		}
+	}
+	return res
+}
+
+func keys(dict map[string]interface{}) []string {
+	k := []string{}
+	for key := range dict {
+		k = append(k, key)
+	}
+	return k
+}
+
 func dict(v ...interface{}) map[string]interface{} {
 	dict := map[string]interface{}{}
 	lenv := len(v)
@@ -699,6 +821,49 @@ func dict(v ...interface{}) map[string]interface{} {
 		dict[key] = v[i+1]
 	}
 	return dict
+}
+
+func join(sep string, v interface{}) string {
+	return strings.Join(strslice(v), sep)
+}
+
+func sortAlpha(list interface{}) []string {
+	k := reflect.Indirect(reflect.ValueOf(list)).Kind()
+	switch k {
+	case reflect.Slice, reflect.Array:
+		a := strslice(list)
+		s := sort.StringSlice(a)
+		s.Sort()
+		return s
+	}
+	return []string{strval(list)}
+}
+
+func strslice(v interface{}) []string {
+	switch v := v.(type) {
+	case []string:
+		return v
+	case []interface{}:
+		l := len(v)
+		b := make([]string, l)
+		for i := 0; i < l; i++ {
+			b[i] = strval(v[i])
+		}
+		return b
+	default:
+		val := reflect.ValueOf(v)
+		switch val.Kind() {
+		case reflect.Array, reflect.Slice:
+			l := val.Len()
+			b := make([]string, l)
+			for i := 0; i < l; i++ {
+				b[i] = strval(val.Index(i).Interface())
+			}
+			return b
+		default:
+			return []string{strval(v)}
+		}
+	}
 }
 
 func strval(v interface{}) string {
@@ -843,7 +1008,7 @@ func derivePassword(counter uint32, password_type, password, user, site string) 
 	buffer.Truncate(0)
 	for i, element := range temp {
 		pass_chars := template_characters[element]
-		pass_char := pass_chars[int(seed[i+1]) % len(pass_chars)]
+		pass_char := pass_chars[int(seed[i+1])%len(pass_chars)]
 		buffer.WriteByte(pass_char)
 	}
 
@@ -907,6 +1072,16 @@ func trunc(c int, s string) string {
 		return s
 	}
 	return s[0:c]
+}
+
+func reverse(v []interface{}) []interface{} {
+	// We do not sort in place because the incomming array should not be altered.
+	l := len(v)
+	c := make([]interface{}, l)
+	for i := 0; i < l; i++ {
+		c[l-i-1] = v[i]
+	}
+	return c
 }
 
 func cat(v ...interface{}) string {

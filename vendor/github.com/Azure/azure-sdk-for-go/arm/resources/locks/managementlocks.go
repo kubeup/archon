@@ -21,11 +21,12 @@ package locks
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
-// ManagementLocksClient is the client for the ManagementLocks methods of the
-// Locks service.
+// ManagementLocksClient is the azure resources can be locked to prevent other
+// users in your organization from deleting or modifying resources.
 type ManagementLocksClient struct {
 	ManagementClient
 }
@@ -42,12 +43,29 @@ func NewManagementLocksClientWithBaseURI(baseURI string, subscriptionID string) 
 	return ManagementLocksClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// CreateOrUpdateAtResourceGroupLevel create or update a management lock at
-// the resource group level.
+// CreateOrUpdateAtResourceGroupLevel when you apply a lock at a parent scope,
+// all child resources inherit the same lock. To create management locks, you
+// must have access to Microsoft.Authorization/* or
+// Microsoft.Authorization/locks/* actions. Of the built-in roles, only Owner
+// and User Access Administrator are granted those actions.
 //
-// resourceGroupName is the resource group name. lockName is the lock name.
-// parameters is the management lock parameters.
+// resourceGroupName is the name of the resource group to lock. lockName is
+// the lock name. The lock name can be a maximum of 260 characters. It cannot
+// contain <, > %, &, :, \, ?, /, or any control characters. parameters is
+// the management lock parameters.
 func (client ManagementLocksClient) CreateOrUpdateAtResourceGroupLevel(resourceGroupName string, lockName string, parameters ManagementLockObject) (result ManagementLockObject, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}},
+		{TargetValue: parameters,
+			Constraints: []validation.Constraint{{Target: "parameters.ManagementLockProperties", Name: validation.Null, Rule: true, Chain: nil},
+				{Target: "parameters.ID", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Type", Name: validation.ReadOnly, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtResourceGroupLevel")
+	}
+
 	req, err := client.CreateOrUpdateAtResourceGroupLevelPreparer(resourceGroupName, lockName, parameters)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtResourceGroupLevel", nil, "Failure preparing request")
@@ -108,15 +126,33 @@ func (client ManagementLocksClient) CreateOrUpdateAtResourceGroupLevelResponder(
 	return
 }
 
-// CreateOrUpdateAtResourceLevel create or update a management lock at the
-// resource level or any level below resource.
+// CreateOrUpdateAtResourceLevel when you apply a lock at a parent scope, all
+// child resources inherit the same lock. To create management locks, you
+// must have access to Microsoft.Authorization/* or
+// Microsoft.Authorization/locks/* actions. Of the built-in roles, only Owner
+// and User Access Administrator are granted those actions.
 //
-// resourceGroupName is the name of the resource group.
-// resourceProviderNamespace is resource identity. parentResourcePath is
-// resource identity. resourceType is resource identity. resourceName is
-// resource identity. lockName is the name of lock. parameters is create or
-// update management lock parameters.
+// resourceGroupName is the name of the resource group containing the resource
+// to lock. resourceProviderNamespace is the resource provider namespace of
+// the resource to lock. parentResourcePath is the parent resource identity.
+// resourceType is the resource type of the resource to lock. resourceName is
+// the name of the resource to lock. lockName is the name of lock. The lock
+// name can be a maximum of 260 characters. It cannot contain <, > %, &, :,
+// \, ?, /, or any control characters. parameters is parameters for creating
+// or updating a  management lock.
 func (client ManagementLocksClient) CreateOrUpdateAtResourceLevel(resourceGroupName string, resourceProviderNamespace string, parentResourcePath string, resourceType string, resourceName string, lockName string, parameters ManagementLockObject) (result ManagementLockObject, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}},
+		{TargetValue: parameters,
+			Constraints: []validation.Constraint{{Target: "parameters.ManagementLockProperties", Name: validation.Null, Rule: true, Chain: nil},
+				{Target: "parameters.ID", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Type", Name: validation.ReadOnly, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtResourceLevel")
+	}
+
 	req, err := client.CreateOrUpdateAtResourceLevelPreparer(resourceGroupName, resourceProviderNamespace, parentResourcePath, resourceType, resourceName, lockName, parameters)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtResourceLevel", nil, "Failure preparing request")
@@ -181,11 +217,24 @@ func (client ManagementLocksClient) CreateOrUpdateAtResourceLevelResponder(resp 
 	return
 }
 
-// CreateOrUpdateAtSubscriptionLevel create or update a management lock at the
-// subscription level.
+// CreateOrUpdateAtSubscriptionLevel when you apply a lock at a parent scope,
+// all child resources inherit the same lock. To create management locks, you
+// must have access to Microsoft.Authorization/* or
+// Microsoft.Authorization/locks/* actions. Of the built-in roles, only Owner
+// and User Access Administrator are granted those actions.
 //
-// lockName is the name of lock. parameters is the management lock parameters.
+// lockName is the name of lock. The lock name can be a maximum of 260
+// characters. It cannot contain <, > %, &, :, \, ?, /, or any control
+// characters. parameters is the management lock parameters.
 func (client ManagementLocksClient) CreateOrUpdateAtSubscriptionLevel(lockName string, parameters ManagementLockObject) (result ManagementLockObject, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: parameters,
+			Constraints: []validation.Constraint{{Target: "parameters.ManagementLockProperties", Name: validation.Null, Rule: true, Chain: nil},
+				{Target: "parameters.ID", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Type", Name: validation.ReadOnly, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtSubscriptionLevel")
+	}
+
 	req, err := client.CreateOrUpdateAtSubscriptionLevelPreparer(lockName, parameters)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "CreateOrUpdateAtSubscriptionLevel", nil, "Failure preparing request")
@@ -245,11 +294,23 @@ func (client ManagementLocksClient) CreateOrUpdateAtSubscriptionLevelResponder(r
 	return
 }
 
-// DeleteAtResourceGroupLevel deletes the management lock of a resource group.
+// DeleteAtResourceGroupLevel to delete management locks, you must have access
+// to Microsoft.Authorization/* or Microsoft.Authorization/locks/* actions.
+// Of the built-in roles, only Owner and User Access Administrator are
+// granted those actions.
 //
-// resourceGroup is the resource group names. lockName is the name of lock.
-func (client ManagementLocksClient) DeleteAtResourceGroupLevel(resourceGroup string, lockName string) (result autorest.Response, err error) {
-	req, err := client.DeleteAtResourceGroupLevelPreparer(resourceGroup, lockName)
+// resourceGroupName is the name of the resource group containing the lock.
+// lockName is the name of lock to delete.
+func (client ManagementLocksClient) DeleteAtResourceGroupLevel(resourceGroupName string, lockName string) (result autorest.Response, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "DeleteAtResourceGroupLevel")
+	}
+
+	req, err := client.DeleteAtResourceGroupLevelPreparer(resourceGroupName, lockName)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "DeleteAtResourceGroupLevel", nil, "Failure preparing request")
 	}
@@ -269,11 +330,11 @@ func (client ManagementLocksClient) DeleteAtResourceGroupLevel(resourceGroup str
 }
 
 // DeleteAtResourceGroupLevelPreparer prepares the DeleteAtResourceGroupLevel request.
-func (client ManagementLocksClient) DeleteAtResourceGroupLevelPreparer(resourceGroup string, lockName string) (*http.Request, error) {
+func (client ManagementLocksClient) DeleteAtResourceGroupLevelPreparer(resourceGroupName string, lockName string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
-		"lockName":       autorest.Encode("path", lockName),
-		"resourceGroup":  autorest.Encode("path", resourceGroup),
-		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
+		"lockName":          autorest.Encode("path", lockName),
+		"resourceGroupName": autorest.Encode("path", resourceGroupName),
+		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -283,7 +344,7 @@ func (client ManagementLocksClient) DeleteAtResourceGroupLevelPreparer(resourceG
 	preparer := autorest.CreatePreparer(
 		autorest.AsDelete(),
 		autorest.WithBaseURL(client.BaseURI),
-		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroup}/providers/Microsoft.Authorization/locks/{lockName}", pathParameters),
+		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Authorization/locks/{lockName}", pathParameters),
 		autorest.WithQueryParameters(queryParameters))
 	return preparer.Prepare(&http.Request{})
 }
@@ -300,20 +361,33 @@ func (client ManagementLocksClient) DeleteAtResourceGroupLevelResponder(resp *ht
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK, http.StatusAccepted),
+		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK),
 		autorest.ByClosing())
 	result.Response = resp
 	return
 }
 
-// DeleteAtResourceLevel deletes the management lock of a resource or any
-// level below resource.
+// DeleteAtResourceLevel to delete management locks, you must have access to
+// Microsoft.Authorization/* or Microsoft.Authorization/locks/* actions. Of
+// the built-in roles, only Owner and User Access Administrator are granted
+// those actions.
 //
-// resourceGroupName is the name of the resource group.
-// resourceProviderNamespace is resource identity. parentResourcePath is
-// resource identity. resourceType is resource identity. resourceName is
-// resource identity. lockName is the name of lock.
+// resourceGroupName is the name of the resource group containing the resource
+// with the lock to delete. resourceProviderNamespace is the resource
+// provider namespace of the resource with the lock to delete.
+// parentResourcePath is the parent resource identity. resourceType is the
+// resource type of the resource with the lock to delete. resourceName is the
+// name of the resource with the lock to delete. lockName is the name of the
+// lock to delete.
 func (client ManagementLocksClient) DeleteAtResourceLevel(resourceGroupName string, resourceProviderNamespace string, parentResourcePath string, resourceType string, resourceName string, lockName string) (result autorest.Response, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "DeleteAtResourceLevel")
+	}
+
 	req, err := client.DeleteAtResourceLevelPreparer(resourceGroupName, resourceProviderNamespace, parentResourcePath, resourceType, resourceName, lockName)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "DeleteAtResourceLevel", nil, "Failure preparing request")
@@ -369,15 +443,18 @@ func (client ManagementLocksClient) DeleteAtResourceLevelResponder(resp *http.Re
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK, http.StatusAccepted),
+		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK),
 		autorest.ByClosing())
 	result.Response = resp
 	return
 }
 
-// DeleteAtSubscriptionLevel deletes the management lock of a subscription.
+// DeleteAtSubscriptionLevel to delete management locks, you must have access
+// to Microsoft.Authorization/* or Microsoft.Authorization/locks/* actions.
+// Of the built-in roles, only Owner and User Access Administrator are
+// granted those actions.
 //
-// lockName is the name of lock.
+// lockName is the name of lock to delete.
 func (client ManagementLocksClient) DeleteAtSubscriptionLevel(lockName string) (result autorest.Response, err error) {
 	req, err := client.DeleteAtSubscriptionLevelPreparer(lockName)
 	if err != nil {
@@ -429,15 +506,15 @@ func (client ManagementLocksClient) DeleteAtSubscriptionLevelResponder(resp *htt
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK, http.StatusAccepted),
+		azure.WithErrorUnlessStatusCode(http.StatusNoContent, http.StatusOK),
 		autorest.ByClosing())
 	result.Response = resp
 	return
 }
 
-// Get gets the management lock of a scope.
+// Get gets a management lock at the subscription level.
 //
-// lockName is name of the management lock.
+// lockName is the name of the lock to get.
 func (client ManagementLocksClient) Get(lockName string) (result ManagementLockObject, err error) {
 	req, err := client.GetPreparer(lockName)
 	if err != nil {
@@ -489,18 +566,97 @@ func (client ManagementLocksClient) GetResponder(resp *http.Response) (result Ma
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusNoContent),
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}
 	return
 }
 
-// ListAtResourceGroupLevel gets all the management locks of a resource group.
+// GetAtResourceGroupLevel gets a management lock at the resource group level.
 //
-// resourceGroupName is resource group name. filter is the filter to apply on
-// the operation.
+// resourceGroupName is the name of the locked resource group. lockName is the
+// name of the lock to get.
+func (client ManagementLocksClient) GetAtResourceGroupLevel(resourceGroupName string, lockName string) (result ManagementLockObject, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "GetAtResourceGroupLevel")
+	}
+
+	req, err := client.GetAtResourceGroupLevelPreparer(resourceGroupName, lockName)
+	if err != nil {
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "GetAtResourceGroupLevel", nil, "Failure preparing request")
+	}
+
+	resp, err := client.GetAtResourceGroupLevelSender(req)
+	if err != nil {
+		result.Response = autorest.Response{Response: resp}
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "GetAtResourceGroupLevel", resp, "Failure sending request")
+	}
+
+	result, err = client.GetAtResourceGroupLevelResponder(resp)
+	if err != nil {
+		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "GetAtResourceGroupLevel", resp, "Failure responding to request")
+	}
+
+	return
+}
+
+// GetAtResourceGroupLevelPreparer prepares the GetAtResourceGroupLevel request.
+func (client ManagementLocksClient) GetAtResourceGroupLevelPreparer(resourceGroupName string, lockName string) (*http.Request, error) {
+	pathParameters := map[string]interface{}{
+		"lockName":          autorest.Encode("path", lockName),
+		"resourceGroupName": autorest.Encode("path", resourceGroupName),
+		"subscriptionId":    autorest.Encode("path", client.SubscriptionID),
+	}
+
+	queryParameters := map[string]interface{}{
+		"api-version": client.APIVersion,
+	}
+
+	preparer := autorest.CreatePreparer(
+		autorest.AsGet(),
+		autorest.WithBaseURL(client.BaseURI),
+		autorest.WithPathParameters("/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Authorization/locks/{lockName}", pathParameters),
+		autorest.WithQueryParameters(queryParameters))
+	return preparer.Prepare(&http.Request{})
+}
+
+// GetAtResourceGroupLevelSender sends the GetAtResourceGroupLevel request. The method will close the
+// http.Response Body if it receives an error.
+func (client ManagementLocksClient) GetAtResourceGroupLevelSender(req *http.Request) (*http.Response, error) {
+	return autorest.SendWithSender(client, req)
+}
+
+// GetAtResourceGroupLevelResponder handles the response to the GetAtResourceGroupLevel request. The method always
+// closes the http.Response Body.
+func (client ManagementLocksClient) GetAtResourceGroupLevelResponder(resp *http.Response) (result ManagementLockObject, err error) {
+	err = autorest.Respond(
+		resp,
+		client.ByInspecting(),
+		azure.WithErrorUnlessStatusCode(http.StatusOK),
+		autorest.ByUnmarshallingJSON(&result),
+		autorest.ByClosing())
+	result.Response = autorest.Response{Response: resp}
+	return
+}
+
+// ListAtResourceGroupLevel gets all the management locks for a resource group.
+//
+// resourceGroupName is the name of the resource group containing the locks to
+// get. filter is the filter to apply on the operation.
 func (client ManagementLocksClient) ListAtResourceGroupLevel(resourceGroupName string, filter string) (result ManagementLockListResult, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel")
+	}
+
 	req, err := client.ListAtResourceGroupLevelPreparer(resourceGroupName, filter)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", nil, "Failure preparing request")
@@ -565,7 +721,7 @@ func (client ManagementLocksClient) ListAtResourceGroupLevelResponder(resp *http
 func (client ManagementLocksClient) ListAtResourceGroupLevelNextResults(lastResults ManagementLockListResult) (result ManagementLockListResult, err error) {
 	req, err := lastResults.ManagementLockListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -574,26 +730,35 @@ func (client ManagementLocksClient) ListAtResourceGroupLevelNextResults(lastResu
 	resp, err := client.ListAtResourceGroupLevelSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListAtResourceGroupLevelResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceGroupLevel", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListAtResourceLevel gets all the management locks of a resource or any
+// ListAtResourceLevel gets all the management locks for a resource or any
 // level below resource.
 //
-// resourceGroupName is the name of the resource group. The name is case
-// insensitive. resourceProviderNamespace is resource identity.
-// parentResourcePath is resource identity. resourceType is resource
-// identity. resourceName is resource identity. filter is the filter to apply
-// on the operation.
+// resourceGroupName is the name of the resource group containing the locked
+// resource. The name is case insensitive. resourceProviderNamespace is the
+// namespace of the resource provider. parentResourcePath is the parent
+// resource identity. resourceType is the resource type of the locked
+// resource. resourceName is the name of the locked resource. filter is the
+// filter to apply on the operation.
 func (client ManagementLocksClient) ListAtResourceLevel(resourceGroupName string, resourceProviderNamespace string, parentResourcePath string, resourceType string, resourceName string, filter string) (result ManagementLockListResult, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "locks.ManagementLocksClient", "ListAtResourceLevel")
+	}
+
 	req, err := client.ListAtResourceLevelPreparer(resourceGroupName, resourceProviderNamespace, parentResourcePath, resourceType, resourceName, filter)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", nil, "Failure preparing request")
@@ -662,7 +827,7 @@ func (client ManagementLocksClient) ListAtResourceLevelResponder(resp *http.Resp
 func (client ManagementLocksClient) ListAtResourceLevelNextResults(lastResults ManagementLockListResult) (result ManagementLockListResult, err error) {
 	req, err := lastResults.ManagementLockListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -671,18 +836,18 @@ func (client ManagementLocksClient) ListAtResourceLevelNextResults(lastResults M
 	resp, err := client.ListAtResourceLevelSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListAtResourceLevelResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtResourceLevel", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListAtSubscriptionLevel gets all the management locks of a subscription.
+// ListAtSubscriptionLevel gets all the management locks for a subscription.
 //
 // filter is the filter to apply on the operation.
 func (client ManagementLocksClient) ListAtSubscriptionLevel(filter string) (result ManagementLockListResult, err error) {
@@ -749,7 +914,7 @@ func (client ManagementLocksClient) ListAtSubscriptionLevelResponder(resp *http.
 func (client ManagementLocksClient) ListAtSubscriptionLevelNextResults(lastResults ManagementLockListResult) (result ManagementLockListResult, err error) {
 	req, err := lastResults.ManagementLockListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -758,92 +923,12 @@ func (client ManagementLocksClient) ListAtSubscriptionLevelNextResults(lastResul
 	resp, err := client.ListAtSubscriptionLevelSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListAtSubscriptionLevelResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", resp, "Failure responding to next results request request")
-	}
-
-	return
-}
-
-// ListNext get a list of management locks at resource level or below.
-//
-// nextLink is nextLink from the previous successful call to List operation.
-func (client ManagementLocksClient) ListNext(nextLink string) (result ManagementLockListResult, err error) {
-	req, err := client.ListNextPreparer(nextLink)
-	if err != nil {
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", nil, "Failure preparing request")
-	}
-
-	resp, err := client.ListNextSender(req)
-	if err != nil {
-		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", resp, "Failure sending request")
-	}
-
-	result, err = client.ListNextResponder(resp)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", resp, "Failure responding to request")
-	}
-
-	return
-}
-
-// ListNextPreparer prepares the ListNext request.
-func (client ManagementLocksClient) ListNextPreparer(nextLink string) (*http.Request, error) {
-	pathParameters := map[string]interface{}{
-		"nextLink":       nextLink,
-		"subscriptionId": autorest.Encode("path", client.SubscriptionID),
-	}
-
-	preparer := autorest.CreatePreparer(
-		autorest.AsGet(),
-		autorest.WithBaseURL(client.BaseURI),
-		autorest.WithPathParameters("/{nextLink}", pathParameters))
-	return preparer.Prepare(&http.Request{})
-}
-
-// ListNextSender sends the ListNext request. The method will close the
-// http.Response Body if it receives an error.
-func (client ManagementLocksClient) ListNextSender(req *http.Request) (*http.Response, error) {
-	return autorest.SendWithSender(client, req)
-}
-
-// ListNextResponder handles the response to the ListNext request. The method always
-// closes the http.Response Body.
-func (client ManagementLocksClient) ListNextResponder(resp *http.Response) (result ManagementLockListResult, err error) {
-	err = autorest.Respond(
-		resp,
-		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK),
-		autorest.ByUnmarshallingJSON(&result),
-		autorest.ByClosing())
-	result.Response = autorest.Response{Response: resp}
-	return
-}
-
-// ListNextNextResults retrieves the next set of results, if any.
-func (client ManagementLocksClient) ListNextNextResults(lastResults ManagementLockListResult) (result ManagementLockListResult, err error) {
-	req, err := lastResults.ManagementLockListResultPreparer()
-	if err != nil {
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", nil, "Failure preparing next results request request")
-	}
-	if req == nil {
-		return
-	}
-
-	resp, err := client.ListNextSender(req)
-	if err != nil {
-		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", resp, "Failure sending next results request request")
-	}
-
-	result, err = client.ListNextResponder(resp)
-	if err != nil {
-		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListNext", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "locks.ManagementLocksClient", "ListAtSubscriptionLevel", resp, "Failure responding to next results request")
 	}
 
 	return

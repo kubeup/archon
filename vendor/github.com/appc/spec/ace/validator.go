@@ -26,9 +26,6 @@ Changes to the validator need to be reflected in app_manifest.json, and vice-ver
 The App Container Execution spec defines the following expectations within the execution environment:
  - Working Directory defaults to the root of the application image, overridden with "workingDirectory"
  - PATH /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
- - USER, LOGNAME username of the user executing this app
- - HOME home directory of the user
- - SHELL login shell of the user
  - AC_APP_NAME the entrypoint that this process was defined from
 
 In addition, we validate:
@@ -81,10 +78,6 @@ var (
 	// "Environment"
 	env = map[string]string{
 		"IN_ACE_VALIDATOR": "correct",
-		"HOME":             "/root",
-		"USER":             "root",
-		"LOGNAME":          "root",
-		"SHELL":            "/bin/sh",
 	}
 	// "MountPoints"
 	mps = map[string]types.MountPoint{
@@ -328,14 +321,10 @@ func validatePodMetadata(metadataURL string, pm *schema.PodManifest) results {
 func validateAppAnnotations(metadataURL string, pm *schema.PodManifest, app *schema.RuntimeApp, img *schema.ImageManifest) results {
 	r := results{}
 
-	// build a map of expected annotations by merging app.Annotations
+	// build a map of expected annotations by merging img.Annotations
 	// with PodManifest overrides
-	expectedAnnots := app.Annotations
-	a := pm.Apps.Get(app.Name)
-	if a == nil {
-		panic("could not find app in manifest!")
-	}
-	for _, annot := range a.Annotations {
+	expectedAnnots := img.Annotations
+	for _, annot := range app.Annotations {
 		expectedAnnots.Set(annot.Name, annot.Value)
 	}
 	if len(expectedAnnots) == 0 {

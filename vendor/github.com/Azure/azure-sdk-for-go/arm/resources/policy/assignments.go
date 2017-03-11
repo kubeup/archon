@@ -21,11 +21,12 @@ package policy
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
-// AssignmentsClient is the client for the Assignments methods of the Policy
-// service.
+// AssignmentsClient is the to manage and control access to your resources,
+// you can define customized policies and assign them at a scope.
 type AssignmentsClient struct {
 	ManagementClient
 }
@@ -41,10 +42,13 @@ func NewAssignmentsClientWithBaseURI(baseURI string, subscriptionID string) Assi
 	return AssignmentsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// Create create policy assignment.
+// Create policy assignments are inherited by child resources. For example,
+// when you apply a policy to a resource group that policy is assigned to all
+// resources in the group.
 //
-// scope is scope of the policy assignment. policyAssignmentName is policy
-// assignment name. parameters is policy assignment.
+// scope is the scope of the policy assignment. policyAssignmentName is the
+// name of the policy assignment. parameters is parameters for the policy
+// assignment.
 func (client AssignmentsClient) Create(scope string, policyAssignmentName string, parameters Assignment) (result Assignment, err error) {
 	req, err := client.CreatePreparer(scope, policyAssignmentName, parameters)
 	if err != nil {
@@ -70,7 +74,6 @@ func (client AssignmentsClient) CreatePreparer(scope string, policyAssignmentNam
 	pathParameters := map[string]interface{}{
 		"policyAssignmentName": autorest.Encode("path", policyAssignmentName),
 		"scope":                scope,
-		"subscriptionId":       autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -106,9 +109,19 @@ func (client AssignmentsClient) CreateResponder(resp *http.Response) (result Ass
 	return
 }
 
-// CreateByID create policy assignment by Id.
+// CreateByID policy assignments are inherited by child resources. For
+// example, when you apply a policy to a resource group that policy is
+// assigned to all resources in the group. When providing a scope for the
+// assigment, use '/subscriptions/{subscription-id}/' for subscriptions,
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}'
+// for resource groups, and
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/{resource-provider-namespace}/{resource-type}/{resource-name}'
+// for resources.
 //
-// policyAssignmentID is policy assignment Id parameters is policy assignment.
+// policyAssignmentID is the ID of the policy assignment to create. Use the
+// format
+// '/{scope}/providers/Microsoft.Authorization/policyAssignments/{policy-assignment-name}'.
+// parameters is parameters for policy assignment.
 func (client AssignmentsClient) CreateByID(policyAssignmentID string, parameters Assignment) (result Assignment, err error) {
 	req, err := client.CreateByIDPreparer(policyAssignmentID, parameters)
 	if err != nil {
@@ -133,7 +146,6 @@ func (client AssignmentsClient) CreateByID(policyAssignmentID string, parameters
 func (client AssignmentsClient) CreateByIDPreparer(policyAssignmentID string, parameters Assignment) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"policyAssignmentId": policyAssignmentID,
-		"subscriptionId":     autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -169,10 +181,10 @@ func (client AssignmentsClient) CreateByIDResponder(resp *http.Response) (result
 	return
 }
 
-// Delete delete policy assignment.
+// Delete deletes a policy assignment.
 //
-// scope is scope of the policy assignment. policyAssignmentName is policy
-// assignment name.
+// scope is the scope of the policy assignment. policyAssignmentName is the
+// name of the policy assignment to delete.
 func (client AssignmentsClient) Delete(scope string, policyAssignmentName string) (result Assignment, err error) {
 	req, err := client.DeletePreparer(scope, policyAssignmentName)
 	if err != nil {
@@ -198,7 +210,6 @@ func (client AssignmentsClient) DeletePreparer(scope string, policyAssignmentNam
 	pathParameters := map[string]interface{}{
 		"policyAssignmentName": autorest.Encode("path", policyAssignmentName),
 		"scope":                scope,
-		"subscriptionId":       autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -232,9 +243,16 @@ func (client AssignmentsClient) DeleteResponder(resp *http.Response) (result Ass
 	return
 }
 
-// DeleteByID delete policy assignment.
+// DeleteByID when providing a scope for the assigment, use
+// '/subscriptions/{subscription-id}/' for subscriptions,
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}'
+// for resource groups, and
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/{resource-provider-namespace}/{resource-type}/{resource-name}'
+// for resources.
 //
-// policyAssignmentID is policy assignment Id
+// policyAssignmentID is the ID of the policy assignment to delete. Use the
+// format
+// '/{scope}/providers/Microsoft.Authorization/policyAssignments/{policy-assignment-name}'.
 func (client AssignmentsClient) DeleteByID(policyAssignmentID string) (result Assignment, err error) {
 	req, err := client.DeleteByIDPreparer(policyAssignmentID)
 	if err != nil {
@@ -259,7 +277,6 @@ func (client AssignmentsClient) DeleteByID(policyAssignmentID string) (result As
 func (client AssignmentsClient) DeleteByIDPreparer(policyAssignmentID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"policyAssignmentId": policyAssignmentID,
-		"subscriptionId":     autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -293,10 +310,10 @@ func (client AssignmentsClient) DeleteByIDResponder(resp *http.Response) (result
 	return
 }
 
-// Get get single policy assignment.
+// Get gets a policy assignment.
 //
-// scope is scope of the policy assignment. policyAssignmentName is policy
-// assignment name.
+// scope is the scope of the policy assignment. policyAssignmentName is the
+// name of the policy assignment to get.
 func (client AssignmentsClient) Get(scope string, policyAssignmentName string) (result Assignment, err error) {
 	req, err := client.GetPreparer(scope, policyAssignmentName)
 	if err != nil {
@@ -322,7 +339,6 @@ func (client AssignmentsClient) GetPreparer(scope string, policyAssignmentName s
 	pathParameters := map[string]interface{}{
 		"policyAssignmentName": autorest.Encode("path", policyAssignmentName),
 		"scope":                scope,
-		"subscriptionId":       autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -356,9 +372,15 @@ func (client AssignmentsClient) GetResponder(resp *http.Response) (result Assign
 	return
 }
 
-// GetByID get single policy assignment.
+// GetByID when providing a scope for the assigment, use
+// '/subscriptions/{subscription-id}/' for subscriptions,
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}'
+// for resource groups, and
+// '/subscriptions/{subscription-id}/resourceGroups/{resource-group-name}/providers/{resource-provider-namespace}/{resource-type}/{resource-name}'
+// for resources.
 //
-// policyAssignmentID is policy assignment Id
+// policyAssignmentID is the ID of the policy assignment to get. Use the
+// format '/{scope}/providers/Microsoft.Authorization/policyAssignments/{policy-assignment-name}'.
 func (client AssignmentsClient) GetByID(policyAssignmentID string) (result Assignment, err error) {
 	req, err := client.GetByIDPreparer(policyAssignmentID)
 	if err != nil {
@@ -383,7 +405,6 @@ func (client AssignmentsClient) GetByID(policyAssignmentID string) (result Assig
 func (client AssignmentsClient) GetByIDPreparer(policyAssignmentID string) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"policyAssignmentId": policyAssignmentID,
-		"subscriptionId":     autorest.Encode("path", client.SubscriptionID),
 	}
 
 	queryParameters := map[string]interface{}{
@@ -417,7 +438,7 @@ func (client AssignmentsClient) GetByIDResponder(resp *http.Response) (result As
 	return
 }
 
-// List gets all the policy assignments of a subscription.
+// List gets all the policy assignments for a subscription.
 //
 // filter is the filter to apply on the operation.
 func (client AssignmentsClient) List(filter string) (result AssignmentListResult, err error) {
@@ -484,7 +505,7 @@ func (client AssignmentsClient) ListResponder(resp *http.Response) (result Assig
 func (client AssignmentsClient) ListNextResults(lastResults AssignmentListResult) (result AssignmentListResult, err error) {
 	req, err := lastResults.AssignmentListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -493,25 +514,34 @@ func (client AssignmentsClient) ListNextResults(lastResults AssignmentListResult
 	resp, err := client.ListSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "List", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListForResource gets policy assignments of the resource.
+// ListForResource gets policy assignments for a resource.
 //
-// resourceGroupName is the name of the resource group. The name is case
-// insensitive. resourceProviderNamespace is the resource provider namespace.
-// parentResourcePath is the parent resource path. resourceType is the
-// resource type. resourceName is the resource name. filter is the filter to
-// apply on the operation.
+// resourceGroupName is the name of the resource group containing the
+// resource. The name is case insensitive. resourceProviderNamespace is the
+// namespace of the resource provider. parentResourcePath is the parent
+// resource path. resourceType is the resource type. resourceName is the name
+// of the resource with policy assignments. filter is the filter to apply on
+// the operation.
 func (client AssignmentsClient) ListForResource(resourceGroupName string, resourceProviderNamespace string, parentResourcePath string, resourceType string, resourceName string, filter string) (result AssignmentListResult, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "policy.AssignmentsClient", "ListForResource")
+	}
+
 	req, err := client.ListForResourcePreparer(resourceGroupName, resourceProviderNamespace, parentResourcePath, resourceType, resourceName, filter)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", nil, "Failure preparing request")
@@ -580,7 +610,7 @@ func (client AssignmentsClient) ListForResourceResponder(resp *http.Response) (r
 func (client AssignmentsClient) ListForResourceNextResults(lastResults AssignmentListResult) (result AssignmentListResult, err error) {
 	req, err := lastResults.AssignmentListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -589,22 +619,30 @@ func (client AssignmentsClient) ListForResourceNextResults(lastResults Assignmen
 	resp, err := client.ListForResourceSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListForResourceResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResource", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListForResourceGroup gets policy assignments of the resource group.
+// ListForResourceGroup gets policy assignments for the resource group.
 //
-// resourceGroupName is resource group name. filter is the filter to apply on
-// the operation.
+// resourceGroupName is the name of the resource group that contains policy
+// assignments. filter is the filter to apply on the operation.
 func (client AssignmentsClient) ListForResourceGroup(resourceGroupName string, filter string) (result AssignmentListResult, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: resourceGroupName,
+			Constraints: []validation.Constraint{{Target: "resourceGroupName", Name: validation.MaxLength, Rule: 90, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.MinLength, Rule: 1, Chain: nil},
+				{Target: "resourceGroupName", Name: validation.Pattern, Rule: `^[-\w\._\(\)]+$`, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "policy.AssignmentsClient", "ListForResourceGroup")
+	}
+
 	req, err := client.ListForResourceGroupPreparer(resourceGroupName, filter)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", nil, "Failure preparing request")
@@ -669,7 +707,7 @@ func (client AssignmentsClient) ListForResourceGroupResponder(resp *http.Respons
 func (client AssignmentsClient) ListForResourceGroupNextResults(lastResults AssignmentListResult) (result AssignmentListResult, err error) {
 	req, err := lastResults.AssignmentListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -678,12 +716,12 @@ func (client AssignmentsClient) ListForResourceGroupNextResults(lastResults Assi
 	resp, err := client.ListForResourceGroupSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListForResourceGroupResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "policy.AssignmentsClient", "ListForResourceGroup", resp, "Failure responding to next results request")
 	}
 
 	return

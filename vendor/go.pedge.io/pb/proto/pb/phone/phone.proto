@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package pb.phone;
+
+option go_package = "pbphone";
+
+message TelephoneNumber {
+  uint32 country_code = 1;
+  uint64 national_destination_code = 2;
+  uint64 subscriber_number = 3;
+  uint64 extension = 4;
+}

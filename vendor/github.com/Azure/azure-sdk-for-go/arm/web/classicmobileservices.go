@@ -29,9 +29,8 @@ import (
 // to the HTTP/1.1 protocol specification and each operation returns an
 // x-ms-request-id header that can be used to obtain information about the
 // request. You must make sure that requests made to these resources are
-// secure. For more information, see <a
-// href="https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx">Authenticating
-// Azure Resource Manager requests.</a>
+// secure. For more information, see
+// https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx.
 type ClassicMobileServicesClient struct {
 	ManagementClient
 }
@@ -237,7 +236,7 @@ func (client ClassicMobileServicesClient) GetClassicMobileServicesResponder(resp
 func (client ClassicMobileServicesClient) GetClassicMobileServicesNextResults(lastResults ClassicMobileServiceCollection) (result ClassicMobileServiceCollection, err error) {
 	req, err := lastResults.ClassicMobileServiceCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -246,12 +245,12 @@ func (client ClassicMobileServicesClient) GetClassicMobileServicesNextResults(la
 	resp, err := client.GetClassicMobileServicesSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetClassicMobileServicesResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ClassicMobileServicesClient", "GetClassicMobileServices", resp, "Failure responding to next results request")
 	}
 
 	return

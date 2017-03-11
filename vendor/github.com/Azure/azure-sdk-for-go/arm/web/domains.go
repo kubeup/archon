@@ -29,9 +29,8 @@ import (
 // HTTP/1.1 protocol specification and each operation returns an
 // x-ms-request-id header that can be used to obtain information about the
 // request. You must make sure that requests made to these resources are
-// secure. For more information, see <a
-// href="https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx">Authenticating
-// Azure Resource Manager requests.</a>
+// secure. For more information, see
+// https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx.
 type DomainsClient struct {
 	ManagementClient
 }
@@ -370,7 +369,7 @@ func (client DomainsClient) GetDomainsResponder(resp *http.Response) (result Dom
 func (client DomainsClient) GetDomainsNextResults(lastResults DomainCollection) (result DomainCollection, err error) {
 	req, err := lastResults.DomainCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -379,12 +378,12 @@ func (client DomainsClient) GetDomainsNextResults(lastResults DomainCollection) 
 	resp, err := client.GetDomainsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetDomainsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.DomainsClient", "GetDomains", resp, "Failure responding to next results request")
 	}
 
 	return

@@ -24,6 +24,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"context"
+
 	"github.com/vmware/govmomi/find"
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -33,7 +35,6 @@ import (
 	"github.com/vmware/govmomi/units"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type info struct {
@@ -41,10 +42,11 @@ type info struct {
 	*flags.OutputFlag
 	*flags.SearchFlag
 
-	WaitForIP   bool
-	General     bool
-	ExtraConfig bool
-	Resources   bool
+	WaitForIP       bool
+	General         bool
+	ExtraConfig     bool
+	Resources       bool
+	ToolsConfigInfo bool
 }
 
 func init() {
@@ -65,6 +67,7 @@ func (cmd *info) Register(ctx context.Context, f *flag.FlagSet) {
 	f.BoolVar(&cmd.General, "g", true, "Show general summary")
 	f.BoolVar(&cmd.ExtraConfig, "e", false, "Show ExtraConfig")
 	f.BoolVar(&cmd.Resources, "r", false, "Show resource summary")
+	f.BoolVar(&cmd.ToolsConfigInfo, "t", false, "Show ToolsConfigInfo")
 }
 
 func (cmd *info) Process(ctx context.Context) error {
@@ -115,6 +118,9 @@ func (cmd *info) Run(ctx context.Context, f *flag.FlagSet) error {
 		}
 		if cmd.Resources {
 			props = append(props, "datastore", "network")
+		}
+		if cmd.ToolsConfigInfo {
+			props = append(props, "config.tools")
 		}
 	}
 
@@ -167,6 +173,7 @@ func (r *infoResult) collectReferences(pc *property.Collector, ctx context.Conte
 
 	var host []mo.HostSystem
 	var network []mo.Network
+	var opaque []mo.OpaqueNetwork
 	var dvp []mo.DistributedVirtualPortgroup
 	var datastore []mo.Datastore
 	// Table to drive inflating refs to their mo.* counterparts (dest)
@@ -188,6 +195,13 @@ func (r *infoResult) collectReferences(pc *property.Collector, ctx context.Conte
 		"Network": {
 			&network, nil, func() {
 				for _, e := range network {
+					r.entities[e.Reference()] = e.Name
+				}
+			},
+		},
+		"OpaqueNetwork": {
+			&opaque, nil, func() {
+				for _, e := range opaque {
 					r.entities[e.Reference()] = e.Name
 				}
 			},
@@ -310,6 +324,20 @@ func (r *infoResult) Write(w io.Writer) error {
 			for _, v := range vm.Config.ExtraConfig {
 				fmt.Fprintf(tw, "    %s:\t%s\n", v.GetOptionValue().Key, v.GetOptionValue().Value)
 			}
+		}
+
+		if r.cmd.ToolsConfigInfo {
+			t := vm.Config.Tools
+			fmt.Fprintf(tw, "  ToolsConfigInfo:\n")
+			fmt.Fprintf(tw, "    ToolsVersion:\t%d\n", t.ToolsVersion)
+			fmt.Fprintf(tw, "    AfterPowerOn:\t%s\n", flags.NewOptionalBool(&t.AfterPowerOn).String())
+			fmt.Fprintf(tw, "    AfterResume:\t%s\n", flags.NewOptionalBool(&t.AfterResume).String())
+			fmt.Fprintf(tw, "    BeforeGuestStandby:\t%s\n", flags.NewOptionalBool(&t.BeforeGuestStandby).String())
+			fmt.Fprintf(tw, "    BeforeGuestShutdown:\t%s\n", flags.NewOptionalBool(&t.BeforeGuestShutdown).String())
+			fmt.Fprintf(tw, "    BeforeGuestReboot:\t%s\n", flags.NewOptionalBool(&t.BeforeGuestReboot).String())
+			fmt.Fprintf(tw, "    ToolsUpgradePolicy:\t%s\n", t.ToolsUpgradePolicy)
+			fmt.Fprintf(tw, "    PendingCustomization:\t%s\n", t.PendingCustomization)
+			fmt.Fprintf(tw, "    SyncTimeWithHost:\t%s\n", flags.NewOptionalBool(&t.SyncTimeWithHost).String())
 		}
 	}
 

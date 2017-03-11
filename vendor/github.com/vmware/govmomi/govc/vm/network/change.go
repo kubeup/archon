@@ -17,6 +17,7 @@ limitations under the License.
 package network
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -24,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type change struct {
@@ -53,6 +53,19 @@ func (cmd *change) Process(ctx context.Context) error {
 	return nil
 }
 
+func (cmd *change) Usage() string {
+	return "DEVICE"
+}
+
+func (cmd *change) Description() string {
+	return `Change network DEVICE configuration.
+
+Examples:
+  govc vm.network.change -vm $vm -net PG2 ethernet-0
+  govc vm.network.change -vm $vm -net.address 00:00:0f:2e:5d:69 ethernet-0
+  govc device.info -vm $vm ethernet-*`
+}
+
 func (cmd *change) Run(ctx context.Context, f *flag.FlagSet) error {
 	vm, err := cmd.VirtualMachineFlag.VirtualMachine()
 	if err != nil {
@@ -74,7 +87,7 @@ func (cmd *change) Run(ctx context.Context, f *flag.FlagSet) error {
 		_ = cmd.NetworkFlag.Set(f.Arg(1))
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -103,5 +116,5 @@ func (cmd *change) Run(ctx context.Context, f *flag.FlagSet) error {
 		current.AddressType = changed.AddressType
 	}
 
-	return vm.EditDevice(context.TODO(), net)
+	return vm.EditDevice(ctx, net)
 }

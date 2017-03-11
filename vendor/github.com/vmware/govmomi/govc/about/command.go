@@ -17,12 +17,11 @@ limitations under the License.
 package about
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
 	"text/tabwriter"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -48,6 +47,16 @@ func (cmd *about) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.OutputFlag.Register(ctx, f)
 
 	f.BoolVar(&cmd.Long, "l", false, "Include service content")
+}
+
+func (cmd *about) Description() string {
+	return `Display About info for HOST.
+
+System information including the name, type, version, and build number.
+
+Examples:
+  govc about
+  govc about -json | jq -r .About.ProductLineId`
 }
 
 func (cmd *about) Process(ctx context.Context) error {

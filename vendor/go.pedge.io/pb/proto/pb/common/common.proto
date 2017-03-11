@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package pb.common;
+
+option go_package = "pbcommon";
+
+message DoubleValues {
+  repeated double value = 1;
+}
+
+message FloatValues {
+  repeated float value = 1;
+}
+
+message Int64Values {
+  repeated int64 value = 1;
+}
+
+message UInt64Values {
+  repeated uint64 value = 1;
+}
+
+message Int32Values {
+  repeated int32 value = 1;
+}
+
+message UInt32Values {
+  repeated uint32 value = 1;
+}
+
+message BoolValues {
+  repeated bool value = 1;
+}
+
+message StringValues {
+  repeated string value = 1;
+}
+
+message BytesValues {
+  repeated bytes value = 1;
+}

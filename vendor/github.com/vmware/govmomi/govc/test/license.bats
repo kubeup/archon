@@ -4,7 +4,7 @@ load test_helper
 
 # These tests should only run against a server running an evaluation license.
 verify_evaluation() {
-  if [ "$(govc license.list -json | jq -r .[0].EditionKey)" != "eval" ]; then
+  if [ "$(govc license.ls -json | jq -r .[0].EditionKey)" != "eval" ]; then
     skip "requires evaluation license"
   fi
 }
@@ -18,7 +18,6 @@ get_property() {
 }
 
 @test "license.add" {
-  skip_if_vca
   verify_evaluation
 
   run govc license.add -json 00000-00000-00000-00000-00001 00000-00000-00000-00000-00002
@@ -36,11 +35,10 @@ get_property() {
   assert_success
 }
 
-@test "license.list" {
-  skip_if_vca
+@test "license.ls" {
   verify_evaluation
 
-  run govc license.list -json
+  run govc license.ls -json
   assert_success
 
   # Expect the test instance to run in evaluation mode

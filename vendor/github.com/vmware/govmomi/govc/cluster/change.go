@@ -17,10 +17,9 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"flag"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -62,7 +61,7 @@ func (cmd *change) Register(ctx context.Context, f *flag.FlagSet) {
 
 	// vSAN
 	f.Var(flags.NewOptionalBool(&cmd.VsanConfig.Enabled), "vsan-enabled", "Enable vSAN")
-	f.Var(flags.NewOptionalBool(&cmd.VsanConfig.DefaultConfig.AutoClaimStorage), "vsan-autoclaim", "")
+	f.Var(flags.NewOptionalBool(&cmd.VsanConfig.DefaultConfig.AutoClaimStorage), "vsan-autoclaim", "Autoclaim storage on cluster hosts")
 }
 
 func (cmd *change) Process(ctx context.Context) error {
@@ -77,7 +76,11 @@ func (cmd *change) Usage() string {
 }
 
 func (cmd *change) Description() string {
-	return `Change configuration of the given clusters.`
+	return `Change configuration of the given clusters.
+
+Examples:
+  govc cluster.change -drs-enabled -vsan-enabled -vsan-autoclaim ClusterA
+  govc cluster.change -drs-enabled=false ClusterB`
 }
 
 func (cmd *change) Run(ctx context.Context, f *flag.FlagSet) error {

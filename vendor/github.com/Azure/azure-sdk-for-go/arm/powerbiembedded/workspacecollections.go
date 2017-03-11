@@ -21,10 +21,11 @@ package powerbiembedded
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
-// WorkspaceCollectionsClient is the client to manage your Power BI embedded
+// WorkspaceCollectionsClient is the client to manage your Power BI Embedded
 // workspace collections and retrieve workspaces.
 type WorkspaceCollectionsClient struct {
 	ManagementClient
@@ -42,8 +43,8 @@ func NewWorkspaceCollectionsClientWithBaseURI(baseURI string, subscriptionID str
 	return WorkspaceCollectionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// CheckNameAvailability check that the specified Power BI Workspace
-// Collection name is valid and not in use.
+// CheckNameAvailability verify the specified Power BI Workspace Collection
+// name is valid and not already in use.
 //
 // location is azure location body is check name availability request
 func (client WorkspaceCollectionsClient) CheckNameAvailability(location string, body CheckNameRequest) (result CheckNameResponse, err error) {
@@ -107,14 +108,23 @@ func (client WorkspaceCollectionsClient) CheckNameAvailabilityResponder(resp *ht
 }
 
 // Create creates a new Power BI Workspace Collection with the specified
-// properties. A Power BI Workspace Collection contains one or more Power BI
-// Workspaces and can be used to provision keys that provide API access to
-// those Power BI Workspaces.
+// properties. A Power BI Workspace Collection contains one or more
+// workspaces, and can be used to provision keys that provide API access to
+// those workspaces.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name body is create workspace collection
+// BI Embedded Workspace Collection name body is create workspace collection
 // request
 func (client WorkspaceCollectionsClient) Create(resourceGroupName string, workspaceCollectionName string, body CreateWorkspaceCollectionRequest) (result WorkspaceCollection, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: body,
+			Constraints: []validation.Constraint{{Target: "body.Sku", Name: validation.Null, Rule: false,
+				Chain: []validation.Constraint{{Target: "body.Sku.Name", Name: validation.Null, Rule: true, Chain: nil},
+					{Target: "body.Sku.Tier", Name: validation.Null, Rule: true, Chain: nil},
+				}}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "powerbiembedded.WorkspaceCollectionsClient", "Create")
+	}
+
 	req, err := client.CreatePreparer(resourceGroupName, workspaceCollectionName, body)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "powerbiembedded.WorkspaceCollectionsClient", "Create", nil, "Failure preparing request")
@@ -181,7 +191,7 @@ func (client WorkspaceCollectionsClient) CreateResponder(resp *http.Response) (r
 // HTTP requests.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name
+// BI Embedded Workspace Collection name
 func (client WorkspaceCollectionsClient) Delete(resourceGroupName string, workspaceCollectionName string, cancel <-chan struct{}) (result autorest.Response, err error) {
 	req, err := client.DeletePreparer(resourceGroupName, workspaceCollectionName, cancel)
 	if err != nil {
@@ -246,7 +256,7 @@ func (client WorkspaceCollectionsClient) DeleteResponder(resp *http.Response) (r
 // specified Power BI Workspace Collection.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name
+// BI Embedded Workspace Collection name
 func (client WorkspaceCollectionsClient) GetAccessKeys(resourceGroupName string, workspaceCollectionName string) (result WorkspaceCollectionAccessKeys, err error) {
 	req, err := client.GetAccessKeysPreparer(resourceGroupName, workspaceCollectionName)
 	if err != nil {
@@ -309,7 +319,7 @@ func (client WorkspaceCollectionsClient) GetAccessKeysResponder(resp *http.Respo
 // GetByName retrieves an existing Power BI Workspace Collection.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name
+// BI Embedded Workspace Collection name
 func (client WorkspaceCollectionsClient) GetByName(resourceGroupName string, workspaceCollectionName string) (result WorkspaceCollection, err error) {
 	req, err := client.GetByNamePreparer(resourceGroupName, workspaceCollectionName)
 	if err != nil {
@@ -369,7 +379,7 @@ func (client WorkspaceCollectionsClient) GetByNameResponder(resp *http.Response)
 	return
 }
 
-// ListByResourceGroup retrieves all existing Power BI Workspace Collections
+// ListByResourceGroup retrieves all existing Power BI workspace collections
 // in the specified resource group.
 //
 // resourceGroupName is azure resource group
@@ -431,7 +441,7 @@ func (client WorkspaceCollectionsClient) ListByResourceGroupResponder(resp *http
 	return
 }
 
-// ListBySubscription retrieves all existing Power BI Workspace Collections in
+// ListBySubscription retrieves all existing Power BI workspace collections in
 // the specified subscription.
 func (client WorkspaceCollectionsClient) ListBySubscription() (result WorkspaceCollectionList, err error) {
 	req, err := client.ListBySubscriptionPreparer()
@@ -558,7 +568,7 @@ func (client WorkspaceCollectionsClient) MigrateResponder(resp *http.Response) (
 // specified Power BI Workspace Collection.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name body is access key to regenerate
+// BI Embedded Workspace Collection name body is access key to regenerate
 func (client WorkspaceCollectionsClient) RegenerateKey(resourceGroupName string, workspaceCollectionName string, body WorkspaceCollectionAccessKey) (result WorkspaceCollectionAccessKeys, err error) {
 	req, err := client.RegenerateKeyPreparer(resourceGroupName, workspaceCollectionName, body)
 	if err != nil {
@@ -624,7 +634,7 @@ func (client WorkspaceCollectionsClient) RegenerateKeyResponder(resp *http.Respo
 // properties.
 //
 // resourceGroupName is azure resource group workspaceCollectionName is power
-// BI Embedded workspace collection name body is update workspace collection
+// BI Embedded Workspace Collection name body is update workspace collection
 // request
 func (client WorkspaceCollectionsClient) Update(resourceGroupName string, workspaceCollectionName string, body UpdateWorkspaceCollectionRequest) (result WorkspaceCollection, err error) {
 	req, err := client.UpdatePreparer(resourceGroupName, workspaceCollectionName, body)

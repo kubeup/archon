@@ -24,8 +24,10 @@ import (
 	"net/http"
 )
 
-// TenantsClient is the client for the Tenants methods of the Subscriptions
-// service.
+// TenantsClient is the all resource groups and resources exist within
+// subscriptions. These operation enable you get information about your
+// subscriptions and tenants. A tenant is a dedicated instance of Azure
+// Active Directory (Azure AD) for your organization.
 type TenantsClient struct {
 	ManagementClient
 }
@@ -40,7 +42,7 @@ func NewTenantsClientWithBaseURI(baseURI string) TenantsClient {
 	return TenantsClient{NewWithBaseURI(baseURI)}
 }
 
-// List gets a list of the tenantIds.
+// List gets the tenants for your account.
 func (client TenantsClient) List() (result TenantListResult, err error) {
 	req, err := client.ListPreparer()
 	if err != nil {
@@ -98,7 +100,7 @@ func (client TenantsClient) ListResponder(resp *http.Response) (result TenantLis
 func (client TenantsClient) ListNextResults(lastResults TenantListResult) (result TenantListResult, err error) {
 	req, err := lastResults.TenantListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -107,12 +109,12 @@ func (client TenantsClient) ListNextResults(lastResults TenantListResult) (resul
 	resp, err := client.ListSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "subscriptions.TenantsClient", "List", resp, "Failure responding to next results request")
 	}
 
 	return

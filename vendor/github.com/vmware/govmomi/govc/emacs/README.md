@@ -82,6 +82,10 @@ query string.  For example:
   (setq govc-urls `("root:password@hostname?datastore=vsanDatastore"))
 ```
 
+### govc-session-network
+
+Network to use for the current `govc-session`.
+
 ## govc-tabulated-list-mode
 
 Generic table bindings to mark/unmark rows.
@@ -115,6 +119,7 @@ during initialization.
 Keybinding     | Description
 ---------------|------------------------------------------------------------
 <kbd>E</kbd>   | Events via govc events -n `govc-max-events`
+<kbd>L</kbd>   | Logs via govc logs -n `govc-max-events`
 <kbd>J</kbd>   | JSON via govc host
 <kbd>N</kbd>   | Netstat via `govc-esxcli-netstat-info` with current host id
 <kbd>c</kbd>   | Connect new session for the current govc mode
@@ -174,7 +179,9 @@ during initialization.
 Keybinding     | Description
 ---------------|------------------------------------------------------------
 <kbd>J</kbd>   | JSON via govc datastore
+<kbd>S</kbd>   | Search via govc datastore
 <kbd>D</kbd>   | Delete selected datastore paths
+<kbd>T</kbd>   | Tail datastore file
 <kbd>+</kbd>   | Mkdir via govc datastore
 <kbd>DEL</kbd> | Up to parent folder
 <kbd>RET</kbd> | Open datastore folder or file

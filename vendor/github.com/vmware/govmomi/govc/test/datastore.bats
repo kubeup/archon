@@ -3,15 +3,12 @@
 load test_helper
 
 upload_file() {
-  file=$($mktemp --tmpdir govc-test-XXXXX)
-  name=$(basename ${file})
-  echo "Hello world!" > ${file}
+  name=$(new_id)
 
-  run govc datastore.upload "${file}" "${name}"
+  echo "Hello world" | govc datastore.upload - "$name"
   assert_success
 
-  rm -f "${file}"
-  echo "${name}"
+  echo "$name"
 }
 
 @test "datastore.ls" {
@@ -35,7 +32,48 @@ upload_file() {
   # Long listing
   run govc datastore.ls -l "./govc-test-*"
   assert_success
-  assert_equal "13B" $(awk '{ print $1 }' <<<${output})
+  assert_equal "12B" $(awk '{ print $1 }' <<<${output})
+}
+
+@test "datastore.ls-R" {
+  dir=$(new_id)
+
+  run govc datastore.mkdir "$dir"
+  assert_success
+
+  for name in one two three ; do
+    echo "$name world" | govc datastore.upload - "$dir/file-$name"
+    run govc datastore.mkdir -p "$dir/dir-$name/subdir-$name"
+    run govc datastore.mkdir -p "$dir/dir-$name/.hidden"
+    assert_success
+    echo "$name world" | govc datastore.upload - "$dir/dir-$name/.hidden/other-$name"
+    echo "$name world" | govc datastore.upload - "$dir/dir-$name/other-$name"
+    echo "$name world" | govc datastore.upload - "$dir/dir-$name/subdir-$name/last-$name"
+  done
+
+  # without -R
+  json=$(govc datastore.ls -json -l -p "$dir")
+  result=$(jq -r .[].File[].Path <<<"$json" | wc -l)
+  [ "$result" -eq 6 ]
+
+  result=$(jq -r .[].FolderPath <<<"$json" | wc -l)
+  [ "$result" -eq 1 ]
+
+  # with -R
+  json=$(govc datastore.ls -json -l -p -R "$dir")
+  result=$(jq -r .[].File[].Path <<<"$json" | wc -l)
+  [ "$result" -eq 15 ]
+
+  result=$(jq -r .[].FolderPath <<<"$json" | wc -l)
+  [ "$result" -eq 7 ]
+
+  # with -R -a
+  json=$(govc datastore.ls -json -l -p -R -a "$dir")
+  result=$(jq -r .[].File[].Path <<<"$json" | wc -l)
+  [ "$result" -eq 21 ]
+
+  result=$(jq -r .[].FolderPath <<<"$json" | wc -l)
+  [ "$result" -eq 10 ]
 }
 
 @test "datastore.rm" {
@@ -104,4 +142,52 @@ upload_file() {
   # Verify the dir is gone
   run govc datastore.ls "${name}"
   assert_failure
+}
+
+@test "datastore.download" {
+  name=$(upload_file)
+  run govc datastore.download "$name" -
+  assert_success
+  assert_output "Hello world"
+
+  run govc datastore.download "$name" "$TMPDIR/$name"
+  assert_success
+  run cat "$TMPDIR/$name"
+  assert_output "Hello world"
+  rm "$TMPDIR/$name"
+}
+
+@test "datastore.upload" {
+  name=$(new_id)
+  echo -n "Hello world" | govc datastore.upload - "$name"
+
+  run govc datastore.download "$name" -
+  assert_success
+  assert_output "Hello world"
+}
+
+@test "datastore.tail" {
+  run govc datastore.tail "enoent/enoent.log"
+  assert_failure
+
+  id=$(new_id)
+  govc vm.create "$id"
+  govc vm.power -off "$id"
+
+  # test with .log (> bufSize) and .vmx (< bufSize)
+  for file in "$id/vmware.log" "$id/$id.vmx" ; do
+    log=$(govc datastore.download "$file" -)
+
+    for n in 0 1 5 10 123 456 7890 ; do
+      expect=$(tail -n $n <<<"$log")
+
+      run govc datastore.tail -n $n "$file"
+      assert_output "$expect"
+
+      expect=$(tail -c $n <<<"$log")
+
+      run govc datastore.tail -c $n "$file"
+      assert_output "$expect"
+    done
+  done
 }

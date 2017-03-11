@@ -9,7 +9,8 @@
     "serviceFullName":"AWS CodeDeploy",
     "signatureVersion":"v4",
     "targetPrefix":"CodeDeploy_20141006",
-    "timestampFormat":"unixTimestamp"
+    "timestampFormat":"unixTimestamp",
+    "uid":"codedeploy-2014-10-06"
   },
   "operations":{
     "AddTagsToOnPremisesInstances":{
@@ -28,6 +29,23 @@
         {"shape":"InstanceNotRegisteredException"}
       ]
     },
+    "BatchGetApplicationRevisions":{
+      "name":"BatchGetApplicationRevisions",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"BatchGetApplicationRevisionsInput"},
+      "output":{"shape":"BatchGetApplicationRevisionsOutput"},
+      "errors":[
+        {"shape":"ApplicationDoesNotExistException"},
+        {"shape":"ApplicationNameRequiredException"},
+        {"shape":"InvalidApplicationNameException"},
+        {"shape":"RevisionRequiredException"},
+        {"shape":"InvalidRevisionException"},
+        {"shape":"BatchLimitExceededException"}
+      ]
+    },
     "BatchGetApplications":{
       "name":"BatchGetApplications",
       "http":{
@@ -39,7 +57,42 @@
       "errors":[
         {"shape":"ApplicationNameRequiredException"},
         {"shape":"InvalidApplicationNameException"},
-        {"shape":"ApplicationDoesNotExistException"}
+        {"shape":"ApplicationDoesNotExistException"},
+        {"shape":"BatchLimitExceededException"}
+      ]
+    },
+    "BatchGetDeploymentGroups":{
+      "name":"BatchGetDeploymentGroups",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"BatchGetDeploymentGroupsInput"},
+      "output":{"shape":"BatchGetDeploymentGroupsOutput"},
+      "errors":[
+        {"shape":"ApplicationNameRequiredException"},
+        {"shape":"InvalidApplicationNameException"},
+        {"shape":"ApplicationDoesNotExistException"},
+        {"shape":"DeploymentGroupNameRequiredException"},
+        {"shape":"InvalidDeploymentGroupNameException"},
+        {"shape":"BatchLimitExceededException"}
+      ]
+    },
+    "BatchGetDeploymentInstances":{
+      "name":"BatchGetDeploymentInstances",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"BatchGetDeploymentInstancesInput"},
+      "output":{"shape":"BatchGetDeploymentInstancesOutput"},
+      "errors":[
+        {"shape":"DeploymentIdRequiredException"},
+        {"shape":"DeploymentDoesNotExistException"},
+        {"shape":"InstanceIdRequiredException"},
+        {"shape":"InvalidDeploymentIdException"},
+        {"shape":"InvalidInstanceNameException"},
+        {"shape":"BatchLimitExceededException"}
       ]
     },
     "BatchGetDeployments":{
@@ -52,7 +105,8 @@
       "output":{"shape":"BatchGetDeploymentsOutput"},
       "errors":[
         {"shape":"DeploymentIdRequiredException"},
-        {"shape":"InvalidDeploymentIdException"}
+        {"shape":"InvalidDeploymentIdException"},
+        {"shape":"BatchLimitExceededException"}
       ]
     },
     "BatchGetOnPremisesInstances":{
@@ -65,7 +119,8 @@
       "output":{"shape":"BatchGetOnPremisesInstancesOutput"},
       "errors":[
         {"shape":"InstanceNameRequiredException"},
-        {"shape":"InvalidInstanceNameException"}
+        {"shape":"InvalidInstanceNameException"},
+        {"shape":"BatchLimitExceededException"}
       ]
     },
     "CreateApplication":{
@@ -99,11 +154,13 @@
         {"shape":"InvalidDeploymentGroupNameException"},
         {"shape":"DeploymentGroupDoesNotExistException"},
         {"shape":"RevisionRequiredException"},
+        {"shape":"RevisionDoesNotExistException"},
         {"shape":"InvalidRevisionException"},
         {"shape":"InvalidDeploymentConfigNameException"},
         {"shape":"DeploymentConfigDoesNotExistException"},
         {"shape":"DescriptionTooLongException"},
-        {"shape":"DeploymentLimitExceededException"}
+        {"shape":"DeploymentLimitExceededException"},
+        {"shape":"InvalidAutoRollbackConfigException"}
       ]
     },
     "CreateDeploymentConfig":{
@@ -144,7 +201,13 @@
         {"shape":"DeploymentConfigDoesNotExistException"},
         {"shape":"RoleRequiredException"},
         {"shape":"InvalidRoleException"},
-        {"shape":"DeploymentGroupLimitExceededException"}
+        {"shape":"DeploymentGroupLimitExceededException"},
+        {"shape":"LifecycleHookLimitExceededException"},
+        {"shape":"InvalidTriggerConfigException"},
+        {"shape":"TriggerTargetsLimitExceededException"},
+        {"shape":"InvalidAlarmConfigException"},
+        {"shape":"AlarmsLimitExceededException"},
+        {"shape":"InvalidAutoRollbackConfigException"}
       ]
     },
     "DeleteApplication":{
@@ -290,7 +353,8 @@
         {"shape":"DeploymentDoesNotExistException"},
         {"shape":"InstanceIdRequiredException"},
         {"shape":"InvalidDeploymentIdException"},
-        {"shape":"InstanceDoesNotExistException"}
+        {"shape":"InstanceDoesNotExistException"},
+        {"shape":"InvalidInstanceNameException"}
       ]
     },
     "GetOnPremisesInstance":{
@@ -443,11 +507,15 @@
       "input":{"shape":"RegisterOnPremisesInstanceInput"},
       "errors":[
         {"shape":"InstanceNameAlreadyRegisteredException"},
+        {"shape":"IamArnRequiredException"},
+        {"shape":"IamSessionArnAlreadyRegisteredException"},
         {"shape":"IamUserArnAlreadyRegisteredException"},
         {"shape":"InstanceNameRequiredException"},
         {"shape":"IamUserArnRequiredException"},
         {"shape":"InvalidInstanceNameException"},
-        {"shape":"InvalidIamUserArnException"}
+        {"shape":"InvalidIamSessionArnException"},
+        {"shape":"InvalidIamUserArnException"},
+        {"shape":"MultipleIamArnsProvidedException"}
       ]
     },
     "RemoveTagsFromOnPremisesInstances":{
@@ -516,7 +584,13 @@
         {"shape":"InvalidAutoScalingGroupException"},
         {"shape":"InvalidDeploymentConfigNameException"},
         {"shape":"DeploymentConfigDoesNotExistException"},
-        {"shape":"InvalidRoleException"}
+        {"shape":"InvalidRoleException"},
+        {"shape":"LifecycleHookLimitExceededException"},
+        {"shape":"InvalidTriggerConfigException"},
+        {"shape":"TriggerTargetsLimitExceededException"},
+        {"shape":"InvalidAlarmConfigException"},
+        {"shape":"AlarmsLimitExceededException"},
+        {"shape":"InvalidAutoRollbackConfigException"}
       ]
     }
   },
@@ -531,6 +605,31 @@
         "tags":{"shape":"TagList"},
         "instanceNames":{"shape":"InstanceNameList"}
       }
+    },
+    "Alarm":{
+      "type":"structure",
+      "members":{
+        "name":{"shape":"AlarmName"}
+      }
+    },
+    "AlarmConfiguration":{
+      "type":"structure",
+      "members":{
+        "enabled":{"shape":"Boolean"},
+        "ignorePollAlarmFailure":{"shape":"Boolean"},
+        "alarms":{"shape":"AlarmList"}
+      }
+    },
+    "AlarmList":{
+      "type":"list",
+      "member":{"shape":"Alarm"}
+    },
+    "AlarmName":{"type":"string"},
+    "AlarmsLimitExceededException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
     },
     "ApplicationAlreadyExistsException":{
       "type":"structure",
@@ -587,6 +686,25 @@
       "type":"list",
       "member":{"shape":"ApplicationName"}
     },
+    "AutoRollbackConfiguration":{
+      "type":"structure",
+      "members":{
+        "enabled":{"shape":"Boolean"},
+        "events":{"shape":"AutoRollbackEventsList"}
+      }
+    },
+    "AutoRollbackEvent":{
+      "type":"string",
+      "enum":[
+        "DEPLOYMENT_FAILURE",
+        "DEPLOYMENT_STOP_ON_ALARM",
+        "DEPLOYMENT_STOP_ON_REQUEST"
+      ]
+    },
+    "AutoRollbackEventsList":{
+      "type":"list",
+      "member":{"shape":"AutoRollbackEvent"}
+    },
     "AutoScalingGroup":{
       "type":"structure",
       "members":{
@@ -604,6 +722,25 @@
       "type":"list",
       "member":{"shape":"AutoScalingGroupName"}
     },
+    "BatchGetApplicationRevisionsInput":{
+      "type":"structure",
+      "required":[
+        "applicationName",
+        "revisions"
+      ],
+      "members":{
+        "applicationName":{"shape":"ApplicationName"},
+        "revisions":{"shape":"RevisionLocationList"}
+      }
+    },
+    "BatchGetApplicationRevisionsOutput":{
+      "type":"structure",
+      "members":{
+        "applicationName":{"shape":"ApplicationName"},
+        "errorMessage":{"shape":"ErrorMessage"},
+        "revisions":{"shape":"RevisionInfoList"}
+      }
+    },
     "BatchGetApplicationsInput":{
       "type":"structure",
       "members":{
@@ -614,6 +751,42 @@
       "type":"structure",
       "members":{
         "applicationsInfo":{"shape":"ApplicationsInfoList"}
+      }
+    },
+    "BatchGetDeploymentGroupsInput":{
+      "type":"structure",
+      "required":[
+        "applicationName",
+        "deploymentGroupNames"
+      ],
+      "members":{
+        "applicationName":{"shape":"ApplicationName"},
+        "deploymentGroupNames":{"shape":"DeploymentGroupsList"}
+      }
+    },
+    "BatchGetDeploymentGroupsOutput":{
+      "type":"structure",
+      "members":{
+        "deploymentGroupsInfo":{"shape":"DeploymentGroupInfoList"},
+        "errorMessage":{"shape":"ErrorMessage"}
+      }
+    },
+    "BatchGetDeploymentInstancesInput":{
+      "type":"structure",
+      "required":[
+        "deploymentId",
+        "instanceIds"
+      ],
+      "members":{
+        "deploymentId":{"shape":"DeploymentId"},
+        "instanceIds":{"shape":"InstancesList"}
+      }
+    },
+    "BatchGetDeploymentInstancesOutput":{
+      "type":"structure",
+      "members":{
+        "instancesSummary":{"shape":"InstanceSummaryList"},
+        "errorMessage":{"shape":"ErrorMessage"}
       }
     },
     "BatchGetDeploymentsInput":{
@@ -639,6 +812,12 @@
       "members":{
         "instanceInfos":{"shape":"InstanceInfoList"}
       }
+    },
+    "BatchLimitExceededException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
     },
     "Boolean":{"type":"boolean"},
     "BucketNameFilterRequiredException":{
@@ -697,7 +876,10 @@
         "ec2TagFilters":{"shape":"EC2TagFilterList"},
         "onPremisesInstanceTagFilters":{"shape":"TagFilterList"},
         "autoScalingGroups":{"shape":"AutoScalingGroupNameList"},
-        "serviceRoleArn":{"shape":"Role"}
+        "serviceRoleArn":{"shape":"Role"},
+        "triggerConfigurations":{"shape":"TriggerConfigList"},
+        "alarmConfiguration":{"shape":"AlarmConfiguration"},
+        "autoRollbackConfiguration":{"shape":"AutoRollbackConfiguration"}
       }
     },
     "CreateDeploymentGroupOutput":{
@@ -715,7 +897,9 @@
         "revision":{"shape":"RevisionLocation"},
         "deploymentConfigName":{"shape":"DeploymentConfigName"},
         "description":{"shape":"Description"},
-        "ignoreApplicationStopFailures":{"shape":"Boolean"}
+        "ignoreApplicationStopFailures":{"shape":"Boolean"},
+        "autoRollbackConfiguration":{"shape":"AutoRollbackConfiguration"},
+        "updateOutdatedInstancesOnly":{"shape":"Boolean"}
       }
     },
     "CreateDeploymentOutput":{
@@ -814,7 +998,8 @@
       "type":"string",
       "enum":[
         "user",
-        "autoscaling"
+        "autoscaling",
+        "codeDeployRollback"
       ]
     },
     "DeploymentDoesNotExistException":{
@@ -847,8 +1032,15 @@
         "onPremisesInstanceTagFilters":{"shape":"TagFilterList"},
         "autoScalingGroups":{"shape":"AutoScalingGroupList"},
         "serviceRoleArn":{"shape":"Role"},
-        "targetRevision":{"shape":"RevisionLocation"}
+        "targetRevision":{"shape":"RevisionLocation"},
+        "triggerConfigurations":{"shape":"TriggerConfigList"},
+        "alarmConfiguration":{"shape":"AlarmConfiguration"},
+        "autoRollbackConfiguration":{"shape":"AutoRollbackConfiguration"}
       }
+    },
+    "DeploymentGroupInfoList":{
+      "type":"list",
+      "member":{"shape":"DeploymentGroupInfo"}
     },
     "DeploymentGroupLimitExceededException":{
       "type":"structure",
@@ -894,7 +1086,10 @@
         "deploymentOverview":{"shape":"DeploymentOverview"},
         "description":{"shape":"Description"},
         "creator":{"shape":"DeploymentCreator"},
-        "ignoreApplicationStopFailures":{"shape":"Boolean"}
+        "ignoreApplicationStopFailures":{"shape":"Boolean"},
+        "autoRollbackConfiguration":{"shape":"AutoRollbackConfiguration"},
+        "updateOutdatedInstancesOnly":{"shape":"Boolean"},
+        "rollbackInfo":{"shape":"RollbackInfo"}
       }
     },
     "DeploymentLimitExceededException":{
@@ -1001,7 +1196,12 @@
         "HEALTH_CONSTRAINTS_INVALID",
         "HEALTH_CONSTRAINTS",
         "INTERNAL_ERROR",
-        "THROTTLED"
+        "THROTTLED",
+        "ALARM_ACTIVE",
+        "AGENT_ISSUE",
+        "AUTO_SCALING_IAM_ROLE_PERMISSIONS",
+        "AUTO_SCALING_CONFIGURATION",
+        "MANUAL_STOP"
       ]
     },
     "ErrorInformation":{
@@ -1134,6 +1334,19 @@
         "commitId":{"shape":"CommitId"}
       }
     },
+    "IamArnRequiredException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
+    "IamSessionArn":{"type":"string"},
+    "IamSessionArnAlreadyRegisteredException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
     "IamUserArn":{"type":"string"},
     "IamUserArnAlreadyRegisteredException":{
       "type":"structure",
@@ -1166,6 +1379,7 @@
       "type":"structure",
       "members":{
         "instanceName":{"shape":"InstanceName"},
+        "iamSessionArn":{"shape":"IamSessionArn"},
         "iamUserArn":{"shape":"IamUserArn"},
         "instanceArn":{"shape":"InstanceArn"},
         "registerTime":{"shape":"Timestamp"},
@@ -1231,11 +1445,27 @@
         "lifecycleEvents":{"shape":"LifecycleEventList"}
       }
     },
+    "InstanceSummaryList":{
+      "type":"list",
+      "member":{"shape":"InstanceSummary"}
+    },
     "InstancesList":{
       "type":"list",
       "member":{"shape":"InstanceId"}
     },
+    "InvalidAlarmConfigException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
     "InvalidApplicationNameException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
+    "InvalidAutoRollbackConfigException":{
       "type":"structure",
       "members":{
       },
@@ -1284,6 +1514,12 @@
       "exception":true
     },
     "InvalidEC2TagException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
+    "InvalidIamSessionArnException":{
       "type":"structure",
       "members":{
       },
@@ -1379,6 +1615,12 @@
       },
       "exception":true
     },
+    "InvalidTriggerConfigException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
     "Key":{"type":"string"},
     "LifecycleErrorCode":{
       "type":"string",
@@ -1416,6 +1658,12 @@
         "Skipped",
         "Unknown"
       ]
+    },
+    "LifecycleHookLimitExceededException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
     },
     "LifecycleMessage":{"type":"string"},
     "ListApplicationRevisionsInput":{
@@ -1553,7 +1801,14 @@
       ]
     },
     "MinimumHealthyHostsValue":{"type":"integer"},
+    "MultipleIamArnsProvidedException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
     "NextToken":{"type":"string"},
+    "NullableBoolean":{"type":"boolean"},
     "RegisterApplicationRevisionInput":{
       "type":"structure",
       "required":[
@@ -1568,12 +1823,10 @@
     },
     "RegisterOnPremisesInstanceInput":{
       "type":"structure",
-      "required":[
-        "instanceName",
-        "iamUserArn"
-      ],
+      "required":["instanceName"],
       "members":{
         "instanceName":{"shape":"InstanceName"},
+        "iamSessionArn":{"shape":"IamSessionArn"},
         "iamUserArn":{"shape":"IamUserArn"}
       }
     },
@@ -1601,6 +1854,17 @@
       "members":{
       },
       "exception":true
+    },
+    "RevisionInfo":{
+      "type":"structure",
+      "members":{
+        "revisionLocation":{"shape":"RevisionLocation"},
+        "genericRevisionInfo":{"shape":"GenericRevisionInfo"}
+      }
+    },
+    "RevisionInfoList":{
+      "type":"list",
+      "member":{"shape":"RevisionInfo"}
     },
     "RevisionLocation":{
       "type":"structure",
@@ -1634,6 +1898,14 @@
       },
       "exception":true
     },
+    "RollbackInfo":{
+      "type":"structure",
+      "members":{
+        "rollbackDeploymentId":{"shape":"DeploymentId"},
+        "rollbackTriggeringDeploymentId":{"shape":"DeploymentId"},
+        "rollbackMessage":{"shape":"Description"}
+      }
+    },
     "S3Bucket":{"type":"string"},
     "S3Key":{"type":"string"},
     "S3Location":{
@@ -1658,7 +1930,8 @@
       "type":"structure",
       "required":["deploymentId"],
       "members":{
-        "deploymentId":{"shape":"DeploymentId"}
+        "deploymentId":{"shape":"DeploymentId"},
+        "autoRollbackEnabled":{"shape":"NullableBoolean"}
       }
     },
     "StopDeploymentOutput":{
@@ -1726,6 +1999,43 @@
       }
     },
     "Timestamp":{"type":"timestamp"},
+    "TriggerConfig":{
+      "type":"structure",
+      "members":{
+        "triggerName":{"shape":"TriggerName"},
+        "triggerTargetArn":{"shape":"TriggerTargetArn"},
+        "triggerEvents":{"shape":"TriggerEventTypeList"}
+      }
+    },
+    "TriggerConfigList":{
+      "type":"list",
+      "member":{"shape":"TriggerConfig"}
+    },
+    "TriggerEventType":{
+      "type":"string",
+      "enum":[
+        "DeploymentStart",
+        "DeploymentSuccess",
+        "DeploymentFailure",
+        "DeploymentStop",
+        "DeploymentRollback",
+        "InstanceStart",
+        "InstanceSuccess",
+        "InstanceFailure"
+      ]
+    },
+    "TriggerEventTypeList":{
+      "type":"list",
+      "member":{"shape":"TriggerEventType"}
+    },
+    "TriggerName":{"type":"string"},
+    "TriggerTargetArn":{"type":"string"},
+    "TriggerTargetsLimitExceededException":{
+      "type":"structure",
+      "members":{
+      },
+      "exception":true
+    },
     "UpdateApplicationInput":{
       "type":"structure",
       "members":{
@@ -1747,7 +2057,10 @@
         "ec2TagFilters":{"shape":"EC2TagFilterList"},
         "onPremisesInstanceTagFilters":{"shape":"TagFilterList"},
         "autoScalingGroups":{"shape":"AutoScalingGroupNameList"},
-        "serviceRoleArn":{"shape":"Role"}
+        "serviceRoleArn":{"shape":"Role"},
+        "triggerConfigurations":{"shape":"TriggerConfigList"},
+        "alarmConfiguration":{"shape":"AlarmConfiguration"},
+        "autoRollbackConfiguration":{"shape":"AutoRollbackConfiguration"}
       }
     },
     "UpdateDeploymentGroupOutput":{

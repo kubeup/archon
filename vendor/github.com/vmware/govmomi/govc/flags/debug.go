@@ -17,14 +17,13 @@ limitations under the License.
 package flags
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/vim25/debug"
 )
@@ -70,7 +69,7 @@ func (flag *DebugFlag) Process(ctx context.Context) error {
 		// Base path for storing debug logs.
 		r := os.Getenv("GOVC_DEBUG_PATH")
 		if r == "" {
-			r = filepath.Join(os.Getenv("HOME"), ".govmomi")
+			r = home
 		}
 		r = filepath.Join(r, "debug")
 

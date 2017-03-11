@@ -24,8 +24,10 @@ import (
 	"net/http"
 )
 
-// Client is the client for the Subscriptions methods of the Subscriptions
-// service.
+// Client is the all resource groups and resources exist within subscriptions.
+// These operation enable you get information about your subscriptions and
+// tenants. A tenant is a dedicated instance of Azure Active Directory (Azure
+// AD) for your organization.
 type Client struct {
 	ManagementClient
 }
@@ -40,9 +42,9 @@ func NewClientWithBaseURI(baseURI string) Client {
 	return Client{NewWithBaseURI(baseURI)}
 }
 
-// Get gets details about particular subscription.
+// Get gets details about a specified subscription.
 //
-// subscriptionID is id of the subscription.
+// subscriptionID is the ID of the target subscription.
 func (client Client) Get(subscriptionID string) (result Subscription, err error) {
 	req, err := client.GetPreparer(subscriptionID)
 	if err != nil {
@@ -100,7 +102,7 @@ func (client Client) GetResponder(resp *http.Response) (result Subscription, err
 	return
 }
 
-// List gets a list of the subscriptionIds.
+// List gets all subscriptions for a tenant.
 func (client Client) List() (result SubscriptionListResult, err error) {
 	req, err := client.ListPreparer()
 	if err != nil {
@@ -158,7 +160,7 @@ func (client Client) ListResponder(resp *http.Response) (result SubscriptionList
 func (client Client) ListNextResults(lastResults SubscriptionListResult) (result SubscriptionListResult, err error) {
 	req, err := lastResults.SubscriptionListResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "subscriptions.Client", "List", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "subscriptions.Client", "List", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -167,20 +169,22 @@ func (client Client) ListNextResults(lastResults SubscriptionListResult) (result
 	resp, err := client.ListSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "subscriptions.Client", "List", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "subscriptions.Client", "List", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "subscriptions.Client", "List", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "subscriptions.Client", "List", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListLocations gets a list of the subscription locations.
+// ListLocations this operation provides all the locations that are available
+// for resource providers; however, each resource provider may support a
+// subset of this list.
 //
-// subscriptionID is id of the subscription
+// subscriptionID is the ID of the target subscription.
 func (client Client) ListLocations(subscriptionID string) (result LocationListResult, err error) {
 	req, err := client.ListLocationsPreparer(subscriptionID)
 	if err != nil {

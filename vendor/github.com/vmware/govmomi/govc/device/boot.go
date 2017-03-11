@@ -17,13 +17,13 @@ limitations under the License.
 package device
 
 import (
+	"context"
 	"flag"
 	"strings"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type boot struct {
@@ -52,6 +52,13 @@ func (cmd *boot) Register(ctx context.Context, f *flag.FlagSet) {
 	f.BoolVar(cmd.EnterBIOSSetup, "setup", false, "If true, enter BIOS setup on next boot")
 }
 
+func (cmd *boot) Description() string {
+	return `Configure VM boot settings.
+
+Examples:
+  govc device.boot -vm $vm -delay 1000 -order floppy,cdrom,ethernet,disk`
+}
+
 func (cmd *boot) Process(ctx context.Context) error {
 	if err := cmd.VirtualMachineFlag.Process(ctx); err != nil {
 		return err
@@ -69,7 +76,7 @@ func (cmd *boot) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -79,5 +86,5 @@ func (cmd *boot) Run(ctx context.Context, f *flag.FlagSet) error {
 		cmd.BootOrder = devices.BootOrder(o)
 	}
 
-	return vm.SetBootOptions(context.TODO(), &cmd.VirtualMachineBootOptions)
+	return vm.SetBootOptions(ctx, &cmd.VirtualMachineBootOptions)
 }

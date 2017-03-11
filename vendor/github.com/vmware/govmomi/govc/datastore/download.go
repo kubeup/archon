@@ -17,10 +17,12 @@ limitations under the License.
 package datastore
 
 import (
+	"context"
 	"errors"
 	"flag"
-
-	"golang.org/x/net/context"
+	"fmt"
+	"io"
+	"os"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -29,6 +31,7 @@ import (
 
 type download struct {
 	*flags.DatastoreFlag
+	*flags.HostSystemFlag
 }
 
 func init() {
@@ -38,17 +41,33 @@ func init() {
 func (cmd *download) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.DatastoreFlag, ctx = flags.NewDatastoreFlag(ctx)
 	cmd.DatastoreFlag.Register(ctx, f)
+
+	cmd.HostSystemFlag, ctx = flags.NewHostSystemFlag(ctx)
+	cmd.HostSystemFlag.Register(ctx, f)
 }
 
 func (cmd *download) Process(ctx context.Context) error {
 	if err := cmd.DatastoreFlag.Process(ctx); err != nil {
 		return err
 	}
+	if err := cmd.HostSystemFlag.Process(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
 func (cmd *download) Usage() string {
-	return "REMOTE LOCAL"
+	return "SOURCE DEST"
+}
+
+func (cmd *download) Description() string {
+	return `Copy SOURCE from DS to DEST on the local system.
+
+If DEST name is "-", source is written to stdout.
+
+Examples:
+  govc datastore.download vm-name/vmware.log ./local.log
+  govc datastore.download vm-name/vmware.log - | grep -i error`
 }
 
 func (cmd *download) Run(ctx context.Context, f *flag.FlagSet) error {
@@ -62,12 +81,37 @@ func (cmd *download) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
+	h, err := cmd.HostSystemIfSpecified()
+	if err != nil {
+		return err
+	}
+
+	var via string
+
+	if h != nil {
+		via = fmt.Sprintf(" via %s", h.InventoryPath)
+		ctx = ds.HostContext(ctx, h)
+	}
+
 	p := soap.DefaultDownload
-	if cmd.OutputFlag.TTY {
-		logger := cmd.ProgressLogger("Downloading... ")
+
+	src := args[0]
+	dst := args[1]
+
+	if dst == "-" {
+		f, _, err := ds.Download(ctx, src, &p)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(os.Stdout, f)
+		return err
+	}
+
+	if cmd.DatastoreFlag.OutputFlag.TTY {
+		logger := cmd.DatastoreFlag.ProgressLogger(fmt.Sprintf("Downloading%s... ", via))
 		p.Progress = logger
 		defer logger.Wait()
 	}
 
-	return ds.DownloadFile(context.TODO(), args[0], args[1], &p)
+	return ds.DownloadFile(ctx, src, dst, &p)
 }

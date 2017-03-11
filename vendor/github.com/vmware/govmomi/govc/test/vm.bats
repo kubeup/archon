@@ -3,7 +3,6 @@
 load test_helper
 
 @test "vm.ip" {
-  skip_if_vca
   id=$(new_ttylinux_vm)
 
   run govc vm.power -on $id
@@ -14,10 +13,28 @@ load test_helper
 
   run govc vm.ip -a -v4 $id
   assert_success
+
+  run govc vm.ip -n $(vm_mac $id) $id
+  assert_success
+
+  run govc vm.ip -n ethernet-0 $id
+  assert_success
+
+  ip=$(govc vm.ip $id)
+
+  # add a second nic
+  run govc vm.network.add -vm $id "VM Network"
+  assert_success
+
+  res=$(govc vm.ip -n ethernet-0 $id)
+  assert_equal $ip $res
 }
 
 @test "vm.ip -esxcli" {
-  skip_if_vca
+  ok=$(govc host.esxcli system settings advanced list -o /Net/GuestIPHack | grep ^IntValue: | awk '{print $2}')
+  if [ "$ok" != "1" ] ; then
+    skip "/Net/GuestIPHack=0"
+  fi
   id=$(new_ttylinux_vm)
 
   run govc vm.power -on $id
@@ -67,6 +84,20 @@ load test_helper
   assert_success
   assert_line "guestinfo.a: 1"
   assert_line "guestinfo.b: 2"
+
+  run govc vm.change -sync-time-with-host=false -vm $id
+  assert_success
+
+  run govc vm.info -t $id
+  assert_success
+  assert_line "SyncTimeWithHost: false"
+
+  run govc vm.change -sync-time-with-host=true -vm $id
+  assert_success
+
+  run govc vm.info -t $id
+  assert_success
+  assert_line "SyncTimeWithHost: true"
 
   nid=$(new_id)
   run govc vm.change -name $nid -vm $id
@@ -407,9 +438,31 @@ load test_helper
   assert_success
 }
 
+@test "vm.register" {
+  run govc vm.unregister enoent
+  assert_failure
+
+  vm=$(new_empty_vm)
+
+  run govc vm.change -vm "$vm" -e foo=bar
+  assert_success
+
+  run govc vm.unregister "$vm"
+  assert_success
+
+  run govc vm.change -vm "$vm" -e foo=bar
+  assert_failure
+
+  run govc vm.register "$vm/${vm}.vmx"
+  assert_success
+
+  run govc vm.change -vm "$vm" -e foo=bar
+  assert_success
+}
+
 @test "vm.clone" {
   vcsim_env
-  vm=$(new_ttylinux_vm)
+  vm=$(new_empty_vm)
   clone=$(new_id)
 
   run govc vm.clone -vm $vm $clone
@@ -434,4 +487,105 @@ load test_helper
   assert_success
   assert_line "Memory: 1024MB"
   assert_line "CPU: 2 vCPU(s)"
+}
+
+@test "vm.clone usage" {
+  # validate we require -vm flag
+  run govc vm.clone enoent
+  assert_failure
+}
+
+@test "vm.migrate" {
+  vcsim_env
+  vm=$(new_empty_vm)
+
+  # migrate from H0 to H1
+  run govc vm.migrate -host DC0_C0/DC0_C0_H1 "$vm"
+  assert_success
+
+  # migrate from C0 to C1
+  run govc vm.migrate -pool DC0_C1/Resources "$vm"
+  assert_success
+}
+
+@test "vm.snapshot" {
+  vm=$(new_ttylinux_vm)
+  id=$(new_id)
+
+  # No snapshots == no output
+  run govc snapshot.tree -vm "$vm"
+  assert_success ""
+
+  run govc snapshot.remove -vm "$vm" '*'
+  assert_success
+
+  run govc snapshot.revert -vm "$vm"
+  assert_failure
+
+  run govc snapshot.create -vm "$vm" "$id"
+  assert_success
+
+  run govc snapshot.revert -vm "$vm" enoent
+  assert_failure
+
+  run govc snapshot.revert -vm "$vm"
+  assert_success
+
+  run govc snapshot.remove -vm "$vm" "$id"
+  assert_success
+
+  run govc snapshot.create -vm "$vm" root
+  assert_success
+
+  run govc snapshot.create -vm "$vm" child
+  assert_success
+
+  run govc snapshot.create -vm "$vm" grand
+  assert_success
+
+  run govc snapshot.create -vm "$vm" child
+  assert_success
+
+  result=$(govc snapshot.tree -vm "$vm" -f | grep -c root/child/grand/child)
+  [ "$result" -eq 1 ]
+
+  run govc snapshot.revert -vm "$vm" root
+  assert_success
+
+  run govc snapshot.create -vm "$vm" child
+  assert_success
+
+  # 3 snapshots named "child"
+  result=$(govc snapshot.tree -vm "$vm" | grep -c child)
+  [ "$result" -eq 3 ]
+
+  run govc snapshot.remove -vm "$vm" child
+  assert_failure
+
+  # 2 snapshots with path "root/child"
+  result=$(govc snapshot.tree -vm "$vm" -f | egrep -c 'root/child$')
+  [ "$result" -eq 2 ]
+
+  run govc snapshot.remove -vm "$vm" root/child
+  assert_failure
+
+  # path is unique
+  run govc snapshot.remove -vm "$vm" root/child/grand/child
+  assert_success
+
+  # name is unique
+  run govc snapshot.remove -vm "$vm" grand
+  assert_success
+
+  result=$(govc snapshot.tree -vm "$vm" -f | grep root/child/grand/child | wc -l)
+  [ "$result" -eq 0 ]
+
+  id=$(govc snapshot.tree -vm "$vm" -f -i | egrep 'root/child$' | head -n1 | awk '{print $1}' | tr -d '[]')
+  # moid is unique
+  run govc snapshot.remove -vm "$vm" "$id"
+  assert_success
+
+  # now root/child is unique
+  run govc snapshot.remove -vm "$vm" root/child
+  assert_success
 }

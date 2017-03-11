@@ -17,10 +17,9 @@ limitations under the License.
 package host
 
 import (
+	"context"
 	"flag"
 	"fmt"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -53,7 +52,7 @@ func (cmd *remove) Usage() string {
 }
 
 func (cmd *remove) Description() string {
-	return `Remove hosts from vCenter.`
+	return `Remove HOST from vCenter.`
 }
 
 func (cmd *remove) Remove(ctx context.Context, host *object.HostSystem) error {

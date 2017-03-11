@@ -17,10 +17,9 @@ limitations under the License.
 package maintenancec
 
 import (
+	"context"
 	"flag"
 	"fmt"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -58,10 +57,10 @@ func (cmd *enter) Usage() string {
 }
 
 func (cmd *enter) Description() string {
-	return `Put the hosts in maintenance mode.
+	return `Put HOST in maintenance mode.
 
 While this task is running and when the host is in maintenance mode,
-no virtual machines can be powered on and no provisioning operations can be performed on the host.`
+no VMs can be powered on and no provisioning operations can be performed on the host.`
 }
 
 func (cmd *enter) EnterMaintenanceMode(ctx context.Context, host *object.HostSystem) error {

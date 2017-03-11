@@ -21,6 +21,7 @@ package web
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
@@ -29,9 +30,8 @@ import (
 // HTTP/1.1 protocol specification and each operation returns an
 // x-ms-request-id header that can be used to obtain information about the
 // request. You must make sure that requests made to these resources are
-// secure. For more information, see <a
-// href="https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx">Authenticating
-// Azure Resource Manager requests.</a>
+// secure. For more information, see
+// https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx.
 type ServerFarmsClient struct {
 	ManagementClient
 }
@@ -56,6 +56,18 @@ func NewServerFarmsClientWithBaseURI(baseURI string, subscriptionID string) Serv
 // Plan serverFarmEnvelope is details of App Service Plan allowPendingState
 // is oBSOLETE: If true, allow pending state for App Service Plan
 func (client ServerFarmsClient) CreateOrUpdateServerFarm(resourceGroupName string, name string, serverFarmEnvelope ServerFarmWithRichSku, allowPendingState *bool, cancel <-chan struct{}) (result autorest.Response, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: serverFarmEnvelope,
+			Constraints: []validation.Constraint{{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties", Name: validation.Null, Rule: false,
+				Chain: []validation.Constraint{{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties.Status", Name: validation.ReadOnly, Rule: true, Chain: nil},
+					{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties.Subscription", Name: validation.ReadOnly, Rule: true, Chain: nil},
+					{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties.GeoRegion", Name: validation.ReadOnly, Rule: true, Chain: nil},
+					{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties.NumberOfSites", Name: validation.ReadOnly, Rule: true, Chain: nil},
+					{Target: "serverFarmEnvelope.ServerFarmWithRichSkuProperties.ResourceGroup", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				}}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "web.ServerFarmsClient", "CreateOrUpdateServerFarm")
+	}
+
 	req, err := client.CreateOrUpdateServerFarmPreparer(resourceGroupName, name, serverFarmEnvelope, allowPendingState, cancel)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "CreateOrUpdateServerFarm", nil, "Failure preparing request")
@@ -578,7 +590,7 @@ func (client ServerFarmsClient) GetServerFarmMetricDefintionsResponder(resp *htt
 func (client ServerFarmsClient) GetServerFarmMetricDefintionsNextResults(lastResults MetricDefinitionCollection) (result MetricDefinitionCollection, err error) {
 	req, err := lastResults.MetricDefinitionCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -587,12 +599,12 @@ func (client ServerFarmsClient) GetServerFarmMetricDefintionsNextResults(lastRes
 	resp, err := client.GetServerFarmMetricDefintionsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetServerFarmMetricDefintionsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetricDefintions", resp, "Failure responding to next results request")
 	}
 
 	return
@@ -642,7 +654,7 @@ func (client ServerFarmsClient) GetServerFarmMetricsPreparer(resourceGroupName s
 		queryParameters["details"] = autorest.Encode("query", *details)
 	}
 	if len(filter) > 0 {
-		queryParameters["$filter"] = autorest.Encode("query", filter)
+		queryParameters["$filter"] = filter
 	}
 
 	preparer := autorest.CreatePreparer(
@@ -676,7 +688,7 @@ func (client ServerFarmsClient) GetServerFarmMetricsResponder(resp *http.Respons
 func (client ServerFarmsClient) GetServerFarmMetricsNextResults(lastResults ResourceMetricCollection) (result ResourceMetricCollection, err error) {
 	req, err := lastResults.ResourceMetricCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -685,12 +697,12 @@ func (client ServerFarmsClient) GetServerFarmMetricsNextResults(lastResults Reso
 	resp, err := client.GetServerFarmMetricsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetServerFarmMetricsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmMetrics", resp, "Failure responding to next results request")
 	}
 
 	return
@@ -825,7 +837,7 @@ func (client ServerFarmsClient) GetServerFarmsResponder(resp *http.Response) (re
 func (client ServerFarmsClient) GetServerFarmsNextResults(lastResults ServerFarmCollection) (result ServerFarmCollection, err error) {
 	req, err := lastResults.ServerFarmCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -834,12 +846,12 @@ func (client ServerFarmsClient) GetServerFarmsNextResults(lastResults ServerFarm
 	resp, err := client.GetServerFarmsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetServerFarmsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarms", resp, "Failure responding to next results request")
 	}
 
 	return
@@ -926,7 +938,7 @@ func (client ServerFarmsClient) GetServerFarmSitesResponder(resp *http.Response)
 func (client ServerFarmsClient) GetServerFarmSitesNextResults(lastResults SiteCollection) (result SiteCollection, err error) {
 	req, err := lastResults.SiteCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -935,12 +947,12 @@ func (client ServerFarmsClient) GetServerFarmSitesNextResults(lastResults SiteCo
 	resp, err := client.GetServerFarmSitesSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetServerFarmSitesResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ServerFarmsClient", "GetServerFarmSites", resp, "Failure responding to next results request")
 	}
 
 	return

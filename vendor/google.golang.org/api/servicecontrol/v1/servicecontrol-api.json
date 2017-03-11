@@ -12,7 +12,7 @@
       }
     }
   },
-  "description": "The Service Control API",
+  "description": "Google Service Control provides control plane functionality to managed services, such as logging, monitoring, and status checks.",
   "protocol": "rest",
   "title": "Google Service Control API",
   "resources": {
@@ -26,7 +26,7 @@
           "parameterOrder": [
             "serviceName"
           ],
-          "description": "Checks an operation with Google Service Control to decide whether\nthe given operation should proceed. It should be called before the\noperation is executed.\n\nThis method requires the `servicemanagement.services.check` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
+          "description": "Checks an operation with Google Service Control to decide whether\nthe given operation should proceed. It should be called before the\noperation is executed.\n\nIf feasible, the client should cache the check results and reuse them for\nup to 60s. In case of server errors, the client may rely on the cached\nresults for longer time.\n\nThis method requires the `servicemanagement.services.check` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
           "request": {
             "$ref": "CheckRequest"
           },
@@ -54,7 +54,7 @@
           "parameterOrder": [
             "serviceName"
           ],
-          "description": "Reports operations to Google Service Control. It should be called\nafter the operation is completed.\n\nThis method requires the `servicemanagement.services.report` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
+          "description": "Reports operations to Google Service Control. It should be called\nafter the operation is completed.\n\nIf feasible, the client should aggregate reporting data for up to 5s to\nreduce API traffic. Limiting aggregation to 5s is to reduce data loss\nduring client crashes. Clients should carefully choose the aggregation\nwindow to avoid data loss risk more than 0.01% for business and\ncompliance reasons.\n\nThis method requires the `servicemanagement.services.report` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
           "request": {
             "$ref": "ReportRequest"
           },
@@ -220,14 +220,14 @@
           "type": "object"
         },
         "importance": {
-          "description": "The importance of the data contained in the operation.",
+          "description": "DO NOT USE. This is an experimental field.",
           "enum": [
             "LOW",
             "HIGH"
           ],
           "enumDescriptions": [
-            "The operation doesn't contain significant monetary value or audit\ntrail. The API implementation may cache and aggregate the data.\nThere is no deduplication based on `operation_id`. The data\nmay be lost when rare and unexpected system failures occur.",
-            "The operation contains significant monetary value or audit trail.\nThe API implementation doesn't cache and aggregate the data.\nDeduplication based on `operation_id` is performed for monetary\nvalues. If the method returns successfully, it's guaranteed that\nthe data are persisted in durable storage."
+            "The API implementation may cache and aggregate the data.\nThe data may be lost when rare and unexpected system failures occur.",
+            "The API implementation doesn't cache and aggregate the data.\nIf the method returns successfully, it's guaranteed that the data has\nbeen persisted in durable storage."
           ],
           "type": "string"
         },
@@ -264,6 +264,10 @@
         "operation": {
           "description": "The operation to be checked.",
           "$ref": "Operation"
+        },
+        "serviceConfigId": {
+          "description": "Specifies which version of service configuration should be used to process\nthe request.\n\nIf unspecified or no matching version can be found, the\nlatest one will be used.",
+          "type": "string"
         }
       },
       "id": "CheckRequest"
@@ -305,15 +309,15 @@
             "EMERGENCY"
           ],
           "enumDescriptions": [
-            "The log entry has no assigned severity level.",
-            "Debug or trace information.",
-            "Routine information, such as ongoing status or performance.",
-            "Normal but significant events, such as start up, shut down, or\nconfiguration.",
-            "Warning events might cause problems.",
-            "Error events are likely to cause problems.",
-            "Critical events cause more severe problems or brief outages.",
-            "A person must take an action immediately.",
-            "One or more systems are unusable."
+            "(0) The log entry has no assigned severity level.",
+            "(100) Debug or trace information.",
+            "(200) Routine information, such as ongoing status or performance.",
+            "(300) Normal but significant events, such as start up, shut down, or\na configuration change.",
+            "(400) Warning events might cause problems.",
+            "(500) Error events are likely to cause problems.",
+            "(600) Critical events cause more severe problems or outages.",
+            "(700) A person must take an action immediately.",
+            "(800) One or more systems are unusable."
           ],
           "type": "string"
         },
@@ -351,6 +355,10 @@
           "items": {
             "$ref": "Operation"
           }
+        },
+        "serviceConfigId": {
+          "description": "Specifies which version of service config should be used to process the\nrequest.\n\nIf unspecified or no matching version can be found, the\nlatest one will be used.",
+          "type": "string"
         }
       },
       "id": "ReportRequest"
@@ -409,6 +417,10 @@
         "operationId": {
           "description": "The same operation_id value used in the CheckRequest.\nUsed for logging and diagnostics purposes.",
           "type": "string"
+        },
+        "serviceConfigId": {
+          "description": "The actual config id used to process the request.",
+          "type": "string"
         }
       },
       "id": "CheckResponse"
@@ -418,11 +430,15 @@
       "type": "object",
       "properties": {
         "reportErrors": {
-          "description": "Partial failures, one for each `Operation` in the request that failed\nprocessing. There are three possible combinations of the RPC status:\n\n1. The combination of a successful RPC status and an empty `report_errors`\n   list indicates a complete success where all `Operations` in the\n   request are processed successfully.\n2. The combination of a successful RPC status and a non-empty\n   `report_errors` list indicates a partial success where some\n   `Operations` in the request succeeded. Each\n   `Operation` that failed processing has a corresponding item\n   in this list.\n3. A failed RPC status indicates a complete failure where none of the\n   `Operations` in the request succeeded.",
+          "description": "Partial failures, one for each `Operation` in the request that failed\nprocessing. There are three possible combinations of the RPC status:\n\n1. The combination of a successful RPC status and an empty `report_errors`\n   list indicates a complete success where all `Operations` in the\n   request are processed successfully.\n2. The combination of a successful RPC status and a non-empty\n   `report_errors` list indicates a partial success where some\n   `Operations` in the request succeeded. Each\n   `Operation` that failed processing has a corresponding item\n   in this list.\n3. A failed RPC status indicates a general non-deterministic failure.\n   When this happens, it's impossible to know which of the\n   'Operations' in the request succeeded or failed.",
           "type": "array",
           "items": {
             "$ref": "ReportError"
           }
+        },
+        "serviceConfigId": {
+          "description": "The actual config id used to process the request.",
+          "type": "string"
         }
       },
       "id": "ReportResponse"
@@ -541,7 +557,7 @@
       "id": "MetricValue"
     }
   },
-  "revision": "20160801",
+  "revision": "20161107",
   "basePath": "",
   "icons": {
     "x32": "http://www.google.com/images/icons/product/search-32.gif",

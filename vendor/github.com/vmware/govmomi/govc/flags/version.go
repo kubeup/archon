@@ -21,6 +21,8 @@ import (
 	"strings"
 )
 
+const Version = "0.12.1"
+
 type version []int
 
 func ParseVersion(s string) (version, error) {
