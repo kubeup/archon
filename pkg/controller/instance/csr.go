@@ -14,7 +14,8 @@ limitations under the License.
 package instance
 
 import (
-	"k8s.io/kubernetes/pkg/api"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/controller/certificate"
@@ -57,10 +58,10 @@ func (ci *CSRInitializer) Initialize(obj initializer.Object) (updatedObj initial
 		return
 	}
 
-	var secret *api.Secret
+	var secret *v1.Secret
 	notReady := 0
 	for _, n := range instance.Spec.Secrets {
-		secret, err = ci.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
+		secret, err = ci.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name, metav1.GetOptions{})
 		if err != nil {
 			err = fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err)
 			return

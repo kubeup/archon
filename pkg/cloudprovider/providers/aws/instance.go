@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/userdata"
 	"kubeup.com/archon/pkg/util"
@@ -73,7 +73,7 @@ func instanceToStatus(i *ec2.Instance) *cluster.InstanceStatus {
 		PrivateIP:         destring(i.PrivateIpAddress),
 		PublicIP:          destring(i.PublicIpAddress),
 		InstanceID:        destring(i.InstanceId),
-		CreationTimestamp: unversioned.NewTime(detime(i.LaunchTime)),
+		CreationTimestamp: metav1.NewTime(detime(i.LaunchTime)),
 	}
 }
 

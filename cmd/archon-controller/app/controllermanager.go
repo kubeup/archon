@@ -42,19 +42,20 @@ import (
 	"kubeup.com/archon/pkg/controller/network"
 	"kubeup.com/archon/pkg/kuberunner"
 
+	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	//clientset "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
 	"k8s.io/kubernetes/pkg/client/leaderelection/resourcelock"
-	"k8s.io/kubernetes/pkg/client/record"
-	"k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 	//"k8s.io/kubernetes/pkg/controller/informers"
-	"k8s.io/kubernetes/pkg/healthz"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/kubernetes/pkg/util/configz"
-	"k8s.io/kubernetes/pkg/util/wait"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -161,8 +162,8 @@ func Run(s *options.CMServer) error {
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&unversionedcore.EventSinkImpl{Interface: kubeClient.Core().Events("")})
-	recorder := eventBroadcaster.NewRecorder(api.EventSource{Component: "archon-controller"})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.Core().RESTClient()).Events("")})
+	recorder := eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "archon-controller"})
 
 	run := func(stop <-chan struct{}) {
 		err := StartControllers(s, kubeClient, kubeconfig, stop, recorder)
@@ -182,7 +183,7 @@ func Run(s *options.CMServer) error {
 
 	// TODO: enable other lock types
 	rl := resourcelock.EndpointsLock{
-		EndpointsMeta: api.ObjectMeta{
+		EndpointsMeta: metav1.ObjectMeta{
 			Namespace: "kube-system",
 			Name:      s.ControllerName,
 		},
@@ -250,23 +251,4 @@ func StartControllers(s *options.CMServer, kubeClient archonclientset.Interface,
 	//sharedInformers.Start(stop)
 
 	select {}
-}
-
-func containsVersion(versions *unversioned.APIVersions, version string) bool {
-	for ix := range versions.Versions {
-		if versions.Versions[ix] == version {
-			return true
-		}
-	}
-	return false
-}
-
-func containsResource(resources *unversioned.APIResourceList, resourceName string) bool {
-	for ix := range resources.APIResources {
-		resource := resources.APIResources[ix]
-		if resource.Name == resourceName {
-			return true
-		}
-	}
-	return false
 }

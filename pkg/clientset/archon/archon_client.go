@@ -14,9 +14,9 @@ limitations under the License.
 package archon
 
 import (
-	"k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/runtime"
-	"k8s.io/kubernetes/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/runtime"
+	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
+	restclient "k8s.io/client-go/rest"
 )
 
 type ArchonInterface interface {

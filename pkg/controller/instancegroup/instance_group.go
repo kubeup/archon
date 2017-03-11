@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	archoncache "kubeup.com/archon/pkg/cache"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/clientset/archon"
@@ -29,21 +31,21 @@ import (
 	archoncontroller "kubeup.com/archon/pkg/controller"
 
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	pkg_runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	watch "k8s.io/apimachinery/pkg/watch"
+	clientv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/client/cache"
-	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
-	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/labels"
-	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
-	utilerrors "k8s.io/kubernetes/pkg/util/errors"
 	"k8s.io/kubernetes/pkg/util/metrics"
-	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/util/workqueue"
-	"k8s.io/kubernetes/pkg/watch"
 )
 
 const (
@@ -61,7 +63,7 @@ const (
 	statusUpdateRetries = 1
 )
 
-func getIGKind() unversioned.GroupVersionKind {
+func getIGKind() schema.GroupVersionKind {
 	return archon.SchemeGroupVersion.WithKind("InstanceGroup")
 }
 
@@ -83,8 +85,8 @@ type InstanceGroupController struct {
 
 	instanceStore           archoncache.StoreToInstanceLister
 	instanceGroupStore      archoncache.StoreToInstanceGroupLister
-	instanceController      *cache.Controller
-	instanceGroupController *cache.Controller
+	instanceController      cache.Controller
+	instanceGroupController cache.Controller
 
 	lookupCache *controller.MatchingCache
 
@@ -103,13 +105,13 @@ func NewInstanceGroupController(kubeClient clientset.Interface, namespace string
 	}
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&unversionedcore.EventSinkImpl{Interface: kubeClient.Core().Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.Core().RESTClient()).Events("")})
 
 	rsc := &InstanceGroupController{
 		kubeClient: kubeClient,
 		instanceControl: archoncontroller.RealInstanceControl{
 			KubeClient: kubeClient,
-			Recorder:   eventBroadcaster.NewRecorder(api.EventSource{Component: "instance-group-controller"}),
+			Recorder:   eventBroadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "instance-group-controller"}),
 		},
 		namespace:     namespace,
 		burstReplicas: burstReplicas,
@@ -120,10 +122,10 @@ func NewInstanceGroupController(kubeClient clientset.Interface, namespace string
 
 	rsc.instanceStore.Indexer, rsc.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
 				return rsc.kubeClient.Archon().Instances(namespace).List(options)
 			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				return rsc.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},
@@ -139,10 +141,10 @@ func NewInstanceGroupController(kubeClient clientset.Interface, namespace string
 
 	rsc.instanceGroupStore.Indexer, rsc.instanceGroupController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
 				return rsc.kubeClient.Archon().InstanceGroups(namespace).List(options)
 			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				return rsc.kubeClient.Archon().InstanceGroups(namespace).Watch(options)
 			},
 		},
@@ -285,7 +287,7 @@ func isInstanceGroupMatch(instance *cluster.Instance, ig *cluster.InstanceGroup)
 	if ig.Namespace != instance.Namespace {
 		return false
 	}
-	selector, err := unversioned.LabelSelectorAsSelector(ig.Spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(ig.Spec.Selector)
 	if err != nil {
 		err = fmt.Errorf("invalid selector: %v", err)
 		return false
@@ -472,7 +474,7 @@ func (rsc *InstanceGroupController) manageReplicas(filteredInstances []*cluster.
 
 				if rsc.garbageCollectorEnabled {
 					var trueVar = true
-					controllerRef := &api.OwnerReference{
+					controllerRef := &metav1.OwnerReference{
 						APIVersion: getIGKind().GroupVersion().String(),
 						Kind:       getIGKind().Kind,
 						Name:       ig.Name,
@@ -574,7 +576,7 @@ func (rsc *InstanceGroupController) syncInstanceGroup(key string) error {
 		return nil
 	}
 	igNeedsSync := rsc.expectations.SatisfiedExpectations(key)
-	selector, err := unversioned.LabelSelectorAsSelector(ig.Spec.Selector)
+	selector, err := metav1.LabelSelectorAsSelector(ig.Spec.Selector)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("Error converting instance selector to selector: %v", err))
 		return nil

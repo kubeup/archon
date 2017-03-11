@@ -3,13 +3,16 @@ package controller
 import (
 	"fmt"
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/api/validation"
-	"k8s.io/kubernetes/pkg/client/record"
-	"k8s.io/kubernetes/pkg/labels"
-	"k8s.io/kubernetes/pkg/runtime"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/initializer"
@@ -80,7 +83,7 @@ func (s ActiveInstances) Less(i, j int) bool {
 
 // afterOrZero checks if time t1 is after time t2; if one of them
 // is zero, the zero time is seen as after non-zero time.
-func afterOrZero(t1, t2 unversioned.Time) bool {
+func afterOrZero(t1, t2 metav1.Time) bool {
 	if t1.Time.IsZero() || t2.Time.IsZero() {
 		return t1.Time.IsZero()
 	}
@@ -95,7 +98,7 @@ type InstanceControlInterface interface {
 	// CreateInstancesOnNode creates a new instance according to the spec on the specified node.
 	CreateInstancesOnNode(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object) error
 	// CreateInstancesWithControllerRef creates new instances according to the spec, and sets object as the instance's controller.
-	CreateInstancesWithControllerRef(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) error
+	CreateInstancesWithControllerRef(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error
 	// DeleteInstance deletes the instance identified by instanceID.
 	DeleteInstance(namespace string, instanceID string, object runtime.Object) error
 	// PatchInstance patches the instance.
@@ -129,7 +132,7 @@ func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object ru
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
 	}
-	createdByRef, err := api.GetReference(object)
+	createdByRef, err := v1.GetReference(api.Scheme, object)
 	if err != nil {
 		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
 	}
@@ -137,15 +140,15 @@ func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object ru
 	// TODO: this code was not safe previously - as soon as new code came along that switched to v2, old clients
 	//   would be broken upon reading it. This is explicitly hardcoded to v1 to guarantee predictable deployment.
 	//   We need to consistently handle this case of annotation versioning.
-	codec := api.Codecs.LegacyCodec(unversioned.GroupVersion{Group: api.GroupName, Version: "v1"})
+	codec := api.Codecs.LegacyCodec(schema.GroupVersion{Group: v1.GroupName, Version: "v1"})
 
-	createdByRefJson, err := runtime.Encode(codec, &api.SerializedReference{
+	createdByRefJson, err := runtime.Encode(codec, &v1.SerializedReference{
 		Reference: *createdByRef,
 	})
 	if err != nil {
 		return desiredAnnotations, fmt.Errorf("unable to serialize controller reference: %v", err)
 	}
-	desiredAnnotations[api.CreatedByAnnotation] = string(createdByRefJson)
+	desiredAnnotations[v1.CreatedByAnnotation] = string(createdByRefJson)
 	return desiredAnnotations, nil
 }
 
@@ -171,7 +174,7 @@ func (r RealInstanceControl) CreateInstances(namespace string, template *cluster
 	return r.createInstances("", namespace, template, object, nil)
 }
 
-func (r RealInstanceControl) CreateInstancesWithControllerRef(namespace string, template *cluster.InstanceTemplateSpec, controllerObject runtime.Object, controllerRef *api.OwnerReference) error {
+func (r RealInstanceControl) CreateInstancesWithControllerRef(namespace string, template *cluster.InstanceTemplateSpec, controllerObject runtime.Object, controllerRef *metav1.OwnerReference) error {
 	if controllerRef == nil {
 		return fmt.Errorf("controllerRef is nil")
 	}
@@ -192,11 +195,11 @@ func (r RealInstanceControl) CreateInstancesOnNode(nodeName, namespace string, t
 }
 
 func (r RealInstanceControl) PatchInstance(namespace, name string, data []byte) error {
-	_, err := r.KubeClient.Archon().Instances(namespace).Patch(name, api.StrategicMergePatchType, data)
+	_, err := r.KubeClient.Archon().Instances(namespace).Patch(name, types.StrategicMergePatchType, data)
 	return err
 }
 
-func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *api.OwnerReference) (*cluster.Instance, error) {
+func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) (*cluster.Instance, error) {
 	desiredLabels := getInstancesLabelSet(template)
 	desiredFinalizers := getInstancesFinalizers(template)
 	desiredAnnotations, err := getInstancesAnnotationSet(template, parentObject)
@@ -210,11 +213,11 @@ func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObjec
 	prefix := getInstancesPrefix(accessor.GetName())
 
 	instance := &cluster.Instance{
-		TypeMeta: unversioned.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: "archon.kubeup.com/v1",
 			Kind:       "Instance",
 		},
-		ObjectMeta: api.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Labels:       desiredLabels,
 			Annotations:  desiredAnnotations,
 			GenerateName: prefix,
@@ -230,8 +233,8 @@ func GetInstanceFromTemplate(template *cluster.InstanceTemplateSpec, parentObjec
 	return instance, nil
 }
 
-func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *api.OwnerReference) ([]api.Secret, error) {
-	secrets := make([]api.Secret, 0)
+func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject runtime.Object, controllerRef *metav1.OwnerReference) ([]v1.Secret, error) {
+	secrets := make([]v1.Secret, 0)
 	for _, secret := range template.Secrets {
 		accessor, err := meta.Accessor(parentObject)
 		if err != nil {
@@ -267,12 +270,12 @@ func GetSecretsFromTemplate(template *cluster.InstanceTemplateSpec, parentObject
 	return secrets, nil
 }
 
-func (r RealInstanceControl) createSecrets(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) ([]*api.Secret, error) {
+func (r RealInstanceControl) createSecrets(namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) ([]*v1.Secret, error) {
 	secretTemplates, err := GetSecretsFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return nil, err
 	}
-	secrets := make([]*api.Secret, 0)
+	secrets := make([]*v1.Secret, 0)
 	for _, secret := range secretTemplates {
 		if newSecret, err := r.KubeClient.Core().Secrets(namespace).Create(&secret); err != nil {
 			r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
@@ -291,7 +294,7 @@ func (r RealInstanceControl) createSecrets(namespace string, template *cluster.I
 	return secrets, nil
 }
 
-func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *api.OwnerReference) error {
+func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
 	instance, err := GetInstanceFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err

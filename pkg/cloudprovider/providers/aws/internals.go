@@ -30,7 +30,6 @@ import (
 	"gopkg.in/gcfg.v1"
 	"io"
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/aws"
-	aws_credentials "k8s.io/kubernetes/pkg/credentialprovider/aws"
 	"os"
 	"sync"
 	"time"
@@ -204,7 +203,7 @@ func getAvailabilityZone(metadata EC2Metadata) (string, error) {
 }
 
 func isRegionValid(region string) bool {
-	for _, r := range aws_credentials.AWSRegions {
+	for _, r := range aws.WellKnownRegions {
 		if r == region {
 			return true
 		}

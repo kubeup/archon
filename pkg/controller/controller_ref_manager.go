@@ -23,26 +23,26 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 
 	"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type InstanceControllerRefManager struct {
 	instanceControl    InstanceControlInterface
-	controllerObject   api.ObjectMeta
+	controllerObject   metav1.ObjectMeta
 	controllerSelector labels.Selector
-	controllerKind     unversioned.GroupVersionKind
+	controllerKind     schema.GroupVersionKind
 }
 
 // NewInstanceControllerRefManager returns a InstanceControllerRefManager that exposes
 // methods to manage the controllerRef of instances.
 func NewInstanceControllerRefManager(
 	instanceControl InstanceControlInterface,
-	controllerObject api.ObjectMeta,
+	controllerObject metav1.ObjectMeta,
 	controllerSelector labels.Selector,
-	controllerKind unversioned.GroupVersionKind,
+	controllerKind schema.GroupVersionKind,
 ) *InstanceControllerRefManager {
 	return &InstanceControllerRefManager{instanceControl, controllerObject, controllerSelector, controllerKind}
 }
@@ -93,7 +93,7 @@ func (m *InstanceControllerRefManager) Classify(instances []*cluster.Instance) (
 
 // getControllerOf returns the controllerRef if controllee has a controller,
 // otherwise returns nil.
-func getControllerOf(controllee api.ObjectMeta) *api.OwnerReference {
+func getControllerOf(controllee metav1.ObjectMeta) *metav1.OwnerReference {
 	for _, owner := range controllee.OwnerReferences {
 		// controlled by other controller
 		if owner.Controller != nil && *owner.Controller == true {

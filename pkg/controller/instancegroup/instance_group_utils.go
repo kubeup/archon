@@ -21,9 +21,9 @@ import (
 
 	"github.com/golang/glog"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/labels"
 	"kubeup.com/archon/pkg/clientset/archon"
 	"kubeup.com/archon/pkg/cluster"
 )
@@ -109,7 +109,7 @@ func calculateStatus(ig cluster.InstanceGroup, filteredInstances []*cluster.Inst
 		}
 		if cluster.IsInstanceReady(instance) {
 			readyReplicasCount++
-			if cluster.IsInstanceAvailable(instance, ig.Spec.MinReadySeconds, unversioned.Now()) {
+			if cluster.IsInstanceAvailable(instance, ig.Spec.MinReadySeconds, metav1.Now()) {
 				availableReplicasCount++
 			}
 		}
@@ -141,7 +141,7 @@ func NewInstanceGroupCondition(condType cluster.InstanceGroupConditionType, stat
 	return cluster.InstanceGroupCondition{
 		Type:               condType,
 		Status:             status,
-		LastTransitionTime: unversioned.Now(),
+		LastTransitionTime: metav1.Now(),
 		Reason:             reason,
 		Message:            msg,
 	}

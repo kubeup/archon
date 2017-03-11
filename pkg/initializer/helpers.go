@@ -1,7 +1,7 @@
 package initializer
 
 import (
-	"k8s.io/kubernetes/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 func AddInitializer(dst Object, additions ...string) {

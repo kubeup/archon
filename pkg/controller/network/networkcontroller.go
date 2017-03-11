@@ -27,18 +27,20 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	pkg_runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	watch "k8s.io/apimachinery/pkg/watch"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	clientv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/client/cache"
-	unversioned_core "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
-	"k8s.io/kubernetes/pkg/client/record"
 	"k8s.io/kubernetes/pkg/controller"
-	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/metrics"
-	"k8s.io/kubernetes/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/util/workqueue"
-	"k8s.io/kubernetes/pkg/watch"
 	"kubeup.com/archon/pkg/util"
 )
 
@@ -81,7 +83,7 @@ type NetworkController struct {
 	// A store of networks, populated by the networkController
 	networkStore cache.Indexer
 	// Watches changes to all networks
-	networkController *cache.Controller
+	networkController cache.Controller
 	eventBroadcaster  record.EventBroadcaster
 	eventRecorder     record.EventRecorder
 	// networks that need to be synced
@@ -94,8 +96,8 @@ type NetworkController struct {
 // perform the opposite sync? is network subject to change after creation?
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName string, namespace string) (*NetworkController, error) {
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
-	recorder := broadcaster.NewRecorder(api.EventSource{Component: "network-controller"})
+	broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.Core().RESTClient()).Events("")})
+	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "network-controller"})
 
 	if kubeClient != nil && kubeClient.Core().RESTClient().GetRateLimiter() != nil {
 		metrics.RegisterMetricAndTrackRateLimiterUsage("network_controller", kubeClient.Core().RESTClient().GetRateLimiter())
@@ -113,10 +115,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	}
 	s.networkStore, s.networkController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
 				return s.kubeClient.Archon().Networks(namespace).List()
 			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				return s.kubeClient.Archon().Networks(namespace).Watch()
 			},
 		},

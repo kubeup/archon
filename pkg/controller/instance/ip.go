@@ -22,7 +22,7 @@ import (
 	"kubeup.com/archon/pkg/util"
 
 	"fmt"
-	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 )
 

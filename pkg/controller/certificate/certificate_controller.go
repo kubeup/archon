@@ -21,16 +21,18 @@ import (
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/client/cache"
-	unversionedcore "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
-	"k8s.io/kubernetes/pkg/client/record"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	watch "k8s.io/apimachinery/pkg/watch"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
+	//	clientv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/controller"
-	"k8s.io/kubernetes/pkg/runtime"
-	utilruntime "k8s.io/kubernetes/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/util/workqueue"
-	"k8s.io/kubernetes/pkg/watch"
 
 	"github.com/golang/glog"
 )
@@ -41,7 +43,7 @@ type CertificateController struct {
 	certificateControl CertificateControlInterface
 
 	// CSR framework and store
-	csrController *cache.Controller
+	csrController cache.Controller
 	csrStore      archoncache.StoreToSecretLister
 
 	syncHandler func(csrKey string) error
@@ -53,7 +55,7 @@ func New(kubeClient clientset.Interface, syncPeriod time.Duration, caCertFile, c
 	// Send events to the apiserver
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
-	eventBroadcaster.StartRecordingToSink(&unversionedcore.EventSinkImpl{Interface: kubeClient.Core().Events("")})
+	eventBroadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.Core().RESTClient()).Events("")})
 
 	certControl, err := NewCertificateControl(caCertFile, caKeyFile)
 	if err != nil {
@@ -70,18 +72,18 @@ func New(kubeClient clientset.Interface, syncPeriod time.Duration, caCertFile, c
 	// Manage the addition/update of certificate requests
 	cc.csrStore.Indexer, cc.csrController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				return cc.kubeClient.Core().Secrets(namespace).List(options)
 			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				return cc.kubeClient.Core().Secrets(namespace).Watch(options)
 			},
 		},
-		&api.Secret{},
+		&v1.Secret{},
 		syncPeriod,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				csr := obj.(*api.Secret)
+				csr := obj.(*v1.Secret)
 				glog.V(4).Infof("Adding certificate request %s", csr.Name)
 				cc.enqueueCertificateRequest(obj)
 			},
@@ -89,14 +91,14 @@ func New(kubeClient clientset.Interface, syncPeriod time.Duration, caCertFile, c
 				cc.enqueueCertificateRequest(new)
 			},
 			DeleteFunc: func(obj interface{}) {
-				csr, ok := obj.(*api.Secret)
+				csr, ok := obj.(*v1.Secret)
 				if !ok {
 					tombstone, ok := obj.(cache.DeletedFinalStateUnknown)
 					if !ok {
 						glog.V(2).Infof("Couldn't get object from tombstone %#v", obj)
 						return
 					}
-					csr, ok = tombstone.Obj.(*api.Secret)
+					csr, ok = tombstone.Obj.(*v1.Secret)
 					if !ok {
 						glog.V(2).Infof("Tombstone contained object that is not a CSR: %#v", obj)
 						return
@@ -153,7 +155,7 @@ func (cc *CertificateController) processNextWorkItem() bool {
 }
 
 func (cc *CertificateController) enqueueCertificateRequest(obj interface{}) {
-	csr := obj.(*api.Secret)
+	csr := obj.(*v1.Secret)
 	if csr.Annotations[ResourceStatusKey] == "Approved" {
 		if csr.Annotations[ResourceTypeKey] == "csr" || csr.Annotations[ResourceTypeKey] == "ca" {
 			key, err := controller.KeyFunc(obj)
@@ -183,13 +185,13 @@ func (cc *CertificateController) maybeSignCertificate(key string) error {
 		glog.V(3).Infof("csr has been deleted: %v", key)
 		return nil
 	}
-	secret := obj.(*api.Secret)
+	secret := obj.(*v1.Secret)
 
 	switch secret.Annotations[ResourceTypeKey] {
 	case "csr":
 		certControl := cc.certificateControl
 		if caName := secret.Annotations[ResourceCAKey]; caName != "" {
-			caSecret, err := cc.kubeClient.Core().Secrets(cc.namespace).Get(caName)
+			caSecret, err := cc.kubeClient.Core().Secrets(cc.namespace).Get(caName, metav1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("Failed to get ca certificate %s: %v", secret.Name, err)
 			}

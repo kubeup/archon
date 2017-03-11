@@ -24,10 +24,10 @@ import (
 	"net"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
 	"k8s.io/kubernetes/pkg/client/leaderelection"
-	"k8s.io/kubernetes/pkg/util/config"
 
 	"github.com/spf13/pflag"
 )
@@ -36,7 +36,7 @@ import (
 const ArchonControllerName = "archon-controller"
 
 type ArchonControllerManagerConfiguration struct {
-	unversioned.TypeMeta
+	metav1.TypeMeta
 
 	// port is the port that the controller-manager's http service runs on.
 	Port int32 `json:"port"`
@@ -48,8 +48,8 @@ type ArchonControllerManagerConfiguration struct {
 	CloudConfigFile string `json:"cloudConfigFile"`
 	// minResyncPeriod is the resync period in reflectors; will be random between
 	// minResyncPeriod and 2*minResyncPeriod.
-	MinResyncPeriod        unversioned.Duration `json:"minResyncPeriod"`
-	ClusterSigningCertFile string               `json:"clusterSigningCertFile"`
+	MinResyncPeriod        metav1.Duration `json:"minResyncPeriod"`
+	ClusterSigningCertFile string          `json:"clusterSigningCertFile"`
 	// clusterSigningCertFile is the filename containing a PEM-encoded
 	// RSA or ECDSA private key used to issue cluster-scoped certificates
 	ClusterSigningKeyFile string `json:"clusterSigningKeyFile"`
@@ -66,7 +66,7 @@ type ArchonControllerManagerConfiguration struct {
 	// kubeAPIBurst is the burst to use while talking with kubernetes apiserver.
 	KubeAPIBurst int32 `json:"kubeAPIBurst"`
 	// How long to wait between starting controller managers
-	ControllerStartInterval unversioned.Duration `json:"controllerStartInterval"`
+	ControllerStartInterval metav1.Duration `json:"controllerStartInterval"`
 	// enables the generic garbage collector. MUST be synced with the
 	// corresponding flag of the kube-apiserver. WARNING: the generic garbage
 	// collector is an alpha feature.
@@ -99,13 +99,13 @@ func NewCMServer() *CMServer {
 		ArchonControllerManagerConfiguration: ArchonControllerManagerConfiguration{
 			Port:                     12312,
 			Address:                  "0.0.0.0",
-			MinResyncPeriod:          unversioned.Duration{Duration: 12 * time.Hour},
+			MinResyncPeriod:          metav1.Duration{Duration: 12 * time.Hour},
 			ClusterName:              "kubernetes",
 			ContentType:              "application/vnd.kubernetes.protobuf",
 			KubeAPIQPS:               20.0,
 			KubeAPIBurst:             30,
 			LeaderElection:           leaderelection.DefaultLeaderElectionConfiguration(),
-			ControllerStartInterval:  unversioned.Duration{Duration: 0 * time.Second},
+			ControllerStartInterval:  metav1.Duration{Duration: 0 * time.Second},
 			EnableGarbageCollector:   true,
 			ClusterSigningCertFile:   "/etc/kubernetes/ca/ca.pem",
 			ClusterSigningKeyFile:    "/etc/kubernetes/ca/ca.key",
@@ -153,5 +153,5 @@ func (s *CMServer) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&s.TestRun, "test-run", s.TestRun, "Test if the binary is working correctly")
 
 	leaderelection.BindFlags(&s.LeaderElection, fs)
-	config.DefaultFeatureGate.AddFlag(fs)
+	utilfeature.DefaultFeatureGate.AddFlag(fs)
 }
