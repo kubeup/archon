@@ -27,8 +27,8 @@ import (
 )
 
 var (
-	PublicIPToken  = "public-ip"
-	PrivateIPToken = "private-ip"
+	PublicIPToken  = cluster.AnnotationPrefix + "public-ip"
+	PrivateIPToken = cluster.AnnotationPrefix + "private-ip"
 )
 
 type IPInitializer struct {

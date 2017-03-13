@@ -12,7 +12,7 @@ spec:
       labels:
         app: k8s-aliyun
       annotations:
-        initializers: public-ip,private-ip
+        initializers: archon.kubeup.com/public-ip,archon.kubeup.com/private-ip
     spec:
       networkName: k8s-net
       instanceType: ecs.n1.tiny
@@ -318,7 +318,7 @@ spec:
       configs:
       - name: k8s
         data:
-          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.5.1
+          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
           kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun

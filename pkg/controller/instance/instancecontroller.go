@@ -675,6 +675,7 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 
 	// Instance
+	//	glog.Infof("deleting instance %v", instance)
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletingInstance", "Deleting instance")
 	err = s.archon.EnsureInstanceDeleted(s.clusterName, instance)
 	if err != nil {

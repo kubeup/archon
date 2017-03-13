@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	CSRToken = "csr"
+	CSRToken = cluster.AnnotationPrefix + "csr"
 )
 
 type CSRInitializer struct {

@@ -34,6 +34,10 @@ const (
 	SuccessfulDeleteInstanceReason = "SuccessfulDelete"
 )
 
+var (
+	CSRToken = cluster.AnnotationPrefix + "csr"
+)
+
 func InstanceKey(instance *cluster.Instance) string {
 	return fmt.Sprintf("%v/%v", instance.Namespace, instance.Name)
 }
@@ -294,7 +298,16 @@ func (r RealInstanceControl) createSecrets(namespace string, template *cluster.I
 	return secrets, nil
 }
 
-func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) error {
+func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) (err error) {
+	var newInstance *cluster.Instance
+	defer func() {
+		if err != nil && newInstance != nil {
+			err2 := r.KubeClient.Archon().Instances(namespace).Delete(newInstance.Name)
+			if err2 != nil {
+				glog.Errorf("Unable to revert createInstances: %v", err2)
+			}
+		}
+	}()
 	instance, err := GetInstanceFromTemplate(template, object, controllerRef)
 	if err != nil {
 		return err
@@ -303,10 +316,10 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		return fmt.Errorf("unable to create instances, no labels")
 	}
 	if len(template.Secrets) > 0 {
-		initializer.AddInitializer(instance, "csr")
+		initializer.AddInitializer(instance, CSRToken)
 		instance.Status.Phase = cluster.InstanceInitializing
 	}
-	if newInstance, err := r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
+	if newInstance, err = r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
 		return fmt.Errorf("unable to create instances: %v", err)
 	} else {

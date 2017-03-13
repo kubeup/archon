@@ -11,7 +11,7 @@ spec:
     metadata:
       annotations:
         aws.archon.kubeup.com/instance-profile: "k8s-master"
-        initializers: public-ip,private-ip
+        initializers: archon.kubeup.com/public-ip,archon.kubeup.com/private-ip
       labels:
         app: k8s-master
     spec:
@@ -250,7 +250,7 @@ spec:
       configs:
       - name: k8s
         data:
-          hyper-kube-img: gcr.io/google_containers/hyperkube-amd64:v1.5.1
+          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
           dns-service-ip: 10.3.0.10

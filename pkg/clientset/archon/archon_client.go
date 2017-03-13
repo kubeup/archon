@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 type ArchonInterface interface {
@@ -80,7 +81,7 @@ func setConfigDefaults(config *restclient.Config) error {
 	config.APIPath = "/apis"
 	config.GroupVersion = &SchemeGroupVersion
 	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(Scheme)}
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(api.Scheme)}
 	return nil
 }
 
