@@ -221,11 +221,6 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 	}
 	nif = pip.NetworkInterfaceID
 
-	if nif == "" && instance.Status.PrivateIP == "" {
-		err = fmt.Errorf("custom private IP is not provided.")
-		return
-	}
-
 	err = util.MapToStruct(instance.Annotations, &eip, AWSAnnotationPrefix)
 	if err != nil {
 		err = fmt.Errorf("Can't get eip from instance annotations: %s", err.Error())
