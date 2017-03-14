@@ -30,7 +30,7 @@ spec:
           # Wrapper for bootkube start
           set -e
           BOOTKUBE_ACI="${BOOTKUBE_ACI:-quay.io/coreos/bootkube}"
-          BOOTKUBE_VERSION="${BOOTKUBE_VERSION:-v0.3.7}"
+          BOOTKUBE_VERSION="${BOOTKUBE_VERSION:-v0.3.11}"
           BOOTKUBE_ASSETS="${BOOTKUBE_ASSETS:-/var/lib/bootkube}"
           exec /usr/bin/rkt run \
             --trust-keys-from-https \
@@ -84,7 +84,7 @@ spec:
               --exit-on-lock-contention \
               --allow-privileged=true \
               --hostname-override=${COREOS_PRIVATE_IPV4} \
-              --config=/etc/kubernetes/manifests \
+              --pod-manifest-path=/etc/kubernetes/manifests \
               --node-labels=master=true \
               --minimum-container-ttl-duration=3m0s \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
@@ -118,12 +118,16 @@ spec:
               spec:
                 containers:
                 - name: etcd-operator
-                  image: quay.io/coreos/etcd-operator:c391d8b7638deb81aa877773a0acce389f602415
+                  image: quay.io/coreos/etcd-operator:v0.2.1
                   env:
                   - name: MY_POD_NAMESPACE
                     valueFrom:
                       fieldRef:
                         fieldPath: metadata.namespace
+                  - name: MY_POD_NAME
+                    valueFrom:
+                      fieldRef:
+                        fieldPath: metadata.name
       - name: etcd-service.yaml
         path: "/var/lib/bootkube/manifests/etcd-service.yaml"
         permissions: "0644"
@@ -138,7 +142,7 @@ spec:
             selector:
               app: etcd
               etcd_cluster: kube-etcd
-            clusterIP: 10.3.0.15
+            clusterIP: {{ index .Configs "k8s" "etcd-service-ip" }}
             ports:
             - name: client
               port: 2379
@@ -152,7 +156,7 @@ spec:
           data:
             apiserver.crt: {{ index .Secrets "apiserver" "tls-cert" | printf "%s" | b64enc }}
             apiserver.key: {{ index .Secrets "apiserver" "tls-key" | printf "%s" | b64enc }}
-            ca.crt: {{ index .Configs "k8s" "ca-cert" | b64enc }}
+            ca.crt: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
           kind: Secret
           metadata:
             name: kube-apiserver
@@ -195,17 +199,20 @@ spec:
                   - --secure-port=443
                   - --insecure-port=8080
                   - --advertise-address=$(POD_IP)
-                  - --etcd-servers=http://10.3.0.15:2379
+                  - --etcd-servers=http://{{ index .Configs "k8s" "etcd-service-ip" }}:2379
                   - --storage-backend=etcd3
                   - --enable-garbage-collector=false
                   - --allow-privileged=true
-                  - --service-cluster-ip-range=10.3.0.0/24
+                  - --service-cluster-ip-range={{ index .Configs "k8s" "service-ip-range" }}
                   - --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,ResourceQuota
                   - --runtime-config=api/all=true
                   - --tls-cert-file=/etc/kubernetes/secrets/apiserver.crt
                   - --tls-private-key-file=/etc/kubernetes/secrets/apiserver.key
-                  - --service-account-key-file=/etc/kubernetes/secrets/apiserver.key
+                  - --kubelet-client-certificate=/etc/kubernetes/secrets/apiserver.crt
+                  - --kubelet-client-key=/etc/kubernetes/secrets/apiserver.key
+                  - --service-account-key-file=/etc/kubernetes/secrets/service-account.pub
                   - --client-ca-file=/etc/kubernetes/secrets/ca.crt
+                  - --authorization-mode=RBAC
                   - --cloud-provider=aws
                   - --anonymous-auth=false
                   env:
@@ -255,8 +262,8 @@ spec:
         template: |-
           apiVersion: v1
           data:
-            ca.crt: {{ index .Configs "k8s" "ca-cert" | b64enc }}
-            apiserver.key: {{ index .Secrets "apiserver" "tls-key" | printf "%s" | b64enc }}
+            ca.crt: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
+            service-account.key: {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" | b64enc }}
           kind: Secret
           metadata:
             name: kube-controller-manager
@@ -291,13 +298,12 @@ spec:
                   - controller-manager
                   - --allocate-node-cidrs=true
                   - --configure-cloud-routes=false
-                  - --cluster-cidr=10.2.0.0/16
+                  - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
                   - --root-ca-file=/etc/kubernetes/secrets/ca.crt
-                  - --service-account-private-key-file=/etc/kubernetes/secrets/apiserver.key
+                  - --service-account-private-key-file=/etc/kubernetes/secrets/service-account.key
                   - --leader-elect=true
                   - --cloud-provider=aws
                   - --enable-garbage-collector=false
-                  - --configure-cloud-routes=false
                   volumeMounts:
                   - name: secrets
                     mountPath: /etc/kubernetes/secrets
@@ -487,7 +493,7 @@ spec:
           spec:
             selector:
               k8s-app: kube-dns
-            clusterIP: 10.3.0.10
+            clusterIP: {{ index .Configs "k8s" "dns-service-ip" }}
             ports:
             - name: dns
               port: 53
@@ -523,7 +529,7 @@ spec:
                   - --kubeconfig=/etc/kubernetes/kubeconfig
                   - --proxy-mode=iptables
                   - --hostname-override=$(NODE_NAME)
-                  - --cluster-cidr=10.2.0.0/16
+                  - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
                   env:
                     - name: NODE_NAME
                       valueFrom:
@@ -579,6 +585,8 @@ spec:
                 labels:
                   k8s-app: kube-scheduler
               spec:
+                nodeSelector:
+                  master: "true"
                 containers:
                 - name: kube-scheduler
                   image: {{ index .Configs "k8s" "hyper-kube-img" }}
@@ -609,7 +617,7 @@ spec:
                 hostNetwork: true
                 containers:
                 - name: checkpoint-installer
-                  image: quay.io/coreos/pod-checkpointer:5b585a2d731173713fa6871c436f6c53fa17f754
+                  image: quay.io/coreos/pod-checkpointer:417b8f7552ccf3db192ba1e5472e524848f0eb5f
                   command:
                   - /checkpoint-installer.sh
                   volumeMounts:
@@ -630,7 +638,7 @@ spec:
           - name: local
             cluster:
               server: https://127.0.0.1:443
-              certificate-authority-data: {{ index .Configs "k8s" "ca-cert" | b64enc }}
+              certificate-authority-data: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
           users:
           - name: kubelet
             user:
@@ -640,6 +648,70 @@ spec:
           - context:
               cluster: local
               user: kubelet
+      - name: kube-system-rbac-role-binding
+        path: "/var/lib/bootkube/manifests/kube-system-rbac-role-binding.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: rbac.authorization.k8s.io/v1alpha1
+          kind: ClusterRoleBinding
+          apiVersion: rbac.authorization.k8s.io/v1alpha1
+          metadata:
+            name: system:default-sa
+          subjects:
+            - kind: ServiceAccount
+              name: default
+              namespace: kube-system
+          roleRef:
+            kind: ClusterRole
+            name: cluster-admin
+            apiGroup: rbac.authorization.k8s.io
+      - name: kenc
+        path: "/var/lib/bootkube/manifests/kenc.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: "extensions/v1beta1"
+          kind: DaemonSet
+          metadata:
+            name: kenc
+            namespace: kube-system
+            labels:
+              k8s-app: kenc
+          spec:
+            template:
+              metadata:
+                labels:
+                  k8s-app: kenc
+                annotations:
+                  checkpointer.alpha.coreos.com/checkpoint: "true"
+              spec:
+                nodeSelector:
+                  master: "true"
+                hostNetwork: true
+                containers:
+                - image: quay.io/coreos/kenc:82343328b867a762ffca07c2877f0079a99c8f1a
+                  name: kenc
+                  securityContext:
+                    privileged: true
+                  volumeMounts:
+                  - mountPath: /etc/kubernetes/selfhosted-etcd
+                    name: checkpoint-dir
+                    readOnly: false
+                  - mountPath: /var/lock
+                    name: var-lock
+                    readOnly: false
+                  command:
+                  - "/bin/sh"
+                  - "-c"
+                  - "/usr/bin/flock --exclusive --timeout=30 /var/lock/kenc.lock; kenc -r -m iptables && kenc -m iptables"
+                volumes:
+                - name: checkpoint-dir
+                  hostPath:
+                    path: /etc/kubernetes/checkpoint-iptables    
+                - name: var-lock
+                  hostPath:
+                    path: /var/lock
       - name: apiserver.crt
         path: "/var/lib/bootkube/tls/apiserver.crt"
         permissions: "0600"
@@ -657,44 +729,46 @@ spec:
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Configs "k8s" "ca-cert" }}
+          {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" }}
       - name: kubelet.crt
         path: "/var/lib/bootkube/tls/kubelet.crt"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "apiserver" "tls-cert" | printf "%s" }}
+          {{ index .Secrets "server" "tls-cert" | printf "%s" }}
       - name: kubelet.key
         path: "/var/lib/bootkube/tls/kubelet.key"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+          {{ index .Secrets "server" "tls-key" | printf "%s" }}
       - name: service-account.key
         path: "/var/lib/bootkube/tls/service-account.key"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+          {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" }}
       - name: service-account.pub
         path: "/var/lib/bootkube/tls/service-account.pub"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+          {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" }}
       configs:
       - name: k8s
         data:
-          hyper-kube-img: quay.io/coreos/hyperkube:v1.5.2_coreos.2
+          hyper-kube-img: quay.io/coreos/hyperkube:v1.5.4_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
+          etcd-service-ip: 10.3.0.10
           dns-service-ip: 10.3.0.10
           k8s-service-ip: 10.3.0.1
-          k8s-version: v1.5.2_coreos.2
-          ca-cert: |-
-            PUT YOUR CA CERTIFICATE HERE
+          k8s-version: v1.5.4_coreos.0
       users:
       - name: core
+      secrets:
+      - name: k8s-ca
+      - name: serviceaccount
     secrets:
     - metadata:
         name: apiserver
@@ -725,5 +799,33 @@ spec:
                 ]
               }
             archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
+            archon.kubeup.com/type: csr
+      type: Opaque
+    - metadata:
+        name: server
+        annotations:
+            archon.kubeup.com/csr: |-
+              {
+                "CN": "{{ .Meta.Name }}",
+                "hosts": [
+                  "{{ .Meta.Name }}",
+                  "{{ .Status.PrivateIP }}",
+                  "{{ .Status.PublicIP }}"
+                ],
+                "key": {
+                  "algo": "ecdsa",
+                  "size": 256
+                },
+                "names": [
+                  {
+                    "C": "US",
+                    "L": "CA",
+                    "ST": "San Francisco"
+                  }
+                ]
+              }
+            archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
             archon.kubeup.com/type: csr
       type: Opaque
