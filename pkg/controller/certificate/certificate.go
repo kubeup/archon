@@ -27,6 +27,7 @@ import (
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/render"
 	"net"
+	"strings"
 )
 
 const (
@@ -85,6 +86,11 @@ func NewCertificateControlFromSecret(secret *api.Secret) (*CertificateControl, e
 }
 
 func isValidHostname(name string) bool {
+	if strings.HasPrefix(name, "*.") {
+		if len(validation.NameIsDNSSubdomain(name[2:], false)) == 0 {
+			return true
+		}
+	}
 	if len(validation.NameIsDNSSubdomain(name, false)) == 0 {
 		return true
 	}
