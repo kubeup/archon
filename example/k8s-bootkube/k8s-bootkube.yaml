@@ -19,7 +19,7 @@ spec:
       networkName: k8s-net
       instanceType: t2.small
       os: CoreOS
-      image: ami-65336005
+      image: ami-818bd5e1
       files:
       - name: bootkube-start
         path: "/opt/bootkube/bootkube-start"
@@ -83,12 +83,11 @@ spec:
               --lock-file=/var/run/lock/kubelet.lock \
               --exit-on-lock-contention \
               --allow-privileged=true \
-              --hostname-override=${COREOS_PRIVATE_IPV4} \
               --pod-manifest-path=/etc/kubernetes/manifests \
               --node-labels=master=true \
               --minimum-container-ttl-duration=3m0s \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
-              --node-ip={{.Status.PrivateIP}} \
+              --node-ip=${COREOS_PRIVATE_IPV4} \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
@@ -156,12 +155,35 @@ spec:
           data:
             apiserver.crt: {{ index .Secrets "apiserver" "tls-cert" | printf "%s" | b64enc }}
             apiserver.key: {{ index .Secrets "apiserver" "tls-key" | printf "%s" | b64enc }}
-            ca.crt: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
+            service-account.pub: {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" | b64enc }}
+            ca.crt: {{ index .Secrets "ca" "tls-cert" | printf "%s" | b64enc }}
           kind: Secret
           metadata:
             name: kube-apiserver
             namespace: kube-system
           type: Opaque
+      - name: kube-apiserver-service.yaml
+        path: "/var/lib/bootkube/manifests/kube-apiserver-service.yaml"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: kube-apiserver
+            namespace: kube-system
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+          spec:
+            selector:
+              k8s-app: kube-apiserver
+            clusterIP: {{ index .Configs "k8s" "apiserver-service-ip" }}
+            type: LoadBalancer
+            ports:
+            - name: apiserver
+              port: 443
+              nodePort: 30010
+              protocol: TCP
       - name: kube-apiserver.yaml
         path: "/var/lib/bootkube/manifests/kube-apiserver.yaml"
         permissions: "0644"
@@ -262,7 +284,7 @@ spec:
         template: |-
           apiVersion: v1
           data:
-            ca.crt: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
+            ca.crt: {{ index .Secrets "ca" "tls-cert" | printf "%s" | b64enc }}
             service-account.key: {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" | b64enc }}
           kind: Secret
           metadata:
@@ -282,9 +304,29 @@ spec:
             labels:
               k8s-app: kube-controller-manager
           spec:
-            replicas: 2
+            replicas: 1
             template:
               metadata:
+                annotations:
+                  scheduler.alpha.kubernetes.io/affinity: |
+                    {
+                      "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                          {
+                            "labelSelector": {
+                              "matchExpressions": [
+                                {
+                                  "key": "k8s-app",
+                                  "operator": "In",
+                                  "values": ["kube-controller-manager"]
+                                }
+                              ]
+                            },
+                            "topologyKey": "kubernetes.io/hostname"
+                         }
+                        ]
+                       }
+                     }
                 labels:
                   k8s-app: kube-controller-manager
               spec:
@@ -297,7 +339,7 @@ spec:
                   - ./hyperkube
                   - controller-manager
                   - --allocate-node-cidrs=true
-                  - --configure-cloud-routes=false
+                  - --configure-cloud-routes=true
                   - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
                   - --root-ca-file=/etc/kubernetes/secrets/ca.crt
                   - --service-account-private-key-file=/etc/kubernetes/secrets/service-account.key
@@ -579,9 +621,29 @@ spec:
             labels:
               k8s-app: kube-scheduler
           spec:
-            replicas: 2
+            replicas: 1
             template:
               metadata:
+                annotations:
+                  scheduler.alpha.kubernetes.io/affinity: |
+                    {
+                      "podAntiAffinity": {
+                        "requiredDuringSchedulingIgnoredDuringExecution": [
+                          {
+                            "labelSelector": {
+                              "matchExpressions": [
+                                {
+                                  "key": "k8s-app",
+                                  "operator": "In",
+                                  "values": ["kube-scheduler"]
+                                }
+                              ]
+                            },
+                            "topologyKey": "kubernetes.io/hostname"
+                         }
+                        ]
+                       }
+                     }
                 labels:
                   k8s-app: kube-scheduler
               spec:
@@ -638,12 +700,12 @@ spec:
           - name: local
             cluster:
               server: https://127.0.0.1:443
-              certificate-authority-data: {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" | b64enc }}
+              certificate-authority-data: {{ index .Secrets "ca" "tls-cert" | printf "%s" | b64enc }}
           users:
           - name: kubelet
             user:
-              client-certificate-data: {{ index .Secrets "apiserver" "tls-cert" | printf "%s" | b64enc }}
-              client-key-data: {{ index .Secrets "apiserver" "tls-key" | printf "%s" | b64enc }}
+              client-certificate-data: {{ index .Secrets "kubelet" "tls-cert" | printf "%s" | b64enc }}
+              client-key-data: {{ index .Secrets "kubelet" "tls-key" | printf "%s" | b64enc }}
           contexts:
           - context:
               cluster: local
@@ -729,19 +791,19 @@ spec:
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "k8s-ca" "tls-cert" | printf "%s" }}
+          {{ index .Secrets "ca" "tls-cert" | printf "%s" }}
       - name: kubelet.crt
         path: "/var/lib/bootkube/tls/kubelet.crt"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "server" "tls-cert" | printf "%s" }}
+          {{ index .Secrets "kubelet" "tls-cert" | printf "%s" }}
       - name: kubelet.key
         path: "/var/lib/bootkube/tls/kubelet.key"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "server" "tls-key" | printf "%s" }}
+          {{ index .Secrets "kubelet" "tls-key" | printf "%s" }}
       - name: service-account.key
         path: "/var/lib/bootkube/tls/service-account.key"
         permissions: "0600"
@@ -760,72 +822,15 @@ spec:
           hyper-kube-img: quay.io/coreos/hyperkube:v1.5.4_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
-          etcd-service-ip: 10.3.0.10
+          etcd-service-ip: 10.3.0.15
           dns-service-ip: 10.3.0.10
           k8s-service-ip: 10.3.0.1
+          apiserver-service-ip: 10.3.0.5
           k8s-version: v1.5.4_coreos.0
       users:
       - name: core
       secrets:
       - name: k8s-ca
       - name: serviceaccount
-    secrets:
-    - metadata:
-        name: apiserver
-        annotations:
-            archon.kubeup.com/csr: |-
-              {
-                "CN": "{{ .Meta.Name }}",
-                "hosts": [
-                  "kubernetes",
-                  "kubernetes.default",
-                  "kubernetes.default.svc",
-                  "kubernetes.default.svc.cluster.local",
-                  "127.0.0.1",
-                  "{{ index .Configs "k8s" "k8s-service-ip" }}",
-                  "{{ .Status.PrivateIP }}",
-                  "{{ .Status.PublicIP }}"
-                ],
-                "key": {
-                  "algo": "ecdsa",
-                  "size": 256
-                },
-                "names": [
-                  {
-                    "C": "US",
-                    "L": "CA",
-                    "ST": "San Francisco"
-                  }
-                ]
-              }
-            archon.kubeup.com/status: Pending
-            archon.kubeup.com/ca: k8s-ca
-            archon.kubeup.com/type: csr
-      type: Opaque
-    - metadata:
-        name: server
-        annotations:
-            archon.kubeup.com/csr: |-
-              {
-                "CN": "{{ .Meta.Name }}",
-                "hosts": [
-                  "{{ .Meta.Name }}",
-                  "{{ .Status.PrivateIP }}",
-                  "{{ .Status.PublicIP }}"
-                ],
-                "key": {
-                  "algo": "ecdsa",
-                  "size": 256
-                },
-                "names": [
-                  {
-                    "C": "US",
-                    "L": "CA",
-                    "ST": "San Francisco"
-                  }
-                ]
-              }
-            archon.kubeup.com/status: Pending
-            archon.kubeup.com/ca: k8s-ca
-            archon.kubeup.com/type: csr
-      type: Opaque
+      - name: apiserver
+      - name: kubelet

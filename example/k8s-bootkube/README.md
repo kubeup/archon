@@ -26,8 +26,7 @@ kubectl create k8s-bootkube
 Step 3
 ------
 
-Modify `k8s-user.yaml`. Replace `YOUR_SSH_KEY` with your public key which will be
-used for authentication with the server. And create the user resource.
+Create the default user. The username is `core` and password is `archon`:
 
 ```
 kubectl create -f k8s-user.yaml --namespace=k8s-bootkube
@@ -105,8 +104,14 @@ with your bucket name.
 Step 7
 ------
 
-Modify `k8s-bootkube.yaml`. Replace `PUT YOUR CA CERTIFICATE HERE` with the content of
-`ca.pem` file you generated with `cfssl` during the installation process.
+Create certificates:
+
+```
+kubectl create -f k8s-ca.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-apiserver.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-kubelet.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-serviceaccount.yaml --namespace=k8s-bootkube
+```
 
 Step 8
 ------
@@ -117,5 +122,23 @@ Create the instance group and let the `archon-controller` create the instance fo
 kubectl create -f k8s-bootkube.yaml --namespace=k8s-bootkube
 ```
 
-[installation guide]: https://github.com/kubeup/archon/blob/master/docs/installation.md
+Step 9
+------
+
+Modify `k8s-master.yaml` and `k8s-node.yaml`. Replace `INTERNAL_APISERVER_LB` with the
+dns name you get from the aws console. Then create the master and slave nodes.
+```
+kubectl create -f k8s-master.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-node.yaml --namespace=k8s-bootkube
+```
+
+Step 10
+-------
+
+Scale `kube-scheduler`, `kube-controller-manager` and `etcd-cluster` to 3 replicas. Then
+drain the `k8s-bootkube` node and remove it from the cluster.
+
+Now you have a self-hosted Kubernetes cluster with HA enabled.
+
+[installation guide]: https://github.com/kubeup/archon#installation
 [bootkube]: https://github.com/kubernetes-incubator/bootkube

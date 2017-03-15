@@ -5,6 +5,8 @@ metadata:
   annotations:
     aws.archon.kubeup.com/name-servers: "169.254.169.253"
     aws.archon.kubeup.com/domain-name: "us-west-1.compute.internal"
+  labels:
+    KubernetesCluster: "kubernetes"
 spec:
   region: us-west-1
   subnet: 10.99.0.1/24

@@ -4,5 +4,4 @@ metadata:
   name: core
 spec:
   name: core
-  sshAuthorizedKeys:
-  - YOUR_SSH_KEY
+  passwordHash: $1$415Yrmgj$kK2RZaUK0yhu5jXbQPOYj/

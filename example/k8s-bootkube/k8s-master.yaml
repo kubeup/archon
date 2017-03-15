@@ -1,0 +1,116 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-master
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: k8s-master
+  template:
+    metadata:
+      annotations:
+        aws.archon.kubeup.com/instance-profile: "k8s-master"
+        initializers: public-ip,private-ip
+      labels:
+        app: k8s-master
+    spec:
+      networkName: k8s-net
+      instanceType: t2.small
+      os: CoreOS
+      image: ami-818bd5e1
+      files:
+      - name: unit-kubelet
+        path: "/coreos/unit/kubelet"
+        template: |-
+          name: kubelet.service
+          command: start
+          enable: true
+          content: |-
+            [Service]
+            Environment=KUBELET_VERSION={{ index .Configs "k8s" "k8s-version"}}
+            Environment="RKT_OPTS=--uuid-file-save=/var/run/kubelet-pod.uuid \
+              --volume dns,kind=host,source=/etc/resolv.conf \
+              --mount volume=dns,target=/etc/resolv.conf \
+              --volume var-log,kind=host,source=/var/log \
+              --mount volume=var-log,target=/var/log \
+              --volume lib-modules,kind=host,source=/lib/modules \
+              --mount volume=lib-modules,target=/lib/modules \
+              --volume var-cni,kind=host,source=/var/lib/cni \
+              --mount volume=var-cni,target=/var/lib/cni"
+            EnvironmentFile=/etc/environment
+            ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
+            ExecStartPre=/usr/bin/mkdir -p /srv/kubernetes/manifests
+            ExecStartPre=/usr/bin/mkdir -p /var/log/containers
+            ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/checkpoint-secrets
+            ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
+            ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
+            ExecStart=/usr/lib/coreos/kubelet-wrapper \
+              --kubeconfig=/etc/kubernetes/kubeconfig \
+              --require-kubeconfig \
+              --lock-file=/var/run/lock/kubelet.lock \
+              --exit-on-lock-contention \
+              --allow-privileged=true \
+              --pod-manifest-path=/etc/kubernetes/manifests \
+              --node-labels=master=true \
+              --minimum-container-ttl-duration=3m0s \
+              --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
+              --node-ip=${COREOS_PRIVATE_IPV4} \
+              --cluster-domain=cluster.local \
+              --network-plugin=kubenet
+            ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
+            Restart=always
+            RestartSec=10
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: kubeconfig
+        path: "/etc/kubernetes/kubeconfig"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: local
+            cluster:
+              server: https://{{ index .Configs "k8s" "apiserver"}}:443
+              certificate-authority-data: {{ index .Secrets "ca" "tls-cert" | printf "%s" | b64enc }}
+          users:
+          - name: kubelet
+            user:
+              client-certificate-data: {{ index .Secrets "kubelet" "tls-cert" | printf "%s" | b64enc }}
+              client-key-data: {{ index .Secrets "kubelet" "tls-key" | printf "%s" | b64enc }}
+          contexts:
+          - context:
+              cluster: local
+              user: kubelet
+      - name: ca.crt
+        path: "/var/lib/bootkube/tls/ca.crt"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "ca" "tls-cert" | printf "%s" }}
+      - name: kubelet.crt
+        path: "/var/lib/bootkube/tls/kubelet.crt"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "kubelet" "tls-cert" | printf "%s" }}
+      - name: kubelet.key
+        path: "/var/lib/bootkube/tls/kubelet.key"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "kubelet" "tls-key" | printf "%s" }}
+      configs:
+      - name: k8s
+        data:
+          k8s-version: v1.5.4_coreos.0
+          dns-service-ip: 10.3.0.10
+          apiserver: INTERNAL_APISERVER_LB
+      users:
+      - name: core
+      secrets:
+      - name: k8s-ca
+      - name: kubelet
