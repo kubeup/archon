@@ -365,6 +365,28 @@ func (p *awsCloud) createSubnet(an *AWSNetwork, network *cluster.Network) (subne
 		return
 	}
 
+	if _, ok := an.Labels[k8saws.TagNameKubernetesCluster]; ok {
+		params3 := &ec2.CreateTagsInput{
+			Resources: []*string{
+				r.Subnet.SubnetId,
+			},
+			Tags: []*ec2.Tag{
+				{
+					Key:   aws.String("kubernetes.io/role/internal-elb"),
+					Value: aws.String("true"),
+				},
+				{
+					Key:   aws.String("kubernetes.io/role/elb"),
+					Value: aws.String("true"),
+				},
+			},
+		}
+		_, err = p.ec2.CreateTags(params3)
+		if err != nil {
+			return
+		}
+
+	}
 	return
 }
 
