@@ -12,7 +12,7 @@ metadata:
           "kubernetes.default.svc",
           "kubernetes.default.svc.cluster.local",
           "*.us-west-1.elb.amazonaws.com",
-          "*.us-west-1.amazonaws.com",
+          "*.us-west-1.compute.amazonaws.com",
           "127.0.0.1",
           "10.3.0.1"
         ],
