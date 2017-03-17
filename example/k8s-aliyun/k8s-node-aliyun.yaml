@@ -186,7 +186,7 @@ spec:
           hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
-          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun:k8s-16
+          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
           api-servers: https://PUT_YOUR_MASTER_PRIVATE_IP_HERE
           dns-service-ip: 10.3.0.10
           k8s-version: v1.6.0-beta.3_coreos.0
