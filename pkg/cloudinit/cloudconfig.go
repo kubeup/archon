@@ -17,13 +17,18 @@ import (
 	"github.com/coreos/yaml"
 )
 
-type UbuntuConfig struct {
-	AptSources     []AptSource `yaml:"apt_sources,omitempty"`
-	Packages       []string    `yaml:"packages,omitempty"`
-	Runcmd         [][]string  `yaml:"runcmd,omitempty"`
-	WriteFiles     []File      `yaml:"write_files,omitempty"`
-	Hostname       string      `yaml:"hostname,omitempty"`
-	ManageEtcHosts string      `yaml:"manage_etc_hosts,omitempty"`
+type CloudConfig struct {
+	Apt            Apt        `yaml:"apt,omitempty"`
+	Packages       []string   `yaml:"packages,omitempty"`
+	Runcmd         [][]string `yaml:"runcmd,omitempty"`
+	WriteFiles     []File     `yaml:"write_files,omitempty"`
+	Hostname       string     `yaml:"hostname,omitempty"`
+	Users          []User     `yaml:"users,omitempty"`
+	ManageEtcHosts string     `yaml:"manage_etc_hosts,omitempty"`
+}
+
+type Apt struct {
+	Sources map[string]AptSource `yaml:"sources,omitempty"`
 }
 
 type AptSource struct {
@@ -31,7 +36,7 @@ type AptSource struct {
 	Key    string `yaml:"key,omitempty"`
 }
 
-func (uc UbuntuConfig) Bytes() ([]byte, error) {
+func (uc CloudConfig) Bytes() ([]byte, error) {
 	data, err := yaml.Marshal(uc)
 	if err != nil {
 		return nil, err
@@ -39,7 +44,7 @@ func (uc UbuntuConfig) Bytes() ([]byte, error) {
 	return append([]byte("#cloud-config\n"), data...), nil
 }
 
-func (uc UbuntuConfig) String() (string, error) {
+func (uc CloudConfig) String() (string, error) {
 	data, err := uc.Bytes()
 	if err != nil {
 		return "", err

@@ -37,6 +37,8 @@ type UserSpec struct {
 	Name              string   `json:"name,omitempty"`
 	PasswordHash      string   `json:"passwordHash,omitempty"`
 	SSHAuthorizedKeys []string `json:"sshAuthorizedKeys,omitempty"`
+	Sudo              string   `json:"sudo,omitempty"`
+	Shell             string   `json:"shell,omitempty"`
 }
 
 type User struct {

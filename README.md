@@ -63,6 +63,12 @@ Supported cloud providers:
 Supported operating system:
 
   - [CoreOS]
+  - [Ubuntu]
+
+Supported bootstrapping tool:
+
+  - [bootkube]
+  - [kubeadm]
 
 At the moment, we only support limited cloud providers and oses. More cloud providers
 and operating systems support will be added when the core is stable.
@@ -147,18 +153,22 @@ Example
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
   - [Self-hosted Kubernetes cluster with bootkube][bootkube-example]
+  - [Kubernetes cluster with ubuntu and kubeadm][ubuntu-example]
   - [Aliyun one machine Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
 [kubeadm]: https://github.com/kubernetes/kubeadm
+[bootkube]: https://github.com/kubernetes-incubator/bootkube
 [kops]: https://github.com/kubernetes/kops
 [AWS]: https://aws.amazon.com
 [Aliyun]: https://www.aliyun.com
 [CoreOS]: https://coreos.com/os/docs/latest/
+[Ubuntu]: https://www.ubuntu.com
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
 [bootkube-example]: https://github.com/kubeup/archon/tree/master/example/k8s-bootkube
+[ubuntu-example]: https://github.com/kubeup/archon/tree/master/example/k8s-ubuntu
 [aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
 [etcd-example]: https://github.com/kubeup/archon/tree/master/example/etcd-cluster
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206

@@ -22,7 +22,15 @@ import (
 )
 
 func Generate(instance *cluster.Instance) ([]byte, error) {
-	result := &cloudinit.CloudConfig{}
+	if instance.Spec.OS == "CoreOS" {
+		return GenerateCoreOSCloudConfig(instance)
+	} else {
+		return GenerateCloudConfig(instance)
+	}
+}
+
+func GenerateCoreOSCloudConfig(instance *cluster.Instance) ([]byte, error) {
+	result := &cloudinit.CoreOSCloudConfig{}
 	renderer, err := render.NewInstanceRenderer(instance)
 	if err != nil {
 		return nil, err
@@ -98,6 +106,73 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 			return nil, err
 		}
 	}
+
+	return result.Bytes()
+}
+
+func GenerateCloudConfig(instance *cluster.Instance) ([]byte, error) {
+	result := &cloudinit.CloudConfig{}
+	renderer, err := render.NewInstanceRenderer(instance)
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]cloudinit.File, 0)
+	for _, t := range instance.Spec.Files {
+		f := cloudinit.File{
+			Encoding:           t.Encoding,
+			Owner:              t.Owner,
+			Path:               t.Path,
+			RawFilePermissions: t.RawFilePermissions,
+		}
+		if t.Content == "" {
+			f.Content, err = renderer.Render(t.Name, t.Template)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			f.Content = t.Content
+		}
+		if strings.HasPrefix(f.Path, "/config/runcmd/") {
+			c := []string{}
+			err = yaml.Unmarshal([]byte(f.Content), &c)
+			if err != nil {
+				return nil, err
+			}
+			result.Runcmd = append(result.Runcmd, c)
+		} else if f.Path == "/config/apt" {
+			c := cloudinit.Apt{}
+			err = yaml.Unmarshal([]byte(f.Content), &c)
+			if err != nil {
+				return nil, err
+			}
+			result.Apt = c
+		} else if f.Path == "/config/packages" {
+			c := []string{}
+			err = yaml.Unmarshal([]byte(f.Content), &c)
+			if err != nil {
+				return nil, err
+			}
+			result.Packages = c
+		} else {
+			files = append(files, f)
+		}
+
+	}
+	result.WriteFiles = files
+
+	users := make([]cloudinit.User, 0)
+	for _, t := range instance.Dependency.Users {
+		u := cloudinit.User{
+			Name:              t.Spec.Name,
+			PasswordHash:      t.Spec.PasswordHash,
+			SSHAuthorizedKeys: t.Spec.SSHAuthorizedKeys,
+			Sudo:              t.Spec.Sudo,
+			Shell:             t.Spec.Shell,
+		}
+		users = append(users, u)
+	}
+	result.Users = users
 
 	return result.Bytes()
 }
