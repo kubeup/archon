@@ -17,8 +17,8 @@ import (
 	"kubeup.com/archon/pkg/clientset/archon"
 
 	"github.com/golang/glog"
-	kubernetes "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	"k8s.io/kubernetes/pkg/client/restclient"
+	restclient "k8s.io/client-go/rest"
+	kubernetes "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 
 	_ "kubeup.com/archon/pkg/clientset/archon/install"
 )

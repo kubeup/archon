@@ -92,5 +92,12 @@ func Generate(instance *cluster.Instance) ([]byte, error) {
 	}
 	result.Users = users
 
+	if instance.Spec.Hostname != "" {
+		result.Hostname, err = renderer.Render("hostname", result.Hostname)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return result.Bytes()
 }

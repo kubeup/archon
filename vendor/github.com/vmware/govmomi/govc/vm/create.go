@@ -17,6 +17,7 @@ limitations under the License.
 package vm
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
@@ -28,7 +29,6 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type create struct {
@@ -49,6 +49,7 @@ type create struct {
 	on         bool
 	force      bool
 	controller string
+	annotation string
 
 	iso              string
 	isoDatastoreFlag *flags.DatastoreFlag
@@ -107,13 +108,14 @@ func (cmd *create) Register(ctx context.Context, f *flag.FlagSet) {
 	f.BoolVar(&cmd.on, "on", true, "Power on VM. Default is true if -disk argument is given.")
 	f.BoolVar(&cmd.force, "force", false, "Create VM if vmx already exists")
 	f.StringVar(&cmd.controller, "disk.controller", "scsi", "Disk controller type")
+	f.StringVar(&cmd.annotation, "annotation", "", "VM description")
 
 	f.StringVar(&cmd.iso, "iso", "", "ISO path")
 	cmd.isoDatastoreFlag, ctx = flags.NewCustomDatastoreFlag(ctx)
 	f.StringVar(&cmd.isoDatastoreFlag.Name, "iso-datastore", "", "Datastore for ISO file")
 
 	f.StringVar(&cmd.disk, "disk", "", "Disk path (to use existing) OR size (to create new, e.g. 20GB)")
-	cmd.diskDatastoreFlag, ctx = flags.NewCustomDatastoreFlag(ctx)
+	cmd.diskDatastoreFlag, _ = flags.NewCustomDatastoreFlag(ctx)
 	f.StringVar(&cmd.diskDatastoreFlag.Name, "disk-datastore", "", "Datastore for disk file")
 }
 
@@ -194,7 +196,7 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 	}
 
 	if cmd.HostSystem != nil {
-		if cmd.ResourcePool, err = cmd.HostSystem.ResourcePool(context.TODO()); err != nil {
+		if cmd.ResourcePool, err = cmd.HostSystem.ResourcePool(ctx); err != nil {
 			return err
 		}
 	} else {
@@ -210,7 +212,7 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	// Verify ISO exists
 	if cmd.iso != "" {
-		_, err = cmd.isoDatastoreFlag.Stat(context.TODO(), cmd.iso)
+		_, err = cmd.isoDatastoreFlag.Stat(ctx, cmd.iso)
 		if err != nil {
 			return err
 		}
@@ -230,7 +232,7 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 		if err == nil {
 			cmd.diskByteSize = int64(b)
 		} else {
-			_, err = cmd.diskDatastoreFlag.Stat(context.TODO(), cmd.disk)
+			_, err = cmd.diskDatastoreFlag.Stat(ctx, cmd.disk)
 			if err != nil {
 				return err
 			}
@@ -242,12 +244,12 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 		}
 	}
 
-	task, err := cmd.createVM(context.TODO())
+	task, err := cmd.createVM(ctx)
 	if err != nil {
 		return err
 	}
 
-	info, err := task.WaitForResult(context.TODO(), nil)
+	info, err := task.WaitForResult(ctx, nil)
 	if err != nil {
 		return err
 	}
@@ -255,12 +257,12 @@ func (cmd *create) Run(ctx context.Context, f *flag.FlagSet) error {
 	vm := object.NewVirtualMachine(cmd.Client, info.Result.(types.ManagedObjectReference))
 
 	if cmd.on {
-		task, err := vm.PowerOn(context.TODO())
+		task, err := vm.PowerOn(ctx)
 		if err != nil {
 			return err
 		}
 
-		_, err = task.WaitForResult(context.TODO(), nil)
+		_, err = task.WaitForResult(ctx, nil)
 		if err != nil {
 			return err
 		}
@@ -274,10 +276,11 @@ func (cmd *create) createVM(ctx context.Context) (*object.Task, error) {
 	var err error
 
 	spec := &types.VirtualMachineConfigSpec{
-		Name:     cmd.name,
-		GuestId:  cmd.guestID,
-		NumCPUs:  int32(cmd.cpus),
-		MemoryMB: int64(cmd.memory),
+		Name:       cmd.name,
+		GuestId:    cmd.guestID,
+		NumCPUs:    int32(cmd.cpus),
+		MemoryMB:   int64(cmd.memory),
+		Annotation: cmd.annotation,
 	}
 
 	devices, err = cmd.addStorage(nil)
@@ -330,13 +333,23 @@ func (cmd *create) createVM(ctx context.Context) (*object.Task, error) {
 
 func (cmd *create) addStorage(devices object.VirtualDeviceList) (object.VirtualDeviceList, error) {
 	if cmd.controller != "ide" {
-		scsi, err := devices.CreateSCSIController(cmd.controller)
-		if err != nil {
-			return nil, err
-		}
+		if cmd.controller == "nvme" {
+			nvme, err := devices.CreateNVMEController()
+			if err != nil {
+				return nil, err
+			}
 
-		devices = append(devices, scsi)
-		cmd.controller = devices.Name(scsi)
+			devices = append(devices, nvme)
+			cmd.controller = devices.Name(nvme)
+		} else {
+			scsi, err := devices.CreateSCSIController(cmd.controller)
+			if err != nil {
+				return nil, err
+			}
+
+			devices = append(devices, scsi)
+			cmd.controller = devices.Name(scsi)
+		}
 	}
 
 	// If controller is specified to be IDE or if an ISO is specified, add IDE controller.

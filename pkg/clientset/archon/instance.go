@@ -15,9 +15,10 @@ package archon
 
 import (
 	//"github.com/golang/glog"
-	"k8s.io/kubernetes/pkg/api"
-	rest "k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/watch"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	types "k8s.io/apimachinery/pkg/types"
+	watch "k8s.io/apimachinery/pkg/watch"
+	rest "k8s.io/client-go/rest"
 	"kubeup.com/archon/pkg/cluster"
 )
 
@@ -34,9 +35,9 @@ type InstanceInterface interface {
 	UpdateStatus(*cluster.Instance) (*cluster.Instance, error)
 	Delete(name string) error
 	Get(name string) (*cluster.Instance, error)
-	List(api.ListOptions) (*cluster.InstanceList, error)
-	Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error)
-	Watch(api.ListOptions) (watch.Interface, error)
+	List(metav1.ListOptions) (*cluster.InstanceList, error)
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error)
+	Watch(metav1.ListOptions) (watch.Interface, error)
 }
 
 // instances implements InstanceInterface
@@ -113,7 +114,7 @@ func (c *instances) Get(name string) (result *cluster.Instance, err error) {
 }
 
 // List takes label and field selectors, and returns the list of Instances that match those selectors.
-func (c *instances) List(options api.ListOptions) (result *cluster.InstanceList, err error) {
+func (c *instances) List(options metav1.ListOptions) (result *cluster.InstanceList, err error) {
 	result = &cluster.InstanceList{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -124,7 +125,7 @@ func (c *instances) List(options api.ListOptions) (result *cluster.InstanceList,
 }
 
 // Watch returns a watch.Interface that watches the requested instances.
-func (c *instances) Watch(options api.ListOptions) (watch.Interface, error) {
+func (c *instances) Watch(options metav1.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.ns).
@@ -133,7 +134,7 @@ func (c *instances) Watch(options api.ListOptions) (watch.Interface, error) {
 }
 
 // Patch applies the patch and returns the patched replicaSet.
-func (c *instances) Patch(name string, pt api.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error) {
+func (c *instances) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *cluster.Instance, err error) {
 	result = &cluster.Instance{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).

@@ -17,11 +17,10 @@ limitations under the License.
 package logs
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"path"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -59,6 +58,18 @@ func (cmd *download) Usage() string {
 	return "[PATH]..."
 }
 
+func (cmd *download) Description() string {
+	return `Generate diagnostic bundles.
+
+A diagnostic bundle includes log files and other configuration information.
+
+Use PATH to include a specific set of hosts to include.
+
+Examples:
+  govc logs.download
+  govc logs.download host-a host-b`
+}
+
 func (cmd *download) DownloadFile(c *vim25.Client, b string) error {
 	u, err := c.Client.ParseURL(b)
 	if err != nil {
@@ -77,15 +88,16 @@ func (cmd *download) DownloadFile(c *vim25.Client, b string) error {
 }
 
 func (cmd *download) GenerateLogBundles(m *object.DiagnosticManager, host []*object.HostSystem) ([]types.DiagnosticManagerBundleInfo, error) {
+	ctx := context.TODO()
 	logger := cmd.ProgressLogger("Generating log bundles... ")
 	defer logger.Wait()
 
-	task, err := m.GenerateLogBundles(context.TODO(), cmd.IncludeDefault, host)
+	task, err := m.GenerateLogBundles(ctx, cmd.IncludeDefault, host)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := task.WaitForResult(context.TODO(), logger)
+	r, err := task.WaitForResult(ctx, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +114,7 @@ func (cmd *download) Run(ctx context.Context, f *flag.FlagSet) error {
 	var host []*object.HostSystem
 
 	for _, arg := range f.Args() {
-		hs, err := finder.HostSystemList(context.TODO(), arg)
+		hs, err := finder.HostSystemList(ctx, arg)
 		if err != nil {
 			return err
 		}

@@ -11,8 +11,8 @@
    "description": "This API contains a single method, batchGet. Call this method to retrieve the AMP URL (and equivalent AMP Cache URL) for given public URL(s).",
    "discoveryRestUrl": "https://acceleratedmobilepageurl.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/amp/cache/",
    "preferred": true
@@ -74,8 +74,8 @@
    "description": "Accesses the latest features for managing Ad Exchange accounts and Real-Time Bidding configurations.",
    "discoveryRestUrl": "https://adexchangebuyer.googleapis.com/$discovery/rest?version=v2beta1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/ad-exchange/buyer-rest/guides/client-access/",
    "preferred": true
@@ -138,8 +138,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/admin/datatransfer_v1/rest",
    "discoveryLink": "./apis/admin/datatransfer_v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/admin-sdk/data-transfer/",
    "preferred": false
@@ -154,8 +154,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/admin/directory_v1/rest",
    "discoveryLink": "./apis/admin/directory_v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/admin-sdk/directory/",
    "preferred": false
@@ -170,27 +170,11 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/admin/reports_v1/rest",
    "discoveryLink": "./apis/admin/reports_v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/admin-sdk/reports/",
    "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "adsense:v1.2",
-   "name": "adsense",
-   "version": "v1.2",
-   "title": "AdSense Management API",
-   "description": "Accesses AdSense publishers' inventory and generates performance reports.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/adsense/v1.2/rest",
-   "discoveryLink": "./apis/adsense/v1.2/rest",
-   "icons": {
-    "x16": "https://www.google.com/images/icons/product/adsense-16.png",
-    "x32": "https://www.google.com/images/icons/product/adsense-32.png"
-   },
-   "documentationLink": "https://developers.google.com/adsense/management/",
-   "preferred": false
   },
   {
    "kind": "discovery#directoryItem",
@@ -280,12 +264,12 @@
    "id": "analyticsreporting:v4",
    "name": "analyticsreporting",
    "version": "v4",
-   "title": "Analytics Reporting API V4",
-   "description": "The Analytics Reporting API provides access to Analytics report data.",
+   "title": "Google Analytics Reporting API",
+   "description": "Accesses Analytics report data.",
    "discoveryRestUrl": "https://analyticsreporting.googleapis.com/$discovery/rest?version=v4",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/analytics/devguides/reporting/core/v4/",
    "preferred": true
@@ -364,8 +348,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/appsactivity/v1/rest",
    "discoveryLink": "./apis/appsactivity/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/google-apps/activity/",
    "preferred": true
@@ -380,8 +364,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/appstate/v1/rest",
    "discoveryLink": "./apis/appstate/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/games/services/web/api/states",
    "preferred": true
@@ -482,8 +466,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/civicinfo/v2/rest",
    "discoveryLink": "./apis/civicinfo/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/civic-information",
    "preferred": true
@@ -497,8 +481,8 @@
    "description": "Builds container images in the cloud.",
    "discoveryRestUrl": "https://cloudbuild.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/container-builder/docs/",
    "preferred": true
@@ -512,8 +496,8 @@
    "description": "Stackdriver Error Reporting groups and counts similar errors from cloud services. The Stackdriver Error Reporting API provides a way to report new errors and read access to error groups and their associated errors.",
    "discoveryRestUrl": "https://clouderrorreporting.googleapis.com/$discovery/rest?version=v1beta1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/error-reporting/",
    "preferred": true
@@ -528,8 +512,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/cloudmonitoring/v2beta2/rest",
    "discoveryLink": "./apis/cloudmonitoring/v2beta2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/monitoring/v2beta2/",
    "preferred": true
@@ -656,8 +640,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/consumersurveys/v2/rest",
    "discoveryLink": "./apis/consumersurveys/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "preferred": true
   },
@@ -671,8 +655,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/content/v2sandbox/rest",
    "discoveryLink": "./apis/content/v2sandbox/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/shopping-content",
    "preferred": false
@@ -687,8 +671,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/content/v2/rest",
    "discoveryLink": "./apis/content/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/shopping-content",
    "preferred": true
@@ -703,8 +687,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/customsearch/v1/rest",
    "discoveryLink": "./apis/customsearch/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/custom-search/v1/using_rest",
    "preferred": true
@@ -718,8 +702,8 @@
    "description": "Accesses the schemaless NoSQL database to provide fully managed, robust, scalable storage for your application.",
    "discoveryRestUrl": "https://datastore.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/datastore/",
    "preferred": true
@@ -734,8 +718,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/datastore/v1beta1/rest",
    "discoveryLink": "./apis/datastore/v1beta1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/datastore/",
    "preferred": false
@@ -750,8 +734,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/datastore/v1beta2/rest",
    "discoveryLink": "./apis/datastore/v1beta2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/datastore/",
    "preferred": false
@@ -765,8 +749,8 @@
    "description": "Accesses the schemaless NoSQL database to provide fully managed, robust, scalable storage for your application.",
    "discoveryRestUrl": "https://datastore.googleapis.com/$discovery/rest?version=v1beta3",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/datastore/",
    "preferred": false
@@ -781,43 +765,11 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/deploymentmanager/v2/rest",
    "discoveryLink": "./apis/deploymentmanager/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/deployment-manager/",
    "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "dfareporting:v2.2",
-   "name": "dfareporting",
-   "version": "v2.2",
-   "title": "DCM/DFA Reporting And Trafficking API",
-   "description": "Manages your DoubleClick Campaign Manager ad campaigns and reports.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dfareporting/v2.2/rest",
-   "discoveryLink": "./apis/dfareporting/v2.2/rest",
-   "icons": {
-    "x16": "https://www.google.com/images/icons/product/doubleclick-16.gif",
-    "x32": "https://www.google.com/images/icons/product/doubleclick-32.gif"
-   },
-   "documentationLink": "https://developers.google.com/doubleclick-advertisers/reporting/",
-   "preferred": false
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "dfareporting:v2.3",
-   "name": "dfareporting",
-   "version": "v2.3",
-   "title": "DCM/DFA Reporting And Trafficking API",
-   "description": "Manages your DoubleClick Campaign Manager ad campaigns and reports.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dfareporting/v2.3/rest",
-   "discoveryLink": "./apis/dfareporting/v2.3/rest",
-   "icons": {
-    "x16": "https://www.google.com/images/icons/product/doubleclick-16.gif",
-    "x32": "https://www.google.com/images/icons/product/doubleclick-32.gif"
-   },
-   "documentationLink": "https://developers.google.com/doubleclick-advertisers/reporting/",
-   "preferred": false
   },
   {
    "kind": "discovery#directoryItem",
@@ -881,6 +833,22 @@
     "x32": "https://www.google.com/images/icons/product/doubleclick-32.gif"
    },
    "documentationLink": "https://developers.google.com/doubleclick-advertisers/",
+   "preferred": false
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "dfareporting:v2.7",
+   "name": "dfareporting",
+   "version": "v2.7",
+   "title": "DCM/DFA Reporting And Trafficking API",
+   "description": "Manages your DoubleClick Campaign Manager ad campaigns and reports.",
+   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dfareporting/v2.7/rest",
+   "discoveryLink": "./apis/dfareporting/v2.7/rest",
+   "icons": {
+    "x16": "https://www.google.com/images/icons/product/doubleclick-16.gif",
+    "x32": "https://www.google.com/images/icons/product/doubleclick-32.gif"
+   },
+   "documentationLink": "https://developers.google.com/doubleclick-advertisers/",
    "preferred": true
   },
   {
@@ -909,8 +877,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dns/v1/rest",
    "discoveryLink": "./apis/dns/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/cloud-dns",
    "preferred": true
@@ -925,8 +893,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dns/v2beta1/rest",
    "discoveryLink": "./apis/dns/v2beta1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/cloud-dns",
    "preferred": false
@@ -941,8 +909,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/doubleclickbidmanager/v1/rest",
    "discoveryLink": "./apis/doubleclickbidmanager/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/bid-manager/",
    "labels": [
@@ -960,8 +928,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/doubleclicksearch/v2/rest",
    "discoveryLink": "./apis/doubleclicksearch/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/doubleclick-search/",
    "preferred": true
@@ -1000,6 +968,21 @@
   },
   {
    "kind": "discovery#directoryItem",
+   "id": "firebasedynamiclinks:v1",
+   "name": "firebasedynamiclinks",
+   "version": "v1",
+   "title": "Firebase Dynamic Links API",
+   "description": "Firebase Dynamic Links API enables third party developers to programmatically create and manage Dynamic Links.",
+   "discoveryRestUrl": "https://firebasedynamiclinks.googleapis.com/$discovery/rest?version=v1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://firebase.google.com/docs/dynamic-links/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
    "id": "firebaserules:v1",
    "name": "firebaserules",
    "version": "v1",
@@ -1007,10 +990,10 @@
    "description": "Creates and manages rules that determine when a Firebase Rules-enabled service should permit a request.",
    "discoveryRestUrl": "https://firebaserules.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
-   "documentationLink": "https://firebase.google.com/docs/storage/security/start",
+   "documentationLink": "https://firebase.google.com/docs/storage/security",
    "preferred": true
   },
   {
@@ -1023,26 +1006,10 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/fitness/v1/rest",
    "discoveryLink": "./apis/fitness/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/fit/rest/",
-   "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "freebase:v1",
-   "name": "freebase",
-   "version": "v1",
-   "title": "Freebase Search",
-   "description": "Find Freebase entities using textual queries and other constraints.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/freebase/v1/rest",
-   "discoveryLink": "./apis/freebase/v1/rest",
-   "icons": {
-    "x16": "https://www.google.com/images/icons/product/freebase-16.png",
-    "x32": "https://www.google.com/images/icons/product/freebase-32.png"
-   },
-   "documentationLink": "https://developers.google.com/freebase/",
    "preferred": true
   },
   {
@@ -1055,8 +1022,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/fusiontables/v1/rest",
    "discoveryLink": "./apis/fusiontables/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/fusiontables",
    "preferred": false
@@ -1071,8 +1038,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/fusiontables/v2/rest",
    "discoveryLink": "./apis/fusiontables/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/fusiontables",
    "preferred": true
@@ -1087,8 +1054,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/games/v1/rest",
    "discoveryLink": "./apis/games/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/games/services/",
    "preferred": true
@@ -1103,8 +1070,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/gamesConfiguration/v1configuration/rest",
    "discoveryLink": "./apis/gamesConfiguration/v1configuration/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/games/services",
    "preferred": true
@@ -1119,26 +1086,10 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/gamesManagement/v1management/rest",
    "discoveryLink": "./apis/gamesManagement/v1management/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/games/services",
-   "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "genomics:v1beta2",
-   "name": "genomics",
-   "version": "v1beta2",
-   "title": "Genomics API",
-   "description": "Provides access to Genomics data.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/genomics/v1beta2/rest",
-   "discoveryLink": "./apis/genomics/v1beta2/rest",
-   "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
-   },
-   "documentationLink": "https://developers.google.com/genomics/v1beta2/reference",
    "preferred": true
   },
   {
@@ -1183,8 +1134,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/groupssettings/v1/rest",
    "discoveryLink": "./apis/groupssettings/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/google-apps/groups-settings/get_started",
    "preferred": true
@@ -1360,7 +1311,7 @@
    "name": "dataproc",
    "version": "v1alpha1",
    "title": "Google Cloud Dataproc API",
-   "description": "Manages Hadoop-based clusters and jobs on Google Cloud Platform.",
+   "description": "An API for managing Hadoop-based clusters and jobs on Google Cloud Platform.",
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dataproc/v1alpha1/rest",
    "icons": {
     "x16": "http://www.google.com/images/icons/product/search-16.gif",
@@ -1375,7 +1326,7 @@
    "name": "dataproc",
    "version": "v1",
    "title": "Google Cloud Dataproc API",
-   "description": "Manages Hadoop-based clusters and jobs on Google Cloud Platform.",
+   "description": "An API for managing Hadoop-based clusters and jobs on Google Cloud Platform.",
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dataproc/v1/rest",
    "icons": {
     "x16": "http://www.google.com/images/icons/product/search-16.gif",
@@ -1390,7 +1341,7 @@
    "name": "dataproc",
    "version": "v1beta1",
    "title": "Google Cloud Dataproc API",
-   "description": "Manages Hadoop-based clusters and jobs on Google Cloud Platform.",
+   "description": "An API for managing Hadoop-based clusters and jobs on Google Cloud Platform.",
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/dataproc/v1beta1/rest",
    "icons": {
     "x16": "http://www.google.com/images/icons/product/search-16.gif",
@@ -1434,7 +1385,7 @@
    "id": "iam:v1",
    "name": "iam",
    "version": "v1",
-   "title": "Google Identity and Access Management API",
+   "title": "Google Identity and Access Management (IAM) API",
    "description": "Manages identity and access control for Google Cloud Platform resources, including the creation of service accounts, which you can use to authenticate to Google and make API calls.",
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/iam/v1/rest",
    "icons": {
@@ -1457,36 +1408,6 @@
     "x32": "http://www.google.com/images/icons/product/search-32.gif"
    },
    "documentationLink": "https://developers.google.com/knowledge-graph/",
-   "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "logging:v2beta1",
-   "name": "logging",
-   "version": "v2beta1",
-   "title": "Google Cloud Logging API",
-   "description": "Writes log entries and manages your logs, log sinks, and logs-based metrics.",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/logging/v2beta1/rest",
-   "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
-   },
-   "documentationLink": "https://cloud.google.com/logging/docs/",
-   "preferred": true
-  },
-  {
-   "kind": "discovery#directoryItem",
-   "id": "monitoring:v3",
-   "name": "monitoring",
-   "version": "v3",
-   "title": "Google Monitoring API",
-   "description": "Manages your Stackdriver monitoring data and configurations. Projects must be associated with a Stackdriver account, except for the following methods: [monitoredResourceDescriptors.list](v3/projects.monitoredResourceDescriptors/list), [monitoredResourceDescriptors.get](v3/projects.monitoredResourceDescriptors/get), [metricDescriptors.list](v3/projects.metricDescriptors/list), [metricDescriptors.get](v3/projects.metricDescriptors/get), and [timeSeries.list](v3/projects.timeSeries/list).",
-   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/monitoring/v3/rest",
-   "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
-   },
-   "documentationLink": "https://cloud.google.com/monitoring/api/",
    "preferred": true
   },
   {
@@ -1664,10 +1585,25 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/identitytoolkit/v3/rest",
    "discoveryLink": "./apis/identitytoolkit/v3/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/identity-toolkit/v3/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "language:v1",
+   "name": "language",
+   "version": "v1",
+   "title": "Google Cloud Natural Language API",
+   "description": "Google Cloud Natural Language API provides natural language understanding technologies to developers. Examples include sentiment analysis, entity recognition, and text annotations.",
+   "discoveryRestUrl": "https://language.googleapis.com/$discovery/rest?version=v1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/natural-language/",
    "preferred": true
   },
   {
@@ -1679,11 +1615,11 @@
    "description": "Google Cloud Natural Language API provides natural language understanding technologies to developers. Examples include sentiment analysis, entity recognition, and text annotations.",
    "discoveryRestUrl": "https://language.googleapis.com/$discovery/rest?version=v1beta1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/natural-language/",
-   "preferred": true
+   "preferred": false
   },
   {
    "kind": "discovery#directoryItem",
@@ -1695,10 +1631,55 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/licensing/v1/rest",
    "discoveryLink": "./apis/licensing/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/google-apps/licensing/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "logging:v2",
+   "name": "logging",
+   "version": "v2",
+   "title": "Stackdriver Logging API",
+   "description": "Writes log entries and manages your Stackdriver Logging configuration.",
+   "discoveryRestUrl": "https://logging.googleapis.com/$discovery/rest?version=v2",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/logging/docs/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "logging:v2beta1",
+   "name": "logging",
+   "version": "v2beta1",
+   "title": "Stackdriver Logging API",
+   "description": "Writes log entries and manages your Stackdriver Logging configuration.",
+   "discoveryRestUrl": "https://logging.googleapis.com/$discovery/rest?version=v2beta1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/logging/docs/",
+   "preferred": false
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "manufacturers:v1",
+   "name": "manufacturers",
+   "version": "v1",
+   "title": "Manufacturer Center API",
+   "description": "Public API for managing Manufacturer Center related data.",
+   "discoveryRestUrl": "https://manufacturers.googleapis.com/$discovery/rest?version=v1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://developers.google.com/manufacturers/",
    "preferred": true
   },
   {
@@ -1711,13 +1692,43 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/mirror/v1/rest",
    "discoveryLink": "./apis/mirror/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/glass",
    "labels": [
     "limited_availability"
    ],
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "ml:v1beta1",
+   "name": "ml",
+   "version": "v1beta1",
+   "title": "Google Cloud Machine Learning",
+   "description": "An API to enable creating and using machine learning models.",
+   "discoveryRestUrl": "https://ml.googleapis.com/$discovery/rest?version=v1beta1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/ml/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "monitoring:v3",
+   "name": "monitoring",
+   "version": "v3",
+   "title": "Stackdriver Monitoring API",
+   "description": "Manages your Stackdriver Monitoring data and configurations. Most projects must be associated with a Stackdriver account, with a few exceptions as noted on the individual method pages.",
+   "discoveryRestUrl": "https://monitoring.googleapis.com/$discovery/rest?version=v3",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/monitoring/api/",
    "preferred": true
   },
   {
@@ -1730,8 +1741,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/oauth2/v1/rest",
    "discoveryLink": "./apis/oauth2/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/accounts/docs/OAuth2",
    "preferred": false
@@ -1746,8 +1757,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/oauth2/v2/rest",
    "discoveryLink": "./apis/oauth2/v2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/accounts/docs/OAuth2",
    "preferred": true
@@ -1906,8 +1917,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/qpxExpress/v1/rest",
    "discoveryLink": "./apis/qpxExpress/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "http://developers.google.com/qpx-express",
    "preferred": true
@@ -1922,8 +1933,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/replicapool/v1beta1/rest",
    "discoveryLink": "./apis/replicapool/v1beta1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/compute/docs/replica-pool/",
    "labels": [
@@ -1941,8 +1952,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/replicapool/v1beta2/rest",
    "discoveryLink": "./apis/replicapool/v1beta2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/compute/docs/instance-groups/manager/v1beta2",
    "labels": [
@@ -1956,12 +1967,12 @@
    "name": "replicapoolupdater",
    "version": "v1beta1",
    "title": "Google Compute Engine Instance Group Updater API",
-   "description": "Updates groups of Compute Engine instances.",
+   "description": "[Deprecated. Please use compute.instanceGroupManagers.update method. replicapoolupdater API will be disabled after December 30th, 2016] Updates groups of Compute Engine instances.",
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/replicapoolupdater/v1beta1/rest",
    "discoveryLink": "./apis/replicapoolupdater/v1beta1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/compute/docs/instance-groups/manager/#applying_rolling_updates_using_the_updater_service",
    "labels": [
@@ -1979,8 +1990,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/reseller/v1/rest",
    "discoveryLink": "./apis/reseller/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/google-apps/reseller/",
    "labels": [
@@ -1998,8 +2009,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/resourceviews/v1beta1/rest",
    "discoveryLink": "./apis/resourceviews/v1beta1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/compute/",
    "labels": [
@@ -2017,13 +2028,28 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/resourceviews/v1beta2/rest",
    "discoveryLink": "./apis/resourceviews/v1beta2/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/compute/",
    "labels": [
     "limited_availability"
    ],
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "runtimeconfig:v1",
+   "name": "runtimeconfig",
+   "version": "v1",
+   "title": "Google Cloud RuntimeConfig API",
+   "description": "Provides capabilities for dynamic configuration and coordination for applications running on Google Cloud Platform.",
+   "discoveryRestUrl": "https://runtimeconfig.googleapis.com/$discovery/rest?version=v1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://cloud.google.com/deployment-manager/runtime-configurator/",
    "preferred": true
   },
   {
@@ -2035,11 +2061,11 @@
    "description": "Provides capabilities for dynamic configuration and coordination for applications running on Google Cloud Platform.",
    "discoveryRestUrl": "https://runtimeconfig.googleapis.com/$discovery/rest?version=v1beta1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/deployment-manager/runtime-configurator/",
-   "preferred": true
+   "preferred": false
   },
   {
    "kind": "discovery#directoryItem",
@@ -2050,8 +2076,8 @@
    "description": "Google Service Control provides control plane functionality to managed services, such as logging, monitoring, and status checks.",
    "discoveryRestUrl": "https://servicecontrol.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/service-control/",
    "preferred": true
@@ -2065,8 +2091,8 @@
    "description": "Google Service Management allows service producers to publish their services on Google Cloud Platform so that they can be discovered and used by service consumers.",
    "discoveryRestUrl": "https://servicemanagement.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/service-management/",
    "preferred": true
@@ -2080,8 +2106,8 @@
    "description": "Reads and writes Google Sheets.",
    "discoveryRestUrl": "https://sheets.googleapis.com/$discovery/rest?version=v4",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/sheets/",
    "preferred": true
@@ -2096,10 +2122,25 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/siteVerification/v1/rest",
    "discoveryLink": "./apis/siteVerification/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/site-verification/",
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
+   "id": "slides:v1",
+   "name": "slides",
+   "version": "v1",
+   "title": "Google Slides API",
+   "description": "An API for creating and editing Google Slides presentations.",
+   "discoveryRestUrl": "https://slides.googleapis.com/$discovery/rest?version=v1",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "documentationLink": "https://developers.google.com/slides/",
    "preferred": true
   },
   {
@@ -2112,8 +2153,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/spectrum/v1explorer/rest",
    "discoveryLink": "./apis/spectrum/v1explorer/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "http://developers.google.com/spectrum",
    "preferred": true
@@ -2127,8 +2168,8 @@
    "description": "Google Cloud Speech API.",
    "discoveryRestUrl": "https://speech.googleapis.com/$discovery/rest?version=v1beta1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/speech/",
    "preferred": true
@@ -2143,8 +2184,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/sqladmin/v1beta3/rest",
    "discoveryLink": "./apis/sqladmin/v1beta3/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/sql/docs/reference/latest",
    "preferred": false
@@ -2159,8 +2200,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/sqladmin/v1beta4/rest",
    "discoveryLink": "./apis/sqladmin/v1beta4/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/sql/docs/reference/latest",
    "preferred": true
@@ -2224,6 +2265,21 @@
   },
   {
    "kind": "discovery#directoryItem",
+   "id": "surveys:v2",
+   "name": "surveys",
+   "version": "v2",
+   "title": "Surveys API",
+   "description": "Creates and conducts surveys, lists the surveys that an authenticated user owns, and retrieves survey results and information about specified surveys.",
+   "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/surveys/v2/rest",
+   "discoveryLink": "./apis/surveys/v2/rest",
+   "icons": {
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
+   },
+   "preferred": true
+  },
+  {
+   "kind": "discovery#directoryItem",
    "id": "tagmanager:v1",
    "name": "tagmanager",
    "version": "v1",
@@ -2232,8 +2288,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/tagmanager/v1/rest",
    "discoveryLink": "./apis/tagmanager/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/tag-manager/api/v1/",
    "preferred": true
@@ -2296,8 +2352,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/toolresults/v1beta3/rest",
    "discoveryLink": "./apis/toolresults/v1beta3/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/cloud-test-lab/",
    "preferred": true
@@ -2328,8 +2384,8 @@
    "discoveryRestUrl": "https://www.googleapis.com/discovery/v1/apis/urlshortener/v1/rest",
    "discoveryLink": "./apis/urlshortener/v1/rest",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://developers.google.com/url-shortener/v1/getting_started",
    "preferred": true
@@ -2343,8 +2399,8 @@
    "description": "Integrates Google Vision features, including image labeling, face, logo, and landmark detection, optical character recognition (OCR), and detection of explicit content, into applications.",
    "discoveryRestUrl": "https://vision.googleapis.com/$discovery/rest?version=v1",
    "icons": {
-    "x16": "http://www.google.com/images/icons/product/search-16.gif",
-    "x32": "http://www.google.com/images/icons/product/search-32.gif"
+    "x16": "https://www.gstatic.com/images/branding/product/1x/googleg_16dp.png",
+    "x32": "https://www.gstatic.com/images/branding/product/1x/googleg_32dp.png"
    },
    "documentationLink": "https://cloud.google.com/vision/",
    "preferred": true

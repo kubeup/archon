@@ -363,8 +363,11 @@ func TestServicePrincipalTokenEnsureFreshSkipsIfFresh(t *testing.T) {
 func TestServicePrincipalTokenWithAuthorization(t *testing.T) {
 	spt := newServicePrincipalToken()
 	setTokenToExpireIn(&spt.Token, 1000*time.Second)
+	r := mocks.NewRequest()
+	s := mocks.NewSender()
+	spt.SetSender(s)
 
-	req, err := autorest.Prepare(&http.Request{}, spt.WithAuthorization())
+	req, err := autorest.Prepare(r, spt.WithAuthorization())
 	if err != nil {
 		t.Fatalf("azure: ServicePrincipalToken#WithAuthorization returned an error (%v)", err)
 	} else if req.Header.Get(http.CanonicalHeaderKey("Authorization")) != fmt.Sprintf("Bearer %s", spt.AccessToken) {
@@ -374,8 +377,11 @@ func TestServicePrincipalTokenWithAuthorization(t *testing.T) {
 
 func TestServicePrincipalTokenWithAuthorizationReturnsErrorIfCannotRefresh(t *testing.T) {
 	spt := newServicePrincipalToken()
+	s := mocks.NewSender()
+	s.AppendResponse(mocks.NewResponseWithStatus("400 Bad Request", 400))
+	spt.SetSender(s)
 
-	_, err := autorest.Prepare(&http.Request{}, spt.WithAuthorization())
+	_, err := autorest.Prepare(mocks.NewRequest(), spt.WithAuthorization())
 	if err == nil {
 		t.Fatal("azure: ServicePrincipalToken#WithAuthorization failed to return an error when refresh fails")
 	}

@@ -29,9 +29,8 @@ import (
 // HTTP/1.1 protocol specification and each operation returns an
 // x-ms-request-id header that can be used to obtain information about the
 // request. You must make sure that requests made to these resources are
-// secure. For more information, see <a
-// href="https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx">Authenticating
-// Azure Resource Manager requests.</a>
+// secure. For more information, see
+// https://msdn.microsoft.com/en-us/library/azure/dn790557.aspx.
 type ProviderClient struct {
 	ManagementClient
 }
@@ -219,7 +218,7 @@ func (client ProviderClient) GetSourceControlsResponder(resp *http.Response) (re
 func (client ProviderClient) GetSourceControlsNextResults(lastResults SourceControlCollection) (result SourceControlCollection, err error) {
 	req, err := lastResults.SourceControlCollectionPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -228,12 +227,12 @@ func (client ProviderClient) GetSourceControlsNextResults(lastResults SourceCont
 	resp, err := client.GetSourceControlsSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", resp, "Failure sending next results request")
 	}
 
 	result, err = client.GetSourceControlsResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "web.ProviderClient", "GetSourceControls", resp, "Failure responding to next results request")
 	}
 
 	return

@@ -731,7 +731,7 @@ func TestSerialPort(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	devices.ConnectSerialPort(device, "telnet://:33233", false)
+	devices.ConnectSerialPort(device, "telnet://:33233", false, "")
 }
 
 func TestPrimaryMacAddress(t *testing.T) {
@@ -848,6 +848,26 @@ func TestName(t *testing.T) {
 		name := devices.Name(test.device)
 		if name != test.expect {
 			t.Errorf("expected: %s, got: %s", test.expect, name)
+		}
+	}
+}
+
+func TestChildDisk(t *testing.T) {
+	disks := devices.SelectByType((*types.VirtualDisk)(nil))
+
+	for _, disk := range disks {
+		child := disks.ChildDisk(disk.(*types.VirtualDisk))
+		name := child.Backing.(*types.VirtualDiskFlatVer2BackingInfo).VirtualDeviceFileBackingInfo.FileName
+
+		p := new(DatastorePath)
+		p.FromString(name)
+
+		if p.Datastore != "datastore1" {
+			t.Fatal(p.Datastore)
+		}
+
+		if p.Path != "" {
+			t.Fatal(p.Path)
 		}
 	}
 }

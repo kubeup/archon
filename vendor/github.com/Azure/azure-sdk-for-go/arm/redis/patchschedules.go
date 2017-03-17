@@ -21,10 +21,11 @@ package redis
 import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/validation"
 	"net/http"
 )
 
-// PatchSchedulesClient is the rEST API for Azure Redis Cache Service
+// PatchSchedulesClient is the rEST API for Azure Redis Cache Service.
 type PatchSchedulesClient struct {
 	ManagementClient
 }
@@ -41,12 +42,23 @@ func NewPatchSchedulesClientWithBaseURI(baseURI string, subscriptionID string) P
 	return PatchSchedulesClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// CreateOrUpdate create or replace the patching schedule for redis cache.
+// CreateOrUpdate create or replace the patching schedule for Redis cache.
 //
 // resourceGroupName is the name of the resource group. name is the name of
-// the redis cache. parameters is parameters to set patch schedules for redis
+// the Redis cache. parameters is parameters to set patch schedules for Redis
 // cache.
-func (client PatchSchedulesClient) CreateOrUpdate(resourceGroupName string, name string, parameters PatchSchedulesRequest) (result PatchSchedulesResponse, err error) {
+func (client PatchSchedulesClient) CreateOrUpdate(resourceGroupName string, name string, parameters PatchSchedule) (result PatchSchedule, err error) {
+	if err := validation.Validate([]validation.Validation{
+		{TargetValue: parameters,
+			Constraints: []validation.Constraint{{Target: "parameters.ScheduleEntries", Name: validation.Null, Rule: true,
+				Chain: []validation.Constraint{{Target: "parameters.ScheduleEntries.ScheduleEntriesProperty", Name: validation.Null, Rule: true, Chain: nil}}},
+				{Target: "parameters.ID", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Name", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Type", Name: validation.ReadOnly, Rule: true, Chain: nil},
+				{Target: "parameters.Location", Name: validation.ReadOnly, Rule: true, Chain: nil}}}}); err != nil {
+		return result, validation.NewErrorWithValidationError(err, "redis.PatchSchedulesClient", "CreateOrUpdate")
+	}
+
 	req, err := client.CreateOrUpdatePreparer(resourceGroupName, name, parameters)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "redis.PatchSchedulesClient", "CreateOrUpdate", nil, "Failure preparing request")
@@ -67,7 +79,7 @@ func (client PatchSchedulesClient) CreateOrUpdate(resourceGroupName string, name
 }
 
 // CreateOrUpdatePreparer prepares the CreateOrUpdate request.
-func (client PatchSchedulesClient) CreateOrUpdatePreparer(resourceGroupName string, name string, parameters PatchSchedulesRequest) (*http.Request, error) {
+func (client PatchSchedulesClient) CreateOrUpdatePreparer(resourceGroupName string, name string, parameters PatchSchedule) (*http.Request, error) {
 	pathParameters := map[string]interface{}{
 		"name":              autorest.Encode("path", name),
 		"resourceGroupName": autorest.Encode("path", resourceGroupName),
@@ -96,7 +108,7 @@ func (client PatchSchedulesClient) CreateOrUpdateSender(req *http.Request) (*htt
 
 // CreateOrUpdateResponder handles the response to the CreateOrUpdate request. The method always
 // closes the http.Response Body.
-func (client PatchSchedulesClient) CreateOrUpdateResponder(resp *http.Response) (result PatchSchedulesResponse, err error) {
+func (client PatchSchedulesClient) CreateOrUpdateResponder(resp *http.Response) (result PatchSchedule, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
@@ -107,10 +119,10 @@ func (client PatchSchedulesClient) CreateOrUpdateResponder(resp *http.Response) 
 	return
 }
 
-// Delete deletes the patching schedule for redis cache.
+// Delete deletes the patching schedule for Redis cache.
 //
 // resourceGroupName is the name of the resource group. name is the name of
-// the redis cache.
+// the Redis cache.
 func (client PatchSchedulesClient) Delete(resourceGroupName string, name string) (result autorest.Response, err error) {
 	req, err := client.DeletePreparer(resourceGroupName, name)
 	if err != nil {
@@ -169,11 +181,11 @@ func (client PatchSchedulesClient) DeleteResponder(resp *http.Response) (result 
 	return
 }
 
-// Get gets the patching schedule for redis cache.
+// Get gets the patching schedule for Redis cache.
 //
 // resourceGroupName is the name of the resource group. name is the name of
-// the redis cache.
-func (client PatchSchedulesClient) Get(resourceGroupName string, name string) (result PatchSchedulesResponse, err error) {
+// the Redis cache.
+func (client PatchSchedulesClient) Get(resourceGroupName string, name string) (result PatchSchedule, err error) {
 	req, err := client.GetPreparer(resourceGroupName, name)
 	if err != nil {
 		return result, autorest.NewErrorWithError(err, "redis.PatchSchedulesClient", "Get", nil, "Failure preparing request")
@@ -221,11 +233,11 @@ func (client PatchSchedulesClient) GetSender(req *http.Request) (*http.Response,
 
 // GetResponder handles the response to the Get request. The method always
 // closes the http.Response Body.
-func (client PatchSchedulesClient) GetResponder(resp *http.Response) (result PatchSchedulesResponse, err error) {
+func (client PatchSchedulesClient) GetResponder(resp *http.Response) (result PatchSchedule, err error) {
 	err = autorest.Respond(
 		resp,
 		client.ByInspecting(),
-		azure.WithErrorUnlessStatusCode(http.StatusOK),
+		azure.WithErrorUnlessStatusCode(http.StatusOK, http.StatusNotFound),
 		autorest.ByUnmarshallingJSON(&result),
 		autorest.ByClosing())
 	result.Response = autorest.Response{Response: resp}

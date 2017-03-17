@@ -17,14 +17,13 @@ limitations under the License.
 package flags
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"net/url"
 	"os"
 
 	"github.com/vmware/govmomi/object"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type DatastoreFlag struct {
@@ -94,6 +93,13 @@ func (f *DatastoreFlag) Datastore() (*object.Datastore, error) {
 	return f.ds, nil
 }
 
+func (flag *DatastoreFlag) DatastoreIfSpecified() (*object.Datastore, error) {
+	if flag.Name == "" {
+		return nil, nil
+	}
+	return flag.Datastore()
+}
+
 func (f *DatastoreFlag) DatastorePath(name string) (string, error) {
 	ds, err := f.Datastore()
 	if err != nil {
@@ -101,25 +107,6 @@ func (f *DatastoreFlag) DatastorePath(name string) (string, error) {
 	}
 
 	return ds.Path(name), nil
-}
-
-func (f *DatastoreFlag) DatastoreURL(path string) (*url.URL, error) {
-	dc, err := f.Datacenter()
-	if err != nil {
-		return nil, err
-	}
-
-	ds, err := f.Datastore()
-	if err != nil {
-		return nil, err
-	}
-
-	u, err := ds.URL(context.TODO(), dc, path)
-	if err != nil {
-		return nil, err
-	}
-
-	return u, nil
 }
 
 func (f *DatastoreFlag) Stat(ctx context.Context, file string) (types.BaseFileInfo, error) {

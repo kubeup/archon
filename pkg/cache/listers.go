@@ -20,11 +20,11 @@ import (
 
 	"kubeup.com/archon/pkg/cluster"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/client/cache"
-	"k8s.io/kubernetes/pkg/labels"
 )
 
 // StoreToInstanceLister helps list instances
@@ -120,7 +120,7 @@ func (s *StoreToInstanceGroupLister) GetInstanceGroup(instance *cluster.Instance
 		if ig.Namespace != instance.Namespace {
 			continue
 		}
-		selector, err := unversioned.LabelSelectorAsSelector(ig.Spec.Selector)
+		selector, err := metav1.LabelSelectorAsSelector(ig.Spec.Selector)
 		if err != nil {
 			return nil, fmt.Errorf("invalid selector: %v", err)
 		}

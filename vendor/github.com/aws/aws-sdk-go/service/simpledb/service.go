@@ -25,10 +25,11 @@ import (
 // functionality within Amazon's proven computing environment, are able to scale
 // instantly, and pay only for what they use.
 //
-//  Visit http://aws.amazon.com/simpledb/ (http://aws.amazon.com/simpledb/)
-// for more information.
-//The service client's operations are safe to be used concurrently.
+// Visit http://aws.amazon.com/simpledb/ (http://aws.amazon.com/simpledb/) for
+// more information.
+// The service client's operations are safe to be used concurrently.
 // It is not safe to mutate any of the client's properties though.
+// Please also see https://docs.aws.amazon.com/goto/WebAPI/
 type SimpleDB struct {
 	*client.Client
 }
@@ -39,8 +40,11 @@ var initClient func(*client.Client)
 // Used for custom request initialization logic
 var initRequest func(*request.Request)
 
-// A ServiceName is the name of the service the client will make API calls to.
-const ServiceName = "sdb"
+// Service information constants
+const (
+	ServiceName = "sdb"       // Service endpoint prefix API calls made to.
+	EndpointsID = ServiceName // Service ID for Regions and Endpoints metadata.
+)
 
 // New creates a new instance of the SimpleDB client with a session.
 // If additional configuration is needed for the client instance use the optional
@@ -53,17 +57,18 @@ const ServiceName = "sdb"
 //     // Create a SimpleDB client with additional configuration
 //     svc := simpledb.New(mySession, aws.NewConfig().WithRegion("us-west-2"))
 func New(p client.ConfigProvider, cfgs ...*aws.Config) *SimpleDB {
-	c := p.ClientConfig(ServiceName, cfgs...)
-	return newClient(*c.Config, c.Handlers, c.Endpoint, c.SigningRegion)
+	c := p.ClientConfig(EndpointsID, cfgs...)
+	return newClient(*c.Config, c.Handlers, c.Endpoint, c.SigningRegion, c.SigningName)
 }
 
 // newClient creates, initializes and returns a new service client instance.
-func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegion string) *SimpleDB {
+func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegion, signingName string) *SimpleDB {
 	svc := &SimpleDB{
 		Client: client.New(
 			cfg,
 			metadata.ClientInfo{
 				ServiceName:   ServiceName,
+				SigningName:   signingName,
 				SigningRegion: signingRegion,
 				Endpoint:      endpoint,
 				APIVersion:    "2009-04-15",
@@ -73,12 +78,12 @@ func newClient(cfg aws.Config, handlers request.Handlers, endpoint, signingRegio
 	}
 
 	// Handlers
-	svc.Handlers.Sign.PushBack(v2.Sign)
+	svc.Handlers.Sign.PushBackNamed(v2.SignRequestHandler)
 	svc.Handlers.Sign.PushBackNamed(corehandlers.BuildContentLengthHandler)
-	svc.Handlers.Build.PushBack(query.Build)
-	svc.Handlers.Unmarshal.PushBack(query.Unmarshal)
-	svc.Handlers.UnmarshalMeta.PushBack(query.UnmarshalMeta)
-	svc.Handlers.UnmarshalError.PushBack(query.UnmarshalError)
+	svc.Handlers.Build.PushBackNamed(query.BuildHandler)
+	svc.Handlers.Unmarshal.PushBackNamed(query.UnmarshalHandler)
+	svc.Handlers.UnmarshalMeta.PushBackNamed(query.UnmarshalMetaHandler)
+	svc.Handlers.UnmarshalError.PushBackNamed(query.UnmarshalErrorHandler)
 
 	// Run custom client initialization if present
 	if initClient != nil {

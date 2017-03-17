@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	archoncache "kubeup.com/archon/pkg/cache"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
@@ -29,18 +30,20 @@ import (
 	"kubeup.com/archon/pkg/util"
 
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	pkg_runtime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	watch "k8s.io/apimachinery/pkg/watch"
+	clientv1 "k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/client/cache"
-	unversioned_core "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
-	"k8s.io/kubernetes/pkg/client/record"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/controller"
-	pkg_runtime "k8s.io/kubernetes/pkg/runtime"
 	"k8s.io/kubernetes/pkg/util/metrics"
-	"k8s.io/kubernetes/pkg/util/runtime"
-	"k8s.io/kubernetes/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/util/workqueue"
-	"k8s.io/kubernetes/pkg/watch"
 )
 
 const (
@@ -86,7 +89,7 @@ type InstanceController struct {
 	// A store of instances, populated by the instanceController
 	instanceStore archoncache.StoreToInstanceLister
 	// Watches changes to all instances
-	instanceController *cache.Controller
+	instanceController cache.Controller
 	eventBroadcaster   record.EventBroadcaster
 	eventRecorder      record.EventRecorder
 	// instances that need to be synced
@@ -97,8 +100,8 @@ type InstanceController struct {
 // in sync with the registry.
 func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterName, namespace string) (*InstanceController, error) {
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartRecordingToSink(&unversioned_core.EventSinkImpl{Interface: kubeClient.Core().Events("")})
-	recorder := broadcaster.NewRecorder(api.EventSource{Component: "instance-controller"})
+	broadcaster.StartRecordingToSink(&v1core.EventSinkImpl{Interface: v1core.New(kubeClient.Core().RESTClient()).Events("")})
+	recorder := broadcaster.NewRecorder(api.Scheme, clientv1.EventSource{Component: "instance-controller"})
 
 	if kubeClient != nil && kubeClient.Core().RESTClient().GetRateLimiter() != nil {
 		metrics.RegisterMetricAndTrackRateLimiterUsage("instance_controller", kubeClient.Core().RESTClient().GetRateLimiter())
@@ -140,10 +143,10 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	}
 	s.instanceStore.Indexer, s.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
-			ListFunc: func(options api.ListOptions) (pkg_runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
 				return s.kubeClient.Archon().Instances(namespace).List(options)
 			},
-			WatchFunc: func(options api.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				return s.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},
@@ -215,7 +218,7 @@ func (s *InstanceController) syncCloudInstances() {
 	}
 
 	// List all instances in the registry
-	instances, err := s.kubeClient.Archon().Instances(s.namespace).List(api.ListOptions{})
+	instances, err := s.kubeClient.Archon().Instances(s.namespace).List(metav1.ListOptions{})
 	if err != nil {
 		glog.Errorf("Couldn't get instances from k8s. Cloud instance sync failed: %+v", err)
 		return
@@ -340,10 +343,10 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 }
 
 func (s *InstanceController) ensureSecrets(key string, instance *cluster.Instance) error {
-	secrets := make([]api.Secret, 0)
+	secrets := make([]v1.Secret, 0)
 
 	for _, n := range instance.Spec.Secrets {
-		secret, err := s.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name)
+		secret, err := s.kubeClient.Core().Secrets(instance.Namespace).Get(n.Name, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("Failed to get secret resource %s: %v", n.Name, err)
 		}
@@ -672,6 +675,7 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 
 	// Instance
+	//	glog.Infof("deleting instance %v", instance)
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletingInstance", "Deleting instance")
 	err = s.archon.EnsureInstanceDeleted(s.clusterName, instance)
 	if err != nil {

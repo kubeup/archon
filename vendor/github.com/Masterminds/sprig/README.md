@@ -108,6 +108,7 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
   "one anchovy" "many anchovies"`
 - uuidv4: Generate a UUID v4 string
 - sha256sum: Generate a hex encoded sha256 hash of the input
+- toString: Convert something to a string
 
 ### String Slice Functions:
 
@@ -117,6 +118,8 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
   Use it like this: `{{$v := "foo/bar/baz" | split "/"}}{{$v._0}}` (Prints `foo`)
 - splitList: strings.Split, but as `split SEP STRING`. The results are returned
   as an array.
+- toStrings: convert a list to a list of strings. 'list 1 2 3 | toStrings' produces '["1" "2" "3"]'
+- sortAlpha: sort a list lexicographically.
 
 ### Integer Slice Functions:
 
@@ -143,6 +146,12 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
   no clear empty condition). For everything else, nil value triggers a default.
 - empty: Returns true if the given value is the zero value for that
   type. Structs are always non-empty.
+- coalesce: Given a list of items, return the first non-empty one.
+  This follows the same rules as 'empty'. `{{ coalesce .someVal 0 "hello" }}`
+  will return `.someVal` if set, or else return "hello". The 0 is skipped
+  because it is an empty value.
+- compact: Return a copy of a list with all of the empty values removed.
+  `list 0 1 2 "" | compact` will return `[1 2]`
 
 ### OS:
 
@@ -166,8 +175,11 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
 
 ### Data Structures:
 
-- tuple: A sequence of related objects. It is implemented as a
-  `[]interface{}`, where each item can be accessed using `index`.
+- tuple: Takes an arbitrary list of items and returns a slice of items. Its
+  tuple-ish properties are mainly gained through the template idiom, and not
+  through an API provided here. WARNING: The implementation of tuple will
+  change in the future.
+- list: An arbitrary ordered list of items. (This is prefered over tuple.)
 - dict: Takes a list of name/values and returns a map[string]interface{}.
   The first parameter is converted to a string and stored as a key, the
   second parameter is treated as the value. And so on, with odds as keys and
@@ -175,7 +187,23 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
   be assigned the empty string. Non-string keys are converted to strings as
   follows: []byte are converted, fmt.Stringers will have String() called.
   errors will have Error() called. All others will be passed through
-  fmt.Sprtinf("%v").
+  fmt.Sprtinf("%v"). _dicts are unordered_.
+
+### Lists Functions:
+
+These are used to manipulate lists: `{{ list 1 2 3 | reverse | first }}`
+
+- first: Get the first item in a 'list'. 'list 1 2 3 | first' prints '1'
+- last: Get the last item in a 'list': 'list 1 2 3 | last ' prints '3'
+- rest: Get all but the first item in a list: 'list 1 2 3 | rest' returns '[2 3]'
+- initial: Get all but the last item in a list: 'list 1 2 3 | initial' returns '[1 2]'
+- append: Add an item to the end of a list: 'append $list 4' adds '4' to the end of '$list'
+- prepend: Add an item to the beginning of a list: 'prepend $list 4' puts 4 at the beginning of the list.
+
+### Dict Functions:
+
+These are used to manipulate dicts.
+
 - set: Takes a dict, a key, and a value, and sets that key/value pair in
   the dict. `set $dict $key $value`. For convenience, it returns the dict,
   even though the dict was modified in place.
@@ -183,6 +211,8 @@ parse, it returns the time unaltered. See `time.ParseDuration` for info on durat
   dict. `unset $dict $key`. This returns the dict for convenience.
 - hasKey: Takes a dict and a key, and returns boolean true if the key is in
   the dict.
+- pluck: Given a key and one or more maps, get all of the values for that key.
+- keys: Get an array of all of the keys in a dict. Order is not guaranteed.
 
 ```
 {{$t := tuple 1 "a" "foo"}}

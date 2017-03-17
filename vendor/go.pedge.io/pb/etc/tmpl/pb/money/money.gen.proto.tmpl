@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package pb.money;
+
+option go_package = "pbmoney";
+
+enum CurrencyCode {
+  CURRENCY_CODE_NONE = 0;{{range $i, $elem := .Data.ElemsCodeSorted}}
+  CURRENCY_CODE_{{$elem.CurrencyCode}} = {{add $i 1}};{{end}}
+}

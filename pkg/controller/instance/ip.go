@@ -22,13 +22,13 @@ import (
 	"kubeup.com/archon/pkg/util"
 
 	"fmt"
-	"k8s.io/kubernetes/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"reflect"
 )
 
 var (
-	PublicIPToken  = "public-ip"
-	PrivateIPToken = "private-ip"
+	PublicIPToken  = cluster.AnnotationPrefix + "public-ip"
+	PrivateIPToken = cluster.AnnotationPrefix + "private-ip"
 )
 
 type IPInitializer struct {

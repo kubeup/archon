@@ -24,8 +24,12 @@ import (
 	"net/http"
 )
 
-// PermissionsClient is the client for the Permissions methods of the
-// Authorization service.
+// PermissionsClient is the role based access control provides you a way to
+// apply granular level policy administration down to individual resources or
+// resource groups. These operations enable you to manage role definitions
+// and role assignments. A role definition describes the set of actions that
+// can be performed on resources. A role assignment grants access to Azure
+// Active Directory users.
 type PermissionsClient struct {
 	ManagementClient
 }
@@ -41,11 +45,13 @@ func NewPermissionsClientWithBaseURI(baseURI string, subscriptionID string) Perm
 	return PermissionsClient{NewWithBaseURI(baseURI, subscriptionID)}
 }
 
-// ListForResource gets a resource permissions.
+// ListForResource gets all permissions the caller has for a resource.
 //
-// resourceGroupName is the name of the resource group. The name is case
-// insensitive. resourceProviderNamespace is resource parentResourcePath is
-// resource resourceType is resource resourceName is resource
+// resourceGroupName is the name of the resource group containing the
+// resource. The name is case insensitive. resourceProviderNamespace is the
+// namespace of the resource provider. parentResourcePath is the parent
+// resource identity. resourceType is the resource type of the resource.
+// resourceName is the name of the resource to get the permissions for.
 func (client PermissionsClient) ListForResource(resourceGroupName string, resourceProviderNamespace string, parentResourcePath string, resourceType string, resourceName string) (result PermissionGetResult, err error) {
 	req, err := client.ListForResourcePreparer(resourceGroupName, resourceProviderNamespace, parentResourcePath, resourceType, resourceName)
 	if err != nil {
@@ -112,7 +118,7 @@ func (client PermissionsClient) ListForResourceResponder(resp *http.Response) (r
 func (client PermissionsClient) ListForResourceNextResults(lastResults PermissionGetResult) (result PermissionGetResult, err error) {
 	req, err := lastResults.PermissionGetResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -121,21 +127,22 @@ func (client PermissionsClient) ListForResourceNextResults(lastResults Permissio
 	resp, err := client.ListForResourceSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListForResourceResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResource", resp, "Failure responding to next results request")
 	}
 
 	return
 }
 
-// ListForResourceGroup gets a resource group permissions.
+// ListForResourceGroup gets all permissions the caller has for a resource
+// group.
 //
-// resourceGroupName is name of the resource group to get the permissions
-// for.The name is case insensitive.
+// resourceGroupName is the name of the resource group to get the permissions
+// for. The name is case insensitive.
 func (client PermissionsClient) ListForResourceGroup(resourceGroupName string) (result PermissionGetResult, err error) {
 	req, err := client.ListForResourceGroupPreparer(resourceGroupName)
 	if err != nil {
@@ -198,7 +205,7 @@ func (client PermissionsClient) ListForResourceGroupResponder(resp *http.Respons
 func (client PermissionsClient) ListForResourceGroupNextResults(lastResults PermissionGetResult) (result PermissionGetResult, err error) {
 	req, err := lastResults.PermissionGetResultPreparer()
 	if err != nil {
-		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", nil, "Failure preparing next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", nil, "Failure preparing next results request")
 	}
 	if req == nil {
 		return
@@ -207,12 +214,12 @@ func (client PermissionsClient) ListForResourceGroupNextResults(lastResults Perm
 	resp, err := client.ListForResourceGroupSender(req)
 	if err != nil {
 		result.Response = autorest.Response{Response: resp}
-		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", resp, "Failure sending next results request request")
+		return result, autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", resp, "Failure sending next results request")
 	}
 
 	result, err = client.ListForResourceGroupResponder(resp)
 	if err != nil {
-		err = autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", resp, "Failure responding to next results request request")
+		err = autorest.NewErrorWithError(err, "authorization.PermissionsClient", "ListForResourceGroup", resp, "Failure responding to next results request")
 	}
 
 	return

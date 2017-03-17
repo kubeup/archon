@@ -1,0 +1,183 @@
+package pbgeo
+
+import (
+	"bytes"
+	"fmt"
+	"strings"
+
+	"go.pedge.io/pb/{{.Type}}/pb/money"
+)
+
+var (
+  {{range $elem := .Data.ElemsAlpha2CodeSorted}}//CountryCode{{$elem.CountryAlpha2Code}} is a simple holder for CountryAlpha2Code_COUNTRY_ALPHA_2_CODE_{{$elem.CountryAlpha2Code}} for simplicity.
+  CountryCode{{$elem.CountryAlpha2Code}} = CountryAlpha2Code_COUNTRY_ALPHA_2_CODE_{{$elem.CountryAlpha2Code}}
+  {{end}}
+
+  {{range $elem := .Data.ElemsAlpha3CodeSorted}}//CountryCode{{$elem.CountryAlpha3Code}} is a simple holder for CountryAlpha3Code_COUNTRY_ALPHA_3_CODE_{{$elem.CountryAlpha3Code}} for simplicity.
+  CountryCode{{$elem.CountryAlpha3Code}} = CountryAlpha3Code_COUNTRY_ALPHA_3_CODE_{{$elem.CountryAlpha3Code}}
+  {{end}}
+
+  // CountryAlpha2CodeToCountry is a map from CountryAlpha2Code to Country.
+  CountryAlpha2CodeToCountry = map[CountryAlpha2Code]*Country {
+    {{range $i, $elem := .Data.ElemsAlpha2CodeSorted}}CountryCode{{$elem.CountryAlpha2Code}}: country{{add $i 1}},
+    {{end}}
+  }
+
+  // CountryAlpha3CodeToCountry is a map from CountryAlpha3Code to Country.
+  CountryAlpha3CodeToCountry = map[CountryAlpha3Code]*Country {
+    {{range $i, $elem := .Data.ElemsAlpha3CodeSorted}}CountryCode{{$elem.CountryAlpha3Code}}: country{{add $i 1}},
+    {{end}}
+  }
+
+  // CountryAlpha2CodeToSimpleString is a map from CountryAlpha2Code to simple string.
+  CountryAlpha2CodeToSimpleString = map[CountryAlpha2Code]string {
+    {{range $elem := .Data.ElemsAlpha2CodeSorted}}CountryCode{{$elem.CountryAlpha2Code}}: "{{$elem.CountryAlpha2Code}}",
+    {{end}}
+  }
+
+  // SimpleStringToCountryAlpha2Code is a map from simple string to CountryAlpha2Code.
+  SimpleStringToCountryAlpha2Code = map[string]CountryAlpha2Code {
+    {{range $elem := .Data.ElemsAlpha2CodeSorted}}"{{$elem.CountryAlpha2Code}}": CountryCode{{$elem.CountryAlpha2Code}},
+    {{end}}
+  }
+
+  // CountryAlpha3CodeToSimpleString is a map from CountryAlpha3Code to simple string.
+  CountryAlpha3CodeToSimpleString = map[CountryAlpha3Code]string {
+    {{range $elem := .Data.ElemsAlpha3CodeSorted}}CountryCode{{$elem.CountryAlpha3Code}}: "{{$elem.CountryAlpha3Code}}",
+    {{end}}
+  }
+
+  // SimpleStringToCountryAlpha3Code is a map from simple string to CountryAlpha3Code.
+  SimpleStringToCountryAlpha3Code = map[string]CountryAlpha3Code {
+    {{range $elem := .Data.ElemsAlpha3CodeSorted}}"{{$elem.CountryAlpha3Code}}": CountryCode{{$elem.CountryAlpha3Code}},
+    {{end}}
+  }
+
+  {{range $i, $elem := .Data.ElemsAlpha2CodeSorted}}country{{add $i 1}} = &Country{
+    Name: "{{$elem.CountryName}}",
+    Alpha_2Code: CountryCode{{$elem.CountryAlpha2Code}},
+    Alpha_3Code: CountryCode{{$elem.CountryAlpha3Code}},
+    NumericCode: {{$elem.CountryNumericCode}},
+    CurrencyCode: pbmoney.CurrencyCode{{cleanCurrencyCode $elem.CurrencyCode}},
+  }
+  {{end}}
+)
+
+// CountryAlpha2CodeSimpleValueOf returns the value of the simple string s.
+func CountryAlpha2CodeSimpleValueOf(s string) (CountryAlpha2Code, error) {
+	value, ok := SimpleStringToCountryAlpha2Code[strings.ToUpper(s)]
+	if !ok {
+		return CountryAlpha2Code_COUNTRY_ALPHA_2_CODE_NONE, fmt.Errorf("pb: no CountryAlpha2Code for %s", s)
+	}
+	return value, nil
+}
+
+// CountryAlpha3CodeSimpleValueOf returns the value of the simple string s.
+func CountryAlpha3CodeSimpleValueOf(s string) (CountryAlpha3Code, error) {
+	value, ok := SimpleStringToCountryAlpha3Code[strings.ToUpper(s)]
+	if !ok {
+		return CountryAlpha3Code_COUNTRY_ALPHA_3_CODE_NONE, fmt.Errorf("pb: no CountryAlpha3Code for %s", s)
+	}
+	return value, nil
+}
+
+// SimpleString returns the simple string.
+func (c CountryAlpha2Code) SimpleString() string {
+	simpleString, ok := CountryAlpha2CodeToSimpleString[c]
+	if !ok {
+		return ""
+	}
+	return simpleString
+}
+
+// Country returns the associated Country, or nil if no Country is known.
+func (c CountryAlpha2Code) Country() *Country {
+	country, ok := CountryAlpha2CodeToCountry[c]
+	if !ok {
+		return nil
+	}
+	return country
+}
+
+// SimpleString returns the simple string.
+func (c CountryAlpha3Code) SimpleString() string {
+	simpleString, ok := CountryAlpha3CodeToSimpleString[c]
+	if !ok {
+		return ""
+	}
+	return simpleString
+}
+
+// Country returns the associated Country, or nil if no Country is known.
+func (c CountryAlpha3Code) Country() *Country {
+	country, ok := CountryAlpha3CodeToCountry[c]
+	if !ok {
+		return nil
+	}
+	return country
+}
+
+// StreetDirectionSimpleValueOf returns the StreetDirection for the given simple string.
+func StreetDirectionSimpleValueOf(s string) (StreetDirection, error) {
+	value, ok := StreetDirection_value[fmt.Sprintf("STREET_DIRECTION_%s", strings.ToUpper(s))]
+	if !ok {
+		return StreetDirection_STREET_DIRECTION_NONE, fmt.Errorf("pb: no StreetDirection for %s", s)
+	}
+	return StreetDirection(value), nil
+}
+
+// SimpleString returns a simple string for the given StreetDirection.
+func (s StreetDirection) SimpleString() string {
+	value, ok := StreetDirection_name[int32(s)]
+	if !ok {
+		return ""
+	}
+	return strings.ToLower(strings.TrimPrefix("STREET_DIRECTION_", value))
+}
+
+// SimplePostalAddress returns a SimplePostalAddress for the given PostalAddress.
+func (p *PostalAddress) SimplePostalAddress() *SimplePostalAddress {
+	buffer := bytes.NewBuffer(nil)
+	if p.StreetNumber != 0 {
+		_, _ = buffer.WriteString(fmt.Sprintf("%d", p.StreetNumber))
+		if p.StreetNumberPostfix != "" {
+			_, _ = buffer.WriteString(p.StreetNumberPostfix)
+		}
+		_ = buffer.WriteByte(' ')
+	}
+	if p.PreStreetDirection != StreetDirection_STREET_DIRECTION_NONE {
+		_, _ = buffer.WriteString(p.PreStreetDirection.SimpleString())
+		_ = buffer.WriteByte(' ')
+	}
+	if p.StreetName != "" {
+		_, _ = buffer.WriteString(p.StreetName)
+		_ = buffer.WriteByte(' ')
+	}
+	if p.PostStreetDirection != StreetDirection_STREET_DIRECTION_NONE {
+		_, _ = buffer.WriteString(p.PostStreetDirection.SimpleString())
+		_ = buffer.WriteByte(' ')
+	}
+	if p.StreetTypeAbbreviation != "" {
+		_, _ = buffer.WriteString(p.StreetTypeAbbreviation)
+	}
+	streetAddress := buffer.String()
+
+	buffer = bytes.NewBuffer(nil)
+	if p.SecondaryAddressTypeAbbreviation != "" {
+		_, _ = buffer.WriteString(p.SecondaryAddressTypeAbbreviation)
+		_ = buffer.WriteByte(' ')
+	}
+	if p.SecondaryAddressValue != "" {
+		_, _ = buffer.WriteString(p.SecondaryAddressValue)
+	}
+	streetAddress2 := buffer.String()
+
+	return &SimplePostalAddress{
+		StreetAddress:		streetAddress,
+		StreetAddress_2:	streetAddress2,
+		LocalityName:		p.LocalityName,
+		RegionCode:			p.RegionCode,
+		PostalCode:			p.PostalCode,
+		CountryAlpha_2Code: p.CountryAlpha_2Code,
+	}
+}

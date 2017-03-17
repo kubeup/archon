@@ -3,11 +3,11 @@ package clientset
 import (
 	"fmt"
 	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/errors"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/util/wait"
+	extensions "k8s.io/kubernetes/pkg/apis/extensions/v1beta1"
 	"kubeup.com/archon/pkg/clientset/archon"
 	"time"
 )
@@ -23,8 +23,8 @@ func (c *Clientset) EnsureResources(timeout time.Duration) (err error) {
 func (c *Clientset) ensureResources() (done bool, err error) {
 	a := c.Archon()
 	data := map[string]checker{
-		"instance":       func() error { _, err = a.Instances(api.NamespaceAll).List(api.ListOptions{}); return err },
-		"instance-group": func() error { _, err = a.InstanceGroups(api.NamespaceAll).List(api.ListOptions{}); return err },
+		"instance":       func() error { _, err = a.Instances(api.NamespaceAll).List(metav1.ListOptions{}); return err },
+		"instance-group": func() error { _, err = a.InstanceGroups(api.NamespaceAll).List(metav1.ListOptions{}); return err },
 		"network":        func() error { _, err = a.Networks(api.NamespaceAll).List(); return err },
 		"user":           func() error { _, err = a.Users(api.NamespaceAll).List(); return err },
 	}
@@ -34,11 +34,11 @@ func (c *Clientset) ensureResources() (done bool, err error) {
 
 		if errors.IsNotFound(err) {
 			tpr := extensions.ThirdPartyResource{
-				TypeMeta: unversioned.TypeMeta{
+				TypeMeta: metav1.TypeMeta{
 					Kind:       "ThirdPartyResource",
 					APIVersion: "v1/betav1",
 				},
-				ObjectMeta: api.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Name: fmt.Sprintf("%s.%s", name, archon.GroupName),
 				},
 				Versions: []extensions.APIVersion{

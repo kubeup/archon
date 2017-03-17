@@ -8,20 +8,19 @@
 
 ;; This file is NOT part of GNU Emacs.
 
-;; This program is free software; you can redistribute it and/or modify
-;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation; either version 3, or (at your option)
-;; any later version.
+;; Copyright (c) 2016 VMware, Inc. All Rights Reserved.
 ;;
-;; This program is distributed in the hope that it will be useful,
-;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-;; GNU General Public License for more details.
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
 ;;
-;; You should have received a copy of the GNU General Public License
-;; along with GNU Emacs; see the file COPYING.  If not, write to the
-;; Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-;; Boston, MA 02110-1301, USA.
+;; http://www.apache.org/licenses/LICENSE-2.0
+;;
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
 
 ;;; Commentary:
 
@@ -41,11 +40,14 @@
 (eval-when-compile
   (require 'cl))
 (require 'dash)
+(require 'diff)
 (require 'dired)
 (require 'json-mode)
 (require 'magit-popup)
 (require 'url-parse)
 (require 's)
+
+(autoload 'auth-source-search "auth-source")
 
 (defgroup govc nil
   "Emacs customization group for govc."
@@ -53,6 +55,11 @@
 
 (defcustom govc-keymap-prefix "C-c ;"
   "Prefix for `govc-mode'."
+  :group 'govc)
+
+(defcustom govc-command "govc"
+  "Executable path to the govc utility."
+  :type 'string
   :group 'govc)
 
 (defvar govc-command-map
@@ -155,7 +162,9 @@ The default prefix is `C-c ;' and can be changed by setting `govc-keymap-prefix'
 
 (defvar govc-font-lock-keywords
   (list
-   (list dired-re-mark '(0 dired-mark-face))))
+   (list dired-re-mark '(0 dired-mark-face))
+   (list "types.ManagedObjectReference\\(.*\\)" '(1 dired-directory-face))
+   (list "\\.\\.\\.$" '(0 dired-symlink-face))))
 
 (defvar govc-tabulated-list-mode-map
   (let ((map (make-sparse-keymap)))
@@ -232,7 +241,7 @@ Keys in the ASCII range of 32-97 are mapped to popup commands, all others are li
 
 
 ;;; govc process helpers
-(defvar govc-urls nil
+(defcustom govc-urls nil
   "List of URLs for use with `govc-session'.
 The `govc-session-name' displayed by `govc-mode-line' uses `url-target' (anchor)
 if set, otherwise `url-host' is used.
@@ -247,13 +256,32 @@ To enter a URL that is not in the list, prefix `universal-argument', for example
 
   `\\[universal-argument] \\[govc-vm]'
 
+To avoid putting your credentials in a variable, you can use the
+auth-source search integration.
+
+```
+  (setq govc-urls '(\"myserver-vmware-2\"))
+```
+
+And then put this line in your `auth-sources' (e.g. `~/.authinfo.gpg'):
+```
+    machine myserver-vmware-2 login tzz password mypass url \"myserver-vmware-2.some.domain.here:443?insecure=true\"
+```
+
+Which will result in the URL \"tzz:mypass@myserver-vmware-2.some.domain.here:443?insecure=true\".
+For more details on `auth-sources', see Info node `(auth) Help for users'.
+
 When in `govc-vm' or `govc-host' mode, a default URL is composed with the
 current session credentials and the IP address of the current vm/host and
 the vm/host name as the session name.  This makes it easier to connect to
-nested ESX/vCenter VMs or directly to an ESX host.")
+nested ESX/vCenter VMs or directly to an ESX host."
+  :group 'govc
+  :type '(repeat (string :tag "vcenter URL or auth-source machine reference")))
 
 (defvar-local govc-session-url nil
   "ESX or vCenter URL set by `govc-session' via `govc-urls' selection.")
+
+(defvar-local govc-session-path nil)
 
 (defvar-local govc-session-insecure nil
   "Skip verification of server certificate when true.
@@ -281,6 +309,9 @@ query string.  For example:
   (setq govc-urls '(\"root:password@hostname?datastore=vsanDatastore\"))
 ```")
 
+(defvar-local govc-session-network nil
+  "Network to use for the current `govc-session'.")
+
 (defvar-local govc-filter nil
   "Resource path filter.")
 
@@ -294,17 +325,17 @@ Return value is the url anchor if set, otherwise the hostname is returned."
   (let* ((u (or govc-session-url (getenv "GOVC_URL")))
          (url (if u (govc-url-parse u))))
     (if url
-        (or (url-target url) (url-host url)))))
+        (concat (or (url-target url) (url-host url)) govc-session-path))))
 
-(defun govc-command (command &rest args)
+(defun govc-format-command (command &rest args)
   "Format govc COMMAND ARGS."
-  (format "govc %s %s" command
+  (format "%s %s %s" govc-command command
           (s-join " " (--map (format "'%s'" it)
                              (-flatten (-non-nil args))))))
 
 (defconst govc-environment-map (--map (cons (concat "GOVC_" (upcase it))
                                             (intern (concat "govc-session-" it)))
-                                      '("url" "insecure" "datacenter" "datastore"))
+                                      '("url" "insecure" "datacenter" "datastore" "network"))
 
   "Map of `GOVC_*' environment variable names to `govc-session-*' symbol names.")
 
@@ -331,13 +362,14 @@ Optionally clear govc env if UNSET is non-nil."
 Optionally set `GOVC_*' vars in `process-environment' using prefix
 \\[universal-argument] ARG or unset with prefix \\[negative-argument] ARG."
   (interactive "P")
-  (kill-new (message (if arg (s-join " " (govc-export-environment arg)) govc-session-url))))
+  (message (kill-new (if arg (s-join " " (govc-export-environment arg)) govc-session-url))))
 
 (defun govc-process (command handler)
   "Run COMMAND, calling HANDLER upon successful exit of the process."
   (message command)
   (let ((process-environment (govc-environment))
         (exit-code))
+    (add-to-list 'govc-command-history command)
     (with-temp-buffer
       (setq exit-code (call-process-shell-command command nil (current-buffer)))
       (if (zerop exit-code)
@@ -347,14 +379,14 @@ Optionally set `GOVC_*' vars in `process-environment' using prefix
 (defun govc (command &rest args)
   "Execute govc COMMAND with ARGS.
 Return value is `buffer-string' split on newlines."
-  (govc-process (govc-command command args)
+  (govc-process (govc-format-command command args)
                 (lambda ()
                   (split-string (buffer-string) "\n" t))))
 
 (defun govc-json (command &rest args)
   "Execute govc COMMAND passing arguments ARGS.
 Return value is `json-read'."
-  (govc-process (govc-command command (cons "-json" args))
+  (govc-process (govc-format-command command (cons "-json" args))
                 (lambda ()
                   (goto-char (point-min))
                   (let ((json-object-type 'plist))
@@ -362,12 +394,11 @@ Return value is `json-read'."
 
 (defun govc-ls-datacenter ()
   "List datacenters."
-  (delete-dups (--map (nth 1 (split-string it "/"))
-                      (govc "ls"))))
+  (govc "ls" "-t" "Datacenter" "/" "/*"))
 
 (defun govc-object-prompt (prompt ls)
   "PROMPT for object name via LS function.  Return object without PROMPT if there is just one instance."
-  (let ((objs (funcall ls)))
+  (let ((objs (if (listp ls) ls (funcall ls))))
     (if (eq 1 (length objs))
         (car objs)
       (completing-read prompt objs))))
@@ -397,6 +428,9 @@ Also fixes the case where user contains an '@'."
                    (setf (url-target url) nil))
           (progn (setf (url-host url) (govc-table-column-value "IP address"))
                  (setf (url-target url) (govc-table-column-value "Name"))))
+        (setf (url-filename url) "") ; erase query string
+        (if (string-empty-p (url-user url))
+            (setf (url-user url) "root")) ; local workstation url has no user set
         (url-recreate-url url))))
 
 (defun govc-urls-completing-read ()
@@ -409,8 +443,36 @@ Also fixes the case where user contains an '@'."
     (let ((u (completing-read "govc url: " (-map 'car alist))))
       (cdr (assoc u alist)))))
 
+(defun govc-session-url-lookup-auth-source (url-or-address)
+  "Check if URL-OR-ADDRESS is a logical name in the authinfo file.
+Given URL-OR-ADDRESS `myserver-vmware-2' this function will find
+a line like
+    machine myserver-vmware-2 login tzz password mypass url \"myserver-vmware-2.some.domain.here:443?insecure=true\"
+
+and will return the URL \"tzz:mypass@myserver-vmware-2.some.domain.here:443?insecure=true\".
+
+If the line is not found, the original URL-OR-ADDRESS is
+returned, assuming that's what the user wanted."
+  (let ((found (nth 0 (auth-source-search :max 1
+                                          :host url-or-address
+                                          :require '(:user :secret :url)
+                                          :create nil))))
+    (if found
+        (format "%s:%s@%s"
+                (plist-get found :user)
+                (let ((secret (plist-get found :secret)))
+                  (if (functionp secret)
+                      (funcall secret)
+                    secret))
+                (plist-get found :url))
+      url-or-address)))
+
 (defun govc-session-set-url (url)
   "Set `govc-session-url' to URL and optionally set other govc-session-* variables via URL query."
+  ;; Replace the original URL with the auth-source lookup if there is no user.
+  (unless (url-user (govc-url-parse url))
+    (setq url (govc-session-url-lookup-auth-source url)))
+
   (let ((q (cdr (url-path-and-query (govc-url-parse url)))))
     (dolist (opt (if q (url-parse-query-string q)))
       (let ((var (intern (concat "govc-session-" (car opt)))))
@@ -430,6 +492,7 @@ Also fixes the case where user contains an '@'."
     ;; event of `keyboard-quit' in `read-string'.
     (setq govc-session-datacenter nil
           govc-session-datastore nil
+          govc-session-network nil
           govc-filter nil)
     (govc-session-set-url url))
   (unless govc-session-insecure
@@ -448,19 +511,24 @@ Also fixes the case where user contains an '@'."
       (when (s-starts-with? "govc-session-" (symbol-name s))
         (set s (assoc-default s session))))))
 
+(defvar govc-command-history nil
+  "History list for govc commands used by `govc-shell-command'.")
+
 (defun govc-shell-command (&optional cmd)
   "Shell CMD with current `govc-session' exported as GOVC_ env vars."
   (interactive)
   (let ((process-environment (govc-environment))
         (current-prefix-arg "*govc*")
-        (url govc-session-url))
+        (url govc-session-url)
+        (shell-command-history govc-command-history))
     (if cmd
         (async-shell-command cmd current-prefix-arg)
       (call-interactively 'async-shell-command))
+    (setq govc-command-history shell-command-history)
     (with-current-buffer (get-buffer current-prefix-arg)
       (setq govc-session-url url))))
 
-(defcustom govc-max-events 50
+(defcustom govc-max-events 100
   "Limit events output to the last N events."
   :type 'integer
   :group 'govc)
@@ -469,8 +537,16 @@ Also fixes the case where user contains an '@'."
   "Events via govc events -n `govc-max-events'."
   (interactive)
   (govc-shell-command
-   (govc-command "events"
-                 (list "-n" govc-max-events (govc-selection)))))
+   (govc-format-command "events"
+                        (list "-n" govc-max-events (if current-prefix-arg "-f") (govc-selection)))))
+
+(defun govc-logs ()
+  "Logs via govc logs -n `govc-max-events'."
+  (interactive)
+  (govc-shell-command
+   (let ((host (govc-selection)))
+     (govc-format-command "logs"
+                          (list "-n" govc-max-events (if current-prefix-arg "-f") (if host (list "-host" host)))))))
 
 (defun govc-parse-info (output)
   "Parse govc info command OUTPUT."
@@ -540,21 +616,48 @@ Also fixes the case where user contains an '@'."
           tabulated-list-entries entries)
     (tabulated-list-print)))
 
-(defun govc-json-info (command &optional selection)
+(defun govc-type-list-entries (command)
+  "Convert govc COMMAND type table output to `tabulated-list-entries'."
+  (-map (lambda (line)
+          (let* ((entry (s-split-up-to " " (s-collapse-whitespace line) 2))
+                 (name (car entry))
+                 (type (nth 1 entry))
+                 (value (car (last entry))))
+            (list name (vector name type value))))
+        (govc command govc-args)))
+
+(defun govc-json-info-selection (command)
+  "Run govc COMMAND -json on `govc-selection'."
+  (if current-prefix-arg
+      (--each (govc-selection) (govc-json-info command it))
+    (govc-json-info command (govc-selection))))
+
+(defun govc-json-diff ()
+  "Diff two *govc-json* buffers in view."
+  (let ((buffers))
+    (-each (window-list-1)
+      (lambda (w)
+        (with-current-buffer (window-buffer w)
+          (if (and (eq major-mode 'json-mode)
+                   (s-starts-with? "*govc-json*" (buffer-name)))
+              (push (current-buffer) buffers)))) )
+    (if (= (length buffers) 2)
+        (pop-to-buffer
+         (diff-no-select (car buffers) (cadr buffers))))))
+
+(defun govc-json-info (command selection)
   "Run govc COMMAND -json on SELECTION."
-  (interactive)
-  (govc-process (govc-command command (append (cons "-json" govc-args)
-                                              (or selection (govc-selection))))
+  (govc-process (govc-format-command command "-json" govc-args selection)
                 (lambda ()
-                  (let ((buffer (get-buffer-create "*govc-json*")))
-                    (with-current-buffer buffer
-                      (erase-buffer))
+                  (let ((buffer (get-buffer-create (concat "*govc-json*" (if current-prefix-arg selection)))))
                     (copy-to-buffer buffer (point-min) (point-max))
-                    (pop-to-buffer buffer)
-                    (json-mode)
-                    ;; We use `json-mode-beautify' as `json-pretty-print-buffer' does not work for `govc-host-json-info'
-                    (json-mode-beautify)
-                    (goto-char (point-min))))))
+                    (with-current-buffer buffer
+                      (json-mode)
+                      ;; We use `json-mode-beautify' as `json-pretty-print-buffer' does not work for `govc-host-json-info'
+                      (json-mode-beautify))
+                    (display-buffer buffer))))
+  (if current-prefix-arg
+      (govc-json-diff)))
 
 (defun govc-mode-new-session ()
   "Connect new session for the current govc mode."
@@ -581,6 +684,118 @@ Also fixes the case where user contains an '@'."
   "Pool-mode with current session."
   (interactive)
   (govc-pool nil (govc-current-session)))
+
+
+;;; govc object mode
+(defvar-local govc-object-history '("-")
+  "History list of visited objects.")
+
+(defun govc-object-collect ()
+  "Wrapper for govc object.collect."
+  (interactive)
+  (let ((id (car govc-args)))
+    (add-to-list 'govc-object-history id)
+    (setq govc-session-path id))
+  (govc-type-list-entries "object.collect"))
+
+(defun govc-object-collect-selection (&optional json)
+  "Expand object selection via govc object.collect.
+Optionally specify JSON encoding."
+  (interactive)
+  (let* ((entry (or (tabulated-list-get-entry) (error "No entry")))
+         (name (elt entry 0))
+         (type (elt entry 1))
+         (val (elt entry 2)))
+
+    (setq govc-args (list (car govc-args) name))
+
+    (cond
+     ((s-blank? val))
+     ((s-ends-with? "types.ManagedObjectReference" type)
+      (let ((ids (govc "ls" "-L" (split-string val ","))))
+        (setq govc-args (list (govc-object-prompt "moid: " ids)))))
+     ((string= val "...")
+      (if (s-starts-with? "[]" type) (setq json t))))
+
+    (if json
+        (govc-json-info "object.collect" nil)
+      (tabulated-list-revert))))
+
+(defun govc-object-collect-selection-json ()
+  "JSON object selection via govc object.collect."
+  (interactive)
+  (govc-object-collect-selection t))
+
+(defun govc-object-next ()
+  "Next managed object reference."
+  (interactive)
+  (if (search-forward "types.ManagedObjectReference" nil t)
+      (progn (govc-tabulated-list-unmark-all)
+             (tabulated-list-put-tag (char-to-string dired-marker-char)))
+    (goto-char (point-min))))
+
+(defun govc-object-collect-parent ()
+  "Parent object selection if reachable, otherwise prompt with `govc-object-history'."
+  (interactive)
+  (if (cadr govc-args)
+      (let ((prop (butlast (split-string (cadr govc-args) "\\."))))
+        (setq govc-args (list (car govc-args) (if prop (s-join "." prop)))))
+    (save-excursion
+      (goto-char (point-min))
+      (if (re-search-forward "^[[:space:]]*parent" nil t)
+          (govc-object-collect-selection)
+        (let ((id (govc-object-prompt "moid: " govc-object-history)))
+          (setq govc-args (list id (if (string= id "-") "content")))))))
+  (tabulated-list-revert))
+
+(defun govc-object (&optional moid property session)
+  "Object browser aka MOB (Managed Object Browser).
+Optionally starting at MOID and PROPERTY if given.
+Inherit SESSION if given."
+  (interactive)
+  (let ((buffer (get-buffer-create "*govc-object*")))
+    (if (called-interactively-p 'interactive)
+        (switch-to-buffer buffer)
+      (pop-to-buffer buffer))
+    (govc-object-mode)
+    (if session
+        (govc-session-clone session)
+      (call-interactively 'govc-session))
+    (setq govc-args (list (or moid "-") property))
+    (tabulated-list-print)))
+
+(defun govc-object-info ()
+  "Object browser via govc object.collect on `govc-selection'."
+  (interactive)
+  (if (equal major-mode 'govc-object-mode)
+      (progn
+        (setq govc-args (list (govc-object-prompt "moid: " govc-object-history)))
+        (tabulated-list-revert))
+    (govc-object (tabulated-list-get-id) nil (govc-current-session))))
+
+(defvar govc-object-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "J" 'govc-object-collect-selection-json)
+    (define-key map "N" 'govc-object-next)
+    (define-key map "O" 'govc-object-info)
+    (define-key map (kbd "DEL") 'govc-object-collect-parent)
+    (define-key map (kbd "RET") 'govc-object-collect-selection)
+    (define-key map "?" 'govc-object-popup)
+    map)
+  "Keymap for `govc-object-mode'.")
+
+(define-derived-mode govc-object-mode govc-tabulated-list-mode "Object"
+  "Major mode for handling a govc object."
+  (setq tabulated-list-format [("Name" 40 t)
+                               ("Type" 40 t)
+                               ("Value" 40 t)]
+        tabulated-list-padding 2
+        tabulated-list-entries #'govc-object-collect)
+  (tabulated-list-init-header))
+
+(magit-define-popup govc-object-popup
+  "Object popup."
+  :actions (govc-keymap-popup govc-object-mode-map))
 
 
 ;;; govc host mode
@@ -628,13 +843,15 @@ Also fixes the case where user contains an '@'."
 (defun govc-host-json-info ()
   "JSON via govc host.info -json on current selection."
   (interactive)
-  (govc-json-info "host.info" (govc-selection)))
+  (govc-json-info-selection "host.info"))
 
 (defvar govc-host-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "E" 'govc-events)
+    (define-key map "L" 'govc-logs)
     (define-key map "J" 'govc-host-json-info)
     (define-key map "N" 'govc-host-esxcli-netstat)
+    (define-key map "O" 'govc-object-info)
     (define-key map "c" 'govc-mode-new-session)
     (define-key map "p" 'govc-pool-with-session)
     (define-key map "s" 'govc-datastore-with-session)
@@ -709,12 +926,13 @@ Optionally filter by FILTER and inherit SESSION."
 (defun govc-pool-json-info ()
   "JSON via govc pool.info -json on current selection."
   (interactive)
-  (govc-json-info "pool.info" (govc-selection)))
+  (govc-json-info-selection "pool.info"))
 
 (defvar govc-pool-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "E" 'govc-events)
     (define-key map "J" 'govc-pool-json-info)
+    (define-key map "O" 'govc-object-info)
     (define-key map "D" 'govc-pool-destroy-selection)
     (define-key map "c" 'govc-mode-new-session)
     (define-key map "h" 'govc-host-with-session)
@@ -819,11 +1037,24 @@ Optionally filter by FILTER and inherit SESSION."
                                          (with-demoted-errors
                                              (govc "datastore.upload" tmpfile srcfile)))) t t)))))
 
+(defun govc-datastore-tail ()
+  "Tail datastore file."
+  (interactive)
+  (govc-shell-command
+   (govc-format-command "datastore.tail"
+                        (list "-n" govc-max-events (if current-prefix-arg "-f")) (govc-selection))))
+
 (defun govc-datastore-ls-json ()
   "JSON via govc datastore.ls -json on current selection."
   (interactive)
   (let ((govc-args '("-l" "-p")))
-    (govc-json-info "datastore.ls" (govc-selection))))
+    (govc-json-info-selection "datastore.ls")))
+
+(defun govc-datastore-ls-r-json ()
+  "Search via govc datastore.ls -json -R on current selection."
+  (interactive)
+  (let ((govc-args '("-l" "-p" "-R")))
+    (govc-json-info-selection "datastore.ls")))
 
 (defun govc-datastore-mkdir (name)
   "Mkdir via govc datastore.mkdir with given NAME."
@@ -844,7 +1075,9 @@ Optionally filter by FILTER and inherit SESSION."
 (defvar govc-datastore-ls-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "J" 'govc-datastore-ls-json)
+    (define-key map "S" 'govc-datastore-ls-r-json)
     (define-key map "D" 'govc-datastore-rm-selection)
+    (define-key map "T" 'govc-datastore-tail)
     (define-key map "+" 'govc-datastore-mkdir)
     (define-key map (kbd "DEL") 'govc-datastore-ls-parent)
     (define-key map (kbd "RET") 'govc-datastore-ls-child)
@@ -852,8 +1085,8 @@ Optionally filter by FILTER and inherit SESSION."
     map)
   "Keymap for `govc-datastore-ls-mode'.")
 
-(defun govc-datastore-ls (&optional datastore session)
-  "List govc datastore.  Optionally specify DATASTORE and SESSION."
+(defun govc-datastore-ls (&optional datastore session filter)
+  "List govc datastore.  Optionally specify DATASTORE, SESSION and FILTER."
   (interactive)
   (let ((buffer (get-buffer-create "*govc-datastore*")))
     (pop-to-buffer buffer)
@@ -862,6 +1095,7 @@ Optionally filter by FILTER and inherit SESSION."
         (govc-session-clone session)
       (call-interactively 'govc-session))
     (setq govc-session-datastore (or datastore (govc-object-prompt "govc datastore: " 'govc-ls-datastore)))
+    (setq govc-filter filter)
     (tabulated-list-print)))
 
 (define-derived-mode govc-datastore-ls-mode govc-tabulated-list-mode "Datastore"
@@ -885,6 +1119,7 @@ Optionally filter by FILTER and inherit SESSION."
 (defvar govc-datastore-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "J" 'govc-datastore-json-info)
+    (define-key map "O" 'govc-object-info)
     (define-key map (kbd "RET") 'govc-datastore-ls-selection)
     (define-key map "c" 'govc-mode-new-session)
     (define-key map "h" 'govc-host-with-session)
@@ -897,7 +1132,7 @@ Optionally filter by FILTER and inherit SESSION."
 (defun govc-datastore-json-info ()
   "JSON via govc datastore.info -json on current selection."
   (interactive)
-  (govc-json-info "datastore.info"))
+  (govc-json-info-selection "datastore.info"))
 
 (defun govc-datastore-info ()
   "Wrapper for govc datastore.info."
@@ -1071,8 +1306,14 @@ Open via `eww' by default, via `browse-url' if ARG is non-nil."
 (defun govc-vm-datastore ()
   "Datastore via `govc-datastore-ls' with datastore of current selection."
   (interactive)
-  (govc-datastore (s-split ", " (govc-table-column-value "Storage") t)
-                  (govc-current-session)))
+  (if current-prefix-arg
+      (govc-datastore (s-split ", " (govc-table-column-value "Storage") t)
+                      (govc-current-session))
+    (let* ((data (govc-json "vm.info" (tabulated-list-get-id)))
+           (vm (elt (plist-get data :VirtualMachines) 0))
+           (dir (plist-get (plist-get (plist-get vm :Config) :Files) :LogDirectory))
+           (args (s-split "\\[\\|\\]" dir t)))
+      (govc-datastore-ls (first args) (govc-current-session) (concat (s-trim (second args)) "/")))))
 
 (defun govc-vm-ping ()
   "Ping VM."
@@ -1113,12 +1354,13 @@ Open via `eww' by default, via `browse-url' if ARG is non-nil."
 (defun govc-vm-json-info ()
   "JSON via govc vm.info -json on current selection."
   (interactive)
-  (govc-json-info "vm.info"))
+  (govc-json-info-selection "vm.info"))
 
 (defvar govc-vm-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "E" 'govc-events)
     (define-key map "J" 'govc-vm-json-info)
+    (define-key map "O" 'govc-object-info)
     (define-key map "X" 'govc-vm-extra-config-table)
     (define-key map (kbd "RET") 'govc-vm-device-ls)
     (define-key map "C" 'govc-vm-screen-selection)
@@ -1142,7 +1384,7 @@ Open via `eww' by default, via `browse-url' if ARG is non-nil."
 (defun govc-vm-filter ()
   "Default `govc-filter' for `vm-info'."
   (--map (concat it "/*")
-         (append (govc-ls-folder (list (concat "/" govc-session-datacenter "/vm")))
+         (append (govc-ls-folder (list (concat govc-session-datacenter "/vm")))
                  (govc "ls" "-t" "VirtualApp" "vm"))))
 
 (defun govc-ls-folder (folders)
@@ -1196,13 +1438,7 @@ Optionally filter by FILTER and inherit SESSION."
 ;;; govc device mode
 (defun govc-device-ls ()
   "Wrapper for govc device.ls -vm VM."
-  (-map (lambda (line)
-          (let* ((entry (s-split-up-to " " (s-collapse-whitespace line) 2))
-                 (name (car entry))
-                 (type (nth 1 entry))
-                 (summary (car (last entry))))
-            (list name (vector name type summary))))
-        (govc "device.ls" govc-args)))
+  (govc-type-list-entries "device.ls"))
 
 (defun govc-device-info ()
   "Populate table with govc device.info output."
@@ -1216,7 +1452,7 @@ Optionally filter by FILTER and inherit SESSION."
 (defun govc-device-json-info ()
   "JSON via govc device.info -json on current selection."
   (interactive)
-  (govc-json-info "device.info"))
+  (govc-json-info-selection "device.info"))
 
 (defvar govc-device-mode-map
   (let ((map (make-sparse-keymap)))

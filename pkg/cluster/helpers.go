@@ -14,8 +14,8 @@ limitations under the License.
 package cluster
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"time"
 )
 
@@ -30,7 +30,7 @@ func NetworkStatusDeepCopy(s *NetworkStatus) *NetworkStatus {
 // of that, there are two cases when a instance can be considered available:
 // 1. minReadySeconds == 0, or
 // 2. LastTransitionTime (is set) + minReadySeconds < current time
-func IsInstanceAvailable(instance *Instance, minReadySeconds int32, now unversioned.Time) bool {
+func IsInstanceAvailable(instance *Instance, minReadySeconds int32, now metav1.Time) bool {
 	if !IsInstanceReady(instance) {
 		return false
 	}

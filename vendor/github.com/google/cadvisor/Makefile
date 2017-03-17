@@ -23,6 +23,9 @@ test:
 test-integration:
 	@./build/integration.sh
 
+test-runner:
+	@$(GO) build github.com/google/cadvisor/integration/runner
+
 format:
 	@echo ">> formatting code"
 	@$(GO) fmt $(pkgs)
@@ -41,7 +44,7 @@ assets:
 
 release:
 	@echo ">> building release binaries"
-	@RELEASE=true ./build/build.sh
+	@./build/release.sh
 
 docker:
 	@docker build -t cadvisor:$(shell git rev-parse --short HEAD) -f deploy/Dockerfile .

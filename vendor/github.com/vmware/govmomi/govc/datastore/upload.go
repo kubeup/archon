@@ -17,10 +17,10 @@ limitations under the License.
 package datastore
 
 import (
+	"context"
 	"errors"
 	"flag"
-
-	"golang.org/x/net/context"
+	"os"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -55,7 +55,17 @@ func (cmd *upload) Process(ctx context.Context) error {
 }
 
 func (cmd *upload) Usage() string {
-	return "LOCAL REMOTE"
+	return "SOURCE DEST"
+}
+
+func (cmd *upload) Description() string {
+	return `Copy SOURCE from the local system to DEST on DS.
+
+If SOURCE name is "-", read source from stdin.
+
+Examples:
+  govc datastore.upload -ds datastore1 ./config.iso vm-name/config.iso
+  genisoimage ... | govc datastore.upload -ds datastore1 - vm-name/config.iso`
 }
 
 func (cmd *upload) Run(ctx context.Context, f *flag.FlagSet) error {
@@ -70,11 +80,19 @@ func (cmd *upload) Run(ctx context.Context, f *flag.FlagSet) error {
 	}
 
 	p := soap.DefaultUpload
+
+	src := args[0]
+	dst := args[1]
+
+	if src == "-" {
+		return ds.Upload(ctx, os.Stdin, dst, &p)
+	}
+
 	if cmd.OutputFlag.TTY {
 		logger := cmd.ProgressLogger("Uploading... ")
 		p.Progress = logger
 		defer logger.Wait()
 	}
 
-	return ds.UploadFile(context.TODO(), args[0], args[1], &p)
+	return ds.UploadFile(ctx, src, dst, &p)
 }

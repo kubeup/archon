@@ -17,6 +17,7 @@ limitations under the License.
 package vm
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 type extraConfig []types.BaseOptionValue
@@ -66,6 +66,15 @@ func (cmd *change) Register(ctx context.Context, f *flag.FlagSet) {
 	f.Var(&cmd.extraConfig, "e", "ExtraConfig. <key>=<value>")
 
 	f.Var(flags.NewOptionalBool(&cmd.NestedHVEnabled), "nested-hv-enabled", "Enable nested hardware-assisted virtualization")
+	cmd.Tools = &types.ToolsConfigInfo{}
+	f.Var(flags.NewOptionalBool(&cmd.Tools.SyncTimeWithHost), "sync-time-with-host", "Enable SyncTimeWithHost")
+}
+
+func (cmd *change) Description() string {
+	return `Change VM configuration.
+
+Examples:
+  govc vm.change -vm $vm -e smc.present=TRUE -e ich7m.present=TRUE`
 }
 
 func (cmd *change) Process(ctx context.Context) error {
@@ -89,10 +98,10 @@ func (cmd *change) Run(ctx context.Context, f *flag.FlagSet) error {
 		cmd.VirtualMachineConfigSpec.ExtraConfig = cmd.extraConfig
 	}
 
-	task, err := vm.Reconfigure(context.TODO(), cmd.VirtualMachineConfigSpec)
+	task, err := vm.Reconfigure(ctx, cmd.VirtualMachineConfigSpec)
 	if err != nil {
 		return err
 	}
 
-	return task.Wait(context.TODO())
+	return task.Wait(ctx)
 }

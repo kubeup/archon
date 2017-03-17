@@ -16,7 +16,7 @@ package render
 import (
 	"bytes"
 	"github.com/Masterminds/sprig"
-	"k8s.io/kubernetes/pkg/api"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubeup.com/archon/pkg/cluster"
 	"text/template"
 )
@@ -34,7 +34,7 @@ type InstanceRenderer struct {
 	Secrets map[string]map[string][]byte
 	Network cluster.Network
 	Status  cluster.InstanceStatus
-	Meta    api.ObjectMeta
+	Meta    metav1.ObjectMeta
 }
 
 func (r *InstanceRenderer) Render(name, tpl string) (string, error) {

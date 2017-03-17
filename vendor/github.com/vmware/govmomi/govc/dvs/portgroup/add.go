@@ -17,11 +17,9 @@ limitations under the License.
 package portgroup
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -32,7 +30,7 @@ import (
 type add struct {
 	*flags.DatacenterFlag
 
-	types.DVPortgroupConfigSpec
+	DVPortgroupConfigSpec
 
 	path string
 }
@@ -47,17 +45,18 @@ func (cmd *add) Register(ctx context.Context, f *flag.FlagSet) {
 
 	f.StringVar(&cmd.path, "dvs", "", "DVS path")
 
-	ptypes := []string{
-		string(types.DistributedVirtualPortgroupPortgroupTypeEarlyBinding),
-		string(types.DistributedVirtualPortgroupPortgroupTypeLateBinding),
-		string(types.DistributedVirtualPortgroupPortgroupTypeEphemeral),
-	}
-
-	f.StringVar(&cmd.DVPortgroupConfigSpec.Type, "type", ptypes[0],
-		fmt.Sprintf("Portgroup type (%s)", strings.Join(ptypes, "|")))
-
 	cmd.DVPortgroupConfigSpec.NumPorts = 128 // default
-	f.Var(flags.NewInt32(&cmd.DVPortgroupConfigSpec.NumPorts), "nports", "Number of ports")
+
+	cmd.DVPortgroupConfigSpec.Register(ctx, f)
+}
+
+func (cmd *add) Description() string {
+	return `Add portgroup to DVS.
+
+Examples:
+  govc dvs.create DSwitch
+  govc dvs.portgroup.add -dvs DSwitch -type earlyBinding -nports 16 ExternalNetwork
+  govc dvs.portgroup.add -dvs DSwitch -type ephemeral InternalNetwork`
 }
 
 func (cmd *add) Process(ctx context.Context) error {
@@ -95,7 +94,7 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 
 	cmd.DVPortgroupConfigSpec.Name = name
 
-	task, err := dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{cmd.DVPortgroupConfigSpec})
+	task, err := dvs.AddPortgroup(ctx, []types.DVPortgroupConfigSpec{cmd.Spec()})
 	if err != nil {
 		return err
 	}

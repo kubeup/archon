@@ -297,11 +297,52 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
+func TestCoalesce(t *testing.T) {
+	tests := map[string]string{
+		`{{ coalesce 1 }}`:                            "1",
+		`{{ coalesce "" 0 nil 2 }}`:                   "2",
+		`{{ $two := 2 }}{{ coalesce "" 0 nil $two }}`: "2",
+		`{{ $two := 2 }}{{ coalesce "" $two 0 0 0 }}`: "2",
+		`{{ $two := 2 }}{{ coalesce "" $two 3 4 5 }}`: "2",
+		`{{ coalesce }}`:                              "<no value>",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+
+	dict := map[string]interface{}{"top": map[string]interface{}{}}
+	tpl := `{{ coalesce .top.NoSuchThing .bottom .bottom.dollar "airplane"}}`
+	if err := runtv(tpl, "airplane", dict); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestCompact(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 0 "" "hello" | compact }}`: `[1 hello]`,
+		`{{ list "" "" | compact }}`:          `[]`,
+		`{{ list | compact }}`:                `[]`,
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
 func TestSplit(t *testing.T) {
 	tpl := `{{$v := "foo$bar$baz" | split "$"}}{{$v._0}}`
 	if err := runt(tpl, "foo"); err != nil {
 		t.Error(err)
 	}
+}
+
+func TestToString(t *testing.T) {
+	tpl := `{{ toString 1 | kindOf }}`
+	assert.NoError(t, runt(tpl, "string"))
+}
+
+func TestToStrings(t *testing.T) {
+	tpl := `{{ $s := list 1 2 3 | toStrings }}{{ index $s 1 | kindOf }}`
+	assert.NoError(t, runt(tpl, "string"))
 }
 
 type fixtureTO struct {
@@ -508,6 +549,90 @@ func TestTuple(t *testing.T) {
 	}
 }
 
+func TestList(t *testing.T) {
+	tpl := `{{$t := list 1 "a" "foo"}}{{index $t 2}}{{index $t 0 }}{{index $t 1}}`
+	if err := runt(tpl, "foo1a"); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestPush(t *testing.T) {
+	// Named `append` in the function map
+	tests := map[string]string{
+		`{{ $t := tuple 1 2 3  }}{{ append $t 4 | len }}`:        "4",
+		`{{ $t := tuple 1 2 3 4  }}{{ append $t 5 | join "-" }}`: "1-2-3-4-5",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+func TestPrepend(t *testing.T) {
+	tests := map[string]string{
+		`{{ $t := tuple 1 2 3  }}{{ prepend $t 0 | len }}`:        "4",
+		`{{ $t := tuple 1 2 3 4  }}{{ prepend $t 0 | join "-" }}`: "0-1-2-3-4",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
+func TestFirst(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 2 3 | first }}`: "1",
+		`{{ list | first }}`:       "<no value>",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+func TestLast(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 2 3 | last }}`: "3",
+		`{{ list | last }}`:       "<no value>",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
+func TestInitial(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 2 3 | initial | len }}`:   "2",
+		`{{ list 1 2 3 | initial | last }}`:  "2",
+		`{{ list 1 2 3 | initial | first }}`: "1",
+		`{{ list | initial }}`:               "[]",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
+func TestRest(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 2 3 | rest | len }}`:   "2",
+		`{{ list 1 2 3 | rest | last }}`:  "3",
+		`{{ list 1 2 3 | rest | first }}`: "2",
+		`{{ list | rest }}`:               "[]",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
+func TestReverse(t *testing.T) {
+	tests := map[string]string{
+		`{{ list 1 2 3 | reverse | first }}`:        "3",
+		`{{ list 1 2 3 | reverse | rest | first }}`: "2",
+		`{{ list 1 2 3 | reverse | last }}`:         "1",
+		`{{ list 1 2 3 4 | reverse }}`:              "[4 3 2 1]",
+		`{{ list 1 | reverse }}`:                    "[1]",
+		`{{ list | reverse }}`:                      "[]",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
 func TestDict(t *testing.T) {
 	tpl := `{{$d := dict 1 2 "three" "four" 5}}{{range $k, $v := $d}}{{$k}}{{$v}}{{end}}`
 	out, err := runRaw(tpl, nil)
@@ -552,6 +677,33 @@ func TestHasKey(t *testing.T) {
 	expect := "1"
 	if err := runt(tpl, expect); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestPluck(t *testing.T) {
+	tpl := `
+	{{- $d := dict "one" 1 "two" 222222 -}}
+	{{- $d2 := dict "one" 1 "two" 33333 -}}
+	{{- $d3 := dict "one" 1 -}}
+	{{- $d4 := dict "one" 1 "two" 4444 -}}
+	{{- pluck "two" $d $d2 $d3 $d4 -}}
+	`
+
+	expect := "[222222 33333 4444]"
+	if err := runt(tpl, expect); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestKeys(t *testing.T) {
+	tests := map[string]string{
+		`{{ dict "foo" 1 "bar" 2 | keys | sortAlpha }}`: "[bar foo]",
+		`{{ dict | keys }}`:                             "[]",
+	}
+	for tpl, expect := range tests {
+		if err := runt(tpl, expect); err != nil {
+			t.Error(err)
+		}
 	}
 }
 
@@ -620,6 +772,25 @@ func TestExt(t *testing.T) {
 	assert.NoError(t, runt(`{{ ext "/foo/bar/baz.txt" }}`, ".txt"))
 }
 
+func TestJoin(t *testing.T) {
+	assert.NoError(t, runt(`{{ tuple "a" "b" "c" | join "-" }}`, "a-b-c"))
+	assert.NoError(t, runt(`{{ tuple 1 2 3 | join "-" }}`, "1-2-3"))
+	assert.NoError(t, runtv(`{{ join "-" .V }}`, "a-b-c", map[string]interface{}{"V": []string{"a", "b", "c"}}))
+	assert.NoError(t, runtv(`{{ join "-" .V }}`, "abc", map[string]interface{}{"V": "abc"}))
+	assert.NoError(t, runtv(`{{ join "-" .V }}`, "1-2-3", map[string]interface{}{"V": []int{1, 2, 3}}))
+}
+
+func TestSortAlpha(t *testing.T) {
+	// Named `append` in the function map
+	tests := map[string]string{
+		`{{ list "c" "a" "b" | sortAlpha | join "" }}`: "abc",
+		`{{ list 2 1 4 3 | sortAlpha | join "" }}`:     "1234",
+	}
+	for tpl, expect := range tests {
+		assert.NoError(t, runt(tpl, expect))
+	}
+}
+
 func TestDelete(t *testing.T) {
 	fmap := TxtFuncMap()
 	delete(fmap, "split")
@@ -630,13 +801,13 @@ func TestDelete(t *testing.T) {
 
 func TestDerivePassword(t *testing.T) {
 	expectations := map[string]string{
-		`{{derivePassword 1 "long" "password" "user" "example.com"}}`: "ZedaFaxcZaso9*",
-		`{{derivePassword 2 "long" "password" "user" "example.com"}}`: "Fovi2@JifpTupx",
+		`{{derivePassword 1 "long" "password" "user" "example.com"}}`:    "ZedaFaxcZaso9*",
+		`{{derivePassword 2 "long" "password" "user" "example.com"}}`:    "Fovi2@JifpTupx",
 		`{{derivePassword 1 "maximum" "password" "user" "example.com"}}`: "pf4zS1LjCg&LjhsZ7T2~",
-		`{{derivePassword 1 "medium" "password" "user" "example.com"}}`: "ZedJuz8$",
-		`{{derivePassword 1 "basic" "password" "user" "example.com"}}`: "pIS54PLs",
-		`{{derivePassword 1 "short" "password" "user" "example.com"}}`: "Zed5",
-		`{{derivePassword 1 "pin" "password" "user" "example.com"}}`: "6685",
+		`{{derivePassword 1 "medium" "password" "user" "example.com"}}`:  "ZedJuz8$",
+		`{{derivePassword 1 "basic" "password" "user" "example.com"}}`:   "pIS54PLs",
+		`{{derivePassword 1 "short" "password" "user" "example.com"}}`:   "Zed5",
+		`{{derivePassword 1 "pin" "password" "user" "example.com"}}`:     "6685",
 	}
 
 	for tpl, result := range expectations {

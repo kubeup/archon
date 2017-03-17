@@ -14,9 +14,10 @@ limitations under the License.
 package install
 
 import (
+	"k8s.io/kubernetes/pkg/api"
 	"kubeup.com/archon/pkg/clientset/archon"
 )
 
 func init() {
-	archon.AddToScheme(archon.Scheme)
+	archon.AddToScheme(api.Scheme)
 }

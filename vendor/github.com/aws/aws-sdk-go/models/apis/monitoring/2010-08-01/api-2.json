@@ -1,12 +1,14 @@
 {
+  "version":"2.0",
   "metadata":{
+    "uid":"monitoring-2010-08-01",
     "apiVersion":"2010-08-01",
     "endpointPrefix":"monitoring",
+    "protocol":"query",
     "serviceAbbreviation":"CloudWatch",
     "serviceFullName":"Amazon CloudWatch",
     "signatureVersion":"v4",
-    "xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/",
-    "protocol":"query"
+    "xmlNamespace":"http://monitoring.amazonaws.com/doc/2010-08-01/"
   },
   "operations":{
     "DeleteAlarms":{
@@ -17,15 +19,7 @@
       },
       "input":{"shape":"DeleteAlarmsInput"},
       "errors":[
-        {
-          "shape":"ResourceNotFound",
-          "error":{
-            "code":"ResourceNotFound",
-            "httpStatusCode":404,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"ResourceNotFound"}
       ]
     },
     "DescribeAlarmHistory":{
@@ -40,15 +34,7 @@
         "resultWrapper":"DescribeAlarmHistoryResult"
       },
       "errors":[
-        {
-          "shape":"InvalidNextToken",
-          "error":{
-            "code":"InvalidNextToken",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"InvalidNextToken"}
       ]
     },
     "DescribeAlarms":{
@@ -63,15 +49,7 @@
         "resultWrapper":"DescribeAlarmsResult"
       },
       "errors":[
-        {
-          "shape":"InvalidNextToken",
-          "error":{
-            "code":"InvalidNextToken",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"InvalidNextToken"}
       ]
     },
     "DescribeAlarmsForMetric":{
@@ -114,42 +92,10 @@
         "resultWrapper":"GetMetricStatisticsResult"
       },
       "errors":[
-        {
-          "shape":"InvalidParameterValueException",
-          "error":{
-            "code":"InvalidParameterValue",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"MissingRequiredParameterException",
-          "error":{
-            "code":"MissingParameter",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"InvalidParameterCombinationException",
-          "error":{
-            "code":"InvalidParameterCombination",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"InternalServiceFault",
-          "error":{
-            "code":"InternalServiceError",
-            "httpStatusCode":500
-          },
-          "exception":true,
-          "xmlOrder":["Message"]
-        }
+        {"shape":"InvalidParameterValueException"},
+        {"shape":"MissingRequiredParameterException"},
+        {"shape":"InvalidParameterCombinationException"},
+        {"shape":"InternalServiceFault"}
       ]
     },
     "ListMetrics":{
@@ -161,31 +107,11 @@
       "input":{"shape":"ListMetricsInput"},
       "output":{
         "shape":"ListMetricsOutput",
-        "xmlOrder":[
-          "Metrics",
-          "NextToken"
-        ],
         "resultWrapper":"ListMetricsResult"
       },
       "errors":[
-        {
-          "shape":"InternalServiceFault",
-          "error":{
-            "code":"InternalServiceError",
-            "httpStatusCode":500
-          },
-          "exception":true,
-          "xmlOrder":["Message"]
-        },
-        {
-          "shape":"InvalidParameterValueException",
-          "error":{
-            "code":"InvalidParameterValue",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"InternalServiceFault"},
+        {"shape":"InvalidParameterValueException"}
       ]
     },
     "PutMetricAlarm":{
@@ -196,15 +122,7 @@
       },
       "input":{"shape":"PutMetricAlarmInput"},
       "errors":[
-        {
-          "shape":"LimitExceededFault",
-          "error":{
-            "code":"LimitExceeded",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"LimitExceededFault"}
       ]
     },
     "PutMetricData":{
@@ -215,42 +133,10 @@
       },
       "input":{"shape":"PutMetricDataInput"},
       "errors":[
-        {
-          "shape":"InvalidParameterValueException",
-          "error":{
-            "code":"InvalidParameterValue",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"MissingRequiredParameterException",
-          "error":{
-            "code":"MissingParameter",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"InvalidParameterCombinationException",
-          "error":{
-            "code":"InvalidParameterCombination",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"InternalServiceFault",
-          "error":{
-            "code":"InternalServiceError",
-            "httpStatusCode":500
-          },
-          "exception":true,
-          "xmlOrder":["Message"]
-        }
+        {"shape":"InvalidParameterValueException"},
+        {"shape":"MissingRequiredParameterException"},
+        {"shape":"InvalidParameterCombinationException"},
+        {"shape":"InternalServiceFault"}
       ]
     },
     "SetAlarmState":{
@@ -261,43 +147,27 @@
       },
       "input":{"shape":"SetAlarmStateInput"},
       "errors":[
-        {
-          "shape":"ResourceNotFound",
-          "error":{
-            "code":"ResourceNotFound",
-            "httpStatusCode":404,
-            "senderFault":true
-          },
-          "exception":true
-        },
-        {
-          "shape":"InvalidFormatFault",
-          "error":{
-            "code":"InvalidFormat",
-            "httpStatusCode":400,
-            "senderFault":true
-          },
-          "exception":true
-        }
+        {"shape":"ResourceNotFound"},
+        {"shape":"InvalidFormatFault"}
       ]
     }
   },
   "shapes":{
     "ActionPrefix":{
       "type":"string",
-      "min":1,
-      "max":1024
+      "max":1024,
+      "min":1
     },
     "ActionsEnabled":{"type":"boolean"},
     "AlarmArn":{
       "type":"string",
-      "min":1,
-      "max":1600
+      "max":1600,
+      "min":1
     },
     "AlarmDescription":{
       "type":"string",
-      "min":0,
-      "max":255
+      "max":1024,
+      "min":0
     },
     "AlarmHistoryItem":{
       "type":"structure",
@@ -315,13 +185,13 @@
     },
     "AlarmName":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "AlarmNamePrefix":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "AlarmNames":{
       "type":"list",
@@ -347,7 +217,8 @@
         "Sum":{"shape":"DatapointValue"},
         "Minimum":{"shape":"DatapointValue"},
         "Maximum":{"shape":"DatapointValue"},
-        "Unit":{"shape":"StandardUnit"}
+        "Unit":{"shape":"StandardUnit"},
+        "ExtendedStatistics":{"shape":"DatapointValueMap"}
       },
       "xmlOrder":[
         "Timestamp",
@@ -356,10 +227,16 @@
         "Sum",
         "Minimum",
         "Maximum",
-        "Unit"
+        "Unit",
+        "ExtendedStatistics"
       ]
     },
     "DatapointValue":{"type":"double"},
+    "DatapointValueMap":{
+      "type":"map",
+      "key":{"shape":"ExtendedStatistic"},
+      "value":{"shape":"DatapointValue"}
+    },
     "Datapoints":{
       "type":"list",
       "member":{"shape":"Datapoint"}
@@ -399,6 +276,7 @@
         "MetricName":{"shape":"MetricName"},
         "Namespace":{"shape":"Namespace"},
         "Statistic":{"shape":"Statistic"},
+        "ExtendedStatistic":{"shape":"ExtendedStatistic"},
         "Dimensions":{"shape":"Dimensions"},
         "Period":{"shape":"Period"},
         "Unit":{"shape":"StandardUnit"}
@@ -458,13 +336,13 @@
     },
     "DimensionName":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "DimensionValue":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "Dimensions":{
       "type":"list",
@@ -487,11 +365,21 @@
     },
     "ErrorMessage":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "EvaluationPeriods":{
       "type":"integer",
+      "min":1
+    },
+    "ExtendedStatistic":{
+      "type":"string",
+      "pattern":"p(\\d{1,2}(\\.\\d{0,2})?|100)"
+    },
+    "ExtendedStatistics":{
+      "type":"list",
+      "member":{"shape":"ExtendedStatistic"},
+      "max":10,
       "min":1
     },
     "FaultDescription":{"type":"string"},
@@ -502,8 +390,7 @@
         "MetricName",
         "StartTime",
         "EndTime",
-        "Period",
-        "Statistics"
+        "Period"
       ],
       "members":{
         "Namespace":{"shape":"Namespace"},
@@ -513,6 +400,7 @@
         "EndTime":{"shape":"Timestamp"},
         "Period":{"shape":"Period"},
         "Statistics":{"shape":"Statistics"},
+        "ExtendedStatistics":{"shape":"ExtendedStatistics"},
         "Unit":{"shape":"StandardUnit"}
       }
     },
@@ -525,8 +413,8 @@
     },
     "HistoryData":{
       "type":"string",
-      "min":1,
-      "max":4095
+      "max":4095,
+      "min":1
     },
     "HistoryItemType":{
       "type":"string",
@@ -538,8 +426,8 @@
     },
     "HistorySummary":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "InternalServiceFault":{
       "type":"structure",
@@ -635,8 +523,8 @@
     },
     "MaxRecords":{
       "type":"integer",
-      "min":1,
-      "max":100
+      "max":100,
+      "min":1
     },
     "Metric":{
       "type":"structure",
@@ -669,6 +557,7 @@
         "MetricName":{"shape":"MetricName"},
         "Namespace":{"shape":"Namespace"},
         "Statistic":{"shape":"Statistic"},
+        "ExtendedStatistic":{"shape":"ExtendedStatistic"},
         "Dimensions":{"shape":"Dimensions"},
         "Period":{"shape":"Period"},
         "Unit":{"shape":"StandardUnit"},
@@ -697,7 +586,8 @@
         "Unit",
         "EvaluationPeriods",
         "Threshold",
-        "ComparisonOperator"
+        "ComparisonOperator",
+        "ExtendedStatistic"
       ]
     },
     "MetricAlarms":{
@@ -723,8 +613,8 @@
     "MetricLabel":{"type":"string"},
     "MetricName":{
       "type":"string",
-      "min":1,
-      "max":255
+      "max":255,
+      "min":1
     },
     "Metrics":{
       "type":"list",
@@ -744,11 +634,15 @@
     },
     "Namespace":{
       "type":"string",
-      "min":1,
       "max":255,
+      "min":1,
       "pattern":"[^:].*"
     },
-    "NextToken":{"type":"string"},
+    "NextToken":{
+      "type":"string",
+      "max":1024,
+      "min":0
+    },
     "Period":{
       "type":"integer",
       "min":60
@@ -759,7 +653,6 @@
         "AlarmName",
         "MetricName",
         "Namespace",
-        "Statistic",
         "Period",
         "EvaluationPeriods",
         "Threshold",
@@ -775,6 +668,7 @@
         "MetricName":{"shape":"MetricName"},
         "Namespace":{"shape":"Namespace"},
         "Statistic":{"shape":"Statistic"},
+        "ExtendedStatistic":{"shape":"ExtendedStatistic"},
         "Dimensions":{"shape":"Dimensions"},
         "Period":{"shape":"Period"},
         "Unit":{"shape":"StandardUnit"},
@@ -801,8 +695,8 @@
     },
     "ResourceName":{
       "type":"string",
-      "min":1,
-      "max":1024
+      "max":1024,
+      "min":1
     },
     "ResourceNotFound":{
       "type":"structure",
@@ -864,13 +758,13 @@
     },
     "StateReason":{
       "type":"string",
-      "min":0,
-      "max":1023
+      "max":1023,
+      "min":0
     },
     "StateReasonData":{
       "type":"string",
-      "min":0,
-      "max":4000
+      "max":4000,
+      "min":0
     },
     "StateValue":{
       "type":"string",
@@ -908,8 +802,8 @@
     "Statistics":{
       "type":"list",
       "member":{"shape":"Statistic"},
-      "min":1,
-      "max":5
+      "max":5,
+      "min":1
     },
     "Threshold":{"type":"double"},
     "Timestamp":{"type":"timestamp"}

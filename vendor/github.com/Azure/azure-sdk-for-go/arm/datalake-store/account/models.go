@@ -22,6 +22,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/date"
 	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/satori/uuid"
 	"net/http"
 )
 
@@ -31,10 +32,10 @@ type DataLakeStoreAccountState string
 
 const (
 	// Active specifies the active state for data lake store account state.
-	Active DataLakeStoreAccountState = "active"
+	Active DataLakeStoreAccountState = "Active"
 	// Suspended specifies the suspended state for data lake store account
 	// state.
-	Suspended DataLakeStoreAccountState = "suspended"
+	Suspended DataLakeStoreAccountState = "Suspended"
 )
 
 // DataLakeStoreAccountStatus enumerates the values for data lake store
@@ -68,43 +69,74 @@ const (
 	Suspending DataLakeStoreAccountStatus = "Suspending"
 )
 
-// OperationStatus enumerates the values for operation status.
-type OperationStatus string
+// EncryptionConfigType enumerates the values for encryption config type.
+type EncryptionConfigType string
 
 const (
-	// OperationStatusFailed specifies the operation status failed state for
-	// operation status.
-	OperationStatusFailed OperationStatus = "Failed"
-	// OperationStatusInProgress specifies the operation status in progress
-	// state for operation status.
-	OperationStatusInProgress OperationStatus = "InProgress"
-	// OperationStatusSucceeded specifies the operation status succeeded state
-	// for operation status.
-	OperationStatusSucceeded OperationStatus = "Succeeded"
+	// ServiceManaged specifies the service managed state for encryption
+	// config type.
+	ServiceManaged EncryptionConfigType = "ServiceManaged"
+	// UserManaged specifies the user managed state for encryption config type.
+	UserManaged EncryptionConfigType = "UserManaged"
 )
 
-// AzureAsyncOperationResult is the response body contains the status of the
-// specified asynchronous operation, indicating whether it has succeeded, is
-// in progress, or has failed. Note that this status is distinct from the
-// HTTP status code returned for the Get Operation Status operation itself.
-// If the asynchronous operation succeeded, the response body includes the
-// HTTP status code for the successful request. If the asynchronous operation
-// failed, the response body includes the HTTP status code for the failed
-// request and error information regarding the failure.
-type AzureAsyncOperationResult struct {
-	Status OperationStatus `json:"status,omitempty"`
-	Error  *Error          `json:"error,omitempty"`
-}
+// EncryptionProvisioningState enumerates the values for encryption
+// provisioning state.
+type EncryptionProvisioningState string
+
+const (
+	// EncryptionProvisioningStateCreating specifies the encryption
+	// provisioning state creating state for encryption provisioning state.
+	EncryptionProvisioningStateCreating EncryptionProvisioningState = "Creating"
+	// EncryptionProvisioningStateSucceeded specifies the encryption
+	// provisioning state succeeded state for encryption provisioning state.
+	EncryptionProvisioningStateSucceeded EncryptionProvisioningState = "Succeeded"
+)
+
+// EncryptionState enumerates the values for encryption state.
+type EncryptionState string
+
+const (
+	// Disabled specifies the disabled state for encryption state.
+	Disabled EncryptionState = "Disabled"
+	// Enabled specifies the enabled state for encryption state.
+	Enabled EncryptionState = "Enabled"
+)
+
+// FirewallState enumerates the values for firewall state.
+type FirewallState string
+
+const (
+	// FirewallStateDisabled specifies the firewall state disabled state for
+	// firewall state.
+	FirewallStateDisabled FirewallState = "Disabled"
+	// FirewallStateEnabled specifies the firewall state enabled state for
+	// firewall state.
+	FirewallStateEnabled FirewallState = "Enabled"
+)
+
+// TrustedIDProviderState enumerates the values for trusted id provider state.
+type TrustedIDProviderState string
+
+const (
+	// TrustedIDProviderStateDisabled specifies the trusted id provider state
+	// disabled state for trusted id provider state.
+	TrustedIDProviderStateDisabled TrustedIDProviderState = "Disabled"
+	// TrustedIDProviderStateEnabled specifies the trusted id provider state
+	// enabled state for trusted id provider state.
+	TrustedIDProviderStateEnabled TrustedIDProviderState = "Enabled"
+)
 
 // DataLakeStoreAccount is data Lake Store account information
 type DataLakeStoreAccount struct {
-	autorest.Response `json:"-"`
-	Location          *string                         `json:"location,omitempty"`
-	Name              *string                         `json:"name,omitempty"`
-	Type              *string                         `json:"type,omitempty"`
-	ID                *string                         `json:"id,omitempty"`
-	Tags              *map[string]*string             `json:"tags,omitempty"`
-	Properties        *DataLakeStoreAccountProperties `json:"properties,omitempty"`
+	autorest.Response               `json:"-"`
+	ID                              *string             `json:"id,omitempty"`
+	Name                            *string             `json:"name,omitempty"`
+	Type                            *string             `json:"type,omitempty"`
+	Location                        *string             `json:"location,omitempty"`
+	Tags                            *map[string]*string `json:"tags,omitempty"`
+	Identity                        *EncryptionIdentity `json:"identity,omitempty"`
+	*DataLakeStoreAccountProperties `json:"properties,omitempty"`
 }
 
 // DataLakeStoreAccountListResult is data Lake Store account list information
@@ -113,7 +145,6 @@ type DataLakeStoreAccountListResult struct {
 	autorest.Response `json:"-"`
 	Value             *[]DataLakeStoreAccount `json:"value,omitempty"`
 	NextLink          *string                 `json:"nextLink,omitempty"`
-	Count             *int64                  `json:"count,omitempty"`
 }
 
 // DataLakeStoreAccountListResultPreparer prepares a request to retrieve the next set of results. It returns
@@ -131,12 +162,26 @@ func (client DataLakeStoreAccountListResult) DataLakeStoreAccountListResultPrepa
 // DataLakeStoreAccountProperties is data Lake Store account properties
 // information
 type DataLakeStoreAccountProperties struct {
-	ProvisioningState DataLakeStoreAccountStatus `json:"provisioningState,omitempty"`
-	State             DataLakeStoreAccountState  `json:"state,omitempty"`
-	CreationTime      *date.Time                 `json:"creationTime,omitempty"`
-	LastModifiedTime  *date.Time                 `json:"lastModifiedTime,omitempty"`
-	Endpoint          *string                    `json:"endpoint,omitempty"`
-	DefaultGroup      *string                    `json:"defaultGroup,omitempty"`
+	ProvisioningState           DataLakeStoreAccountStatus  `json:"provisioningState,omitempty"`
+	State                       DataLakeStoreAccountState   `json:"state,omitempty"`
+	CreationTime                *date.Time                  `json:"creationTime,omitempty"`
+	EncryptionState             EncryptionState             `json:"encryptionState,omitempty"`
+	EncryptionProvisioningState EncryptionProvisioningState `json:"encryptionProvisioningState,omitempty"`
+	EncryptionConfig            *EncryptionConfig           `json:"encryptionConfig,omitempty"`
+	FirewallState               FirewallState               `json:"firewallState,omitempty"`
+	FirewallRules               *[]FirewallRule             `json:"firewallRules,omitempty"`
+	TrustedIDProviderState      TrustedIDProviderState      `json:"trustedIdProviderState,omitempty"`
+	TrustedIDProviders          *[]TrustedIDProvider        `json:"trustedIdProviders,omitempty"`
+	LastModifiedTime            *date.Time                  `json:"lastModifiedTime,omitempty"`
+	Endpoint                    *string                     `json:"endpoint,omitempty"`
+	DefaultGroup                *string                     `json:"defaultGroup,omitempty"`
+}
+
+// DataLakeStoreAccountUpdateParameters is data Lake Store account information
+// to update
+type DataLakeStoreAccountUpdateParameters struct {
+	Tags                                  *map[string]*string `json:"tags,omitempty"`
+	*UpdateDataLakeStoreAccountProperties `json:"properties,omitempty"`
 }
 
 // DataLakeStoreFirewallRuleListResult is data Lake Store firewall rule list
@@ -145,7 +190,6 @@ type DataLakeStoreFirewallRuleListResult struct {
 	autorest.Response `json:"-"`
 	Value             *[]FirewallRule `json:"value,omitempty"`
 	NextLink          *string         `json:"nextLink,omitempty"`
-	Count             *int64          `json:"count,omitempty"`
 }
 
 // DataLakeStoreFirewallRuleListResultPreparer prepares a request to retrieve the next set of results. It returns
@@ -158,6 +202,39 @@ func (client DataLakeStoreFirewallRuleListResult) DataLakeStoreFirewallRuleListR
 		autorest.AsJSON(),
 		autorest.AsGet(),
 		autorest.WithBaseURL(to.String(client.NextLink)))
+}
+
+// DataLakeStoreTrustedIDProviderListResult is data Lake Store trusted
+// identity provider list information.
+type DataLakeStoreTrustedIDProviderListResult struct {
+	autorest.Response `json:"-"`
+	Value             *[]TrustedIDProvider `json:"value,omitempty"`
+	NextLink          *string              `json:"nextLink,omitempty"`
+}
+
+// DataLakeStoreTrustedIDProviderListResultPreparer prepares a request to retrieve the next set of results. It returns
+// nil if no more results exist.
+func (client DataLakeStoreTrustedIDProviderListResult) DataLakeStoreTrustedIDProviderListResultPreparer() (*http.Request, error) {
+	if client.NextLink == nil || len(to.String(client.NextLink)) <= 0 {
+		return nil, nil
+	}
+	return autorest.Prepare(&http.Request{},
+		autorest.AsJSON(),
+		autorest.AsGet(),
+		autorest.WithBaseURL(to.String(client.NextLink)))
+}
+
+// EncryptionConfig is the encryption configuration for the account.
+type EncryptionConfig struct {
+	Type             EncryptionConfigType `json:"type,omitempty"`
+	KeyVaultMetaInfo *KeyVaultMetaInfo    `json:"keyVaultMetaInfo,omitempty"`
+}
+
+// EncryptionIdentity is the encryption identity properties.
+type EncryptionIdentity struct {
+	Type        *string    `json:"type,omitempty"`
+	PrincipalID *uuid.UUID `json:"principalId,omitempty"`
+	TenantID    *uuid.UUID `json:"tenantId,omitempty"`
 }
 
 // Error is data Lake Store error information
@@ -178,12 +255,11 @@ type ErrorDetails struct {
 
 // FirewallRule is data Lake Store firewall rule information
 type FirewallRule struct {
-	autorest.Response `json:"-"`
-	Name              *string                 `json:"name,omitempty"`
-	Type              *string                 `json:"type,omitempty"`
-	ID                *string                 `json:"id,omitempty"`
-	Location          *string                 `json:"location,omitempty"`
-	Properties        *FirewallRuleProperties `json:"properties,omitempty"`
+	autorest.Response       `json:"-"`
+	ID                      *string `json:"id,omitempty"`
+	Name                    *string `json:"name,omitempty"`
+	Type                    *string `json:"type,omitempty"`
+	*FirewallRuleProperties `json:"properties,omitempty"`
 }
 
 // FirewallRuleProperties is data Lake Store firewall rule properties
@@ -197,4 +273,50 @@ type FirewallRuleProperties struct {
 type InnerError struct {
 	Trace   *string `json:"trace,omitempty"`
 	Context *string `json:"context,omitempty"`
+}
+
+// KeyVaultMetaInfo is metadata information used by account encryption.
+type KeyVaultMetaInfo struct {
+	KeyVaultResourceID   *string `json:"keyVaultResourceId,omitempty"`
+	EncryptionKeyName    *string `json:"encryptionKeyName,omitempty"`
+	EncryptionKeyVersion *string `json:"encryptionKeyVersion,omitempty"`
+}
+
+// Resource is the Resource model definition.
+type Resource struct {
+	ID       *string             `json:"id,omitempty"`
+	Name     *string             `json:"name,omitempty"`
+	Type     *string             `json:"type,omitempty"`
+	Location *string             `json:"location,omitempty"`
+	Tags     *map[string]*string `json:"tags,omitempty"`
+}
+
+// SubResource is the Resource model definition for a nested resource.
+type SubResource struct {
+	ID   *string `json:"id,omitempty"`
+	Name *string `json:"name,omitempty"`
+	Type *string `json:"type,omitempty"`
+}
+
+// TrustedIDProvider is data Lake Store firewall rule information
+type TrustedIDProvider struct {
+	autorest.Response            `json:"-"`
+	ID                           *string `json:"id,omitempty"`
+	Name                         *string `json:"name,omitempty"`
+	Type                         *string `json:"type,omitempty"`
+	*TrustedIDProviderProperties `json:"properties,omitempty"`
+}
+
+// TrustedIDProviderProperties is data Lake Store trusted identity provider
+// properties information
+type TrustedIDProviderProperties struct {
+	IDProvider *string `json:"idProvider,omitempty"`
+}
+
+// UpdateDataLakeStoreAccountProperties is data Lake Store account properties
+// information to be updated.
+type UpdateDataLakeStoreAccountProperties struct {
+	FirewallState          FirewallState          `json:"firewallState,omitempty"`
+	TrustedIDProviderState TrustedIDProviderState `json:"trustedIdProviderState,omitempty"`
+	DefaultGroup           *string                `json:"defaultGroup,omitempty"`
 }

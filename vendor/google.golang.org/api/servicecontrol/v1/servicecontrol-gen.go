@@ -142,18 +142,34 @@ type CheckError struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "Code") to include in API
+	// requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *CheckError) MarshalJSON() ([]byte, error) {
 	type noMethod CheckError
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // CheckRequest: Request message for the Check method.
 type CheckRequest struct {
 	// Operation: The operation to be checked.
 	Operation *Operation `json:"operation,omitempty"`
+
+	// ServiceConfigId: Specifies which version of service configuration
+	// should be used to process
+	// the request.
+	//
+	// If unspecified or no matching version can be found, the
+	// latest one will be used.
+	ServiceConfigId string `json:"serviceConfigId,omitempty"`
 
 	// ForceSendFields is a list of field names (e.g. "Operation") to
 	// unconditionally include in API requests. By default, fields with
@@ -162,12 +178,20 @@ type CheckRequest struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "Operation") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *CheckRequest) MarshalJSON() ([]byte, error) {
 	type noMethod CheckRequest
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // CheckResponse: Response message for the Check method.
@@ -186,6 +210,9 @@ type CheckResponse struct {
 	// Used for logging and diagnostics purposes.
 	OperationId string `json:"operationId,omitempty"`
 
+	// ServiceConfigId: The actual config id used to process the request.
+	ServiceConfigId string `json:"serviceConfigId,omitempty"`
+
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
 	googleapi.ServerResponse `json:"-"`
@@ -197,12 +224,20 @@ type CheckResponse struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "CheckErrors") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *CheckResponse) MarshalJSON() ([]byte, error) {
 	type noMethod CheckResponse
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // Distribution: Distribution represents a frequency distribution of
@@ -274,12 +309,20 @@ type Distribution struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "BucketCounts") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *Distribution) MarshalJSON() ([]byte, error) {
 	type noMethod Distribution
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // ExplicitBuckets: Describing buckets with arbitrary user-provided
@@ -313,12 +356,20 @@ type ExplicitBuckets struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "Bounds") to include in API
+	// requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *ExplicitBuckets) MarshalJSON() ([]byte, error) {
 	type noMethod ExplicitBuckets
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // ExponentialBuckets: Describing buckets with exponentially growing
@@ -349,12 +400,20 @@ type ExponentialBuckets struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "GrowthFactor") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *ExponentialBuckets) MarshalJSON() ([]byte, error) {
 	type noMethod ExponentialBuckets
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // LinearBuckets: Describing buckets with constant width.
@@ -383,12 +442,21 @@ type LinearBuckets struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "NumFiniteBuckets") to
+	// include in API requests with the JSON null value. By default, fields
+	// with empty values are omitted from API requests. However, any field
+	// with an empty value appearing in NullFields will be sent to the
+	// server as null. It is an error if a field in this list has a
+	// non-empty value. This may be used to include null fields in Patch
+	// requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *LinearBuckets) MarshalJSON() ([]byte, error) {
 	type noMethod LinearBuckets
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // LogEntry: An individual log entry.
@@ -412,32 +480,32 @@ type LogEntry struct {
 	// that is
 	// expressed as a JSON object. You can only pass `protoPayload`
 	// values that belong to a set of approved types.
-	ProtoPayload LogEntryProtoPayload `json:"protoPayload,omitempty"`
+	ProtoPayload googleapi.RawMessage `json:"protoPayload,omitempty"`
 
 	// Severity: The severity of the log entry. The default value
 	// is
 	// `LogSeverity.DEFAULT`.
 	//
 	// Possible values:
-	//   "DEFAULT" - The log entry has no assigned severity level.
-	//   "DEBUG" - Debug or trace information.
-	//   "INFO" - Routine information, such as ongoing status or
+	//   "DEFAULT" - (0) The log entry has no assigned severity level.
+	//   "DEBUG" - (100) Debug or trace information.
+	//   "INFO" - (200) Routine information, such as ongoing status or
 	// performance.
-	//   "NOTICE" - Normal but significant events, such as start up, shut
-	// down, or
-	// configuration.
-	//   "WARNING" - Warning events might cause problems.
-	//   "ERROR" - Error events are likely to cause problems.
-	//   "CRITICAL" - Critical events cause more severe problems or brief
+	//   "NOTICE" - (300) Normal but significant events, such as start up,
+	// shut down, or
+	// a configuration change.
+	//   "WARNING" - (400) Warning events might cause problems.
+	//   "ERROR" - (500) Error events are likely to cause problems.
+	//   "CRITICAL" - (600) Critical events cause more severe problems or
 	// outages.
-	//   "ALERT" - A person must take an action immediately.
-	//   "EMERGENCY" - One or more systems are unusable.
+	//   "ALERT" - (700) A person must take an action immediately.
+	//   "EMERGENCY" - (800) One or more systems are unusable.
 	Severity string `json:"severity,omitempty"`
 
 	// StructPayload: The log entry payload, represented as a structure
 	// that
 	// is expressed as a JSON object.
-	StructPayload LogEntryStructPayload `json:"structPayload,omitempty"`
+	StructPayload googleapi.RawMessage `json:"structPayload,omitempty"`
 
 	// TextPayload: The log entry payload, represented as a Unicode string
 	// (UTF-8).
@@ -455,28 +523,32 @@ type LogEntry struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "InsertId") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *LogEntry) MarshalJSON() ([]byte, error) {
 	type noMethod LogEntry
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
-
-type LogEntryProtoPayload interface{}
-
-type LogEntryStructPayload interface{}
 
 // MetricValue: Represents a single metric value.
 type MetricValue struct {
 	// BoolValue: A boolean value.
-	BoolValue bool `json:"boolValue,omitempty"`
+	BoolValue *bool `json:"boolValue,omitempty"`
 
 	// DistributionValue: A distribution value.
 	DistributionValue *Distribution `json:"distributionValue,omitempty"`
 
 	// DoubleValue: A double precision floating point value.
-	DoubleValue float64 `json:"doubleValue,omitempty"`
+	DoubleValue *float64 `json:"doubleValue,omitempty"`
 
 	// EndTime: The end of the time period over which this metric value's
 	// measurement
@@ -484,7 +556,7 @@ type MetricValue struct {
 	EndTime string `json:"endTime,omitempty"`
 
 	// Int64Value: A signed 64-bit integer value.
-	Int64Value int64 `json:"int64Value,omitempty,string"`
+	Int64Value *int64 `json:"int64Value,omitempty,string"`
 
 	// Labels: The labels describing the metric value.
 	// See comments on google.api.servicecontrol.v1.Operation.labels for
@@ -501,7 +573,7 @@ type MetricValue struct {
 	StartTime string `json:"startTime,omitempty"`
 
 	// StringValue: A text string value.
-	StringValue string `json:"stringValue,omitempty"`
+	StringValue *string `json:"stringValue,omitempty"`
 
 	// ForceSendFields is a list of field names (e.g. "BoolValue") to
 	// unconditionally include in API requests. By default, fields with
@@ -510,12 +582,20 @@ type MetricValue struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "BoolValue") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *MetricValue) MarshalJSON() ([]byte, error) {
 	type noMethod MetricValue
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // MetricValueSet: Represents a set of metric values in the same
@@ -537,12 +617,20 @@ type MetricValueSet struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "MetricName") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *MetricValueSet) MarshalJSON() ([]byte, error) {
 	type noMethod MetricValueSet
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // Operation: Represents information regarding an operation.
@@ -564,22 +652,17 @@ type Operation struct {
 	// but optional when the operation is used in ServiceController.Check.
 	EndTime string `json:"endTime,omitempty"`
 
-	// Importance: The importance of the data contained in the operation.
+	// Importance: DO NOT USE. This is an experimental field.
 	//
 	// Possible values:
-	//   "LOW" - The operation doesn't contain significant monetary value or
-	// audit
-	// trail. The API implementation may cache and aggregate the data.
-	// There is no deduplication based on `operation_id`. The data
-	// may be lost when rare and unexpected system failures occur.
-	//   "HIGH" - The operation contains significant monetary value or audit
-	// trail.
-	// The API implementation doesn't cache and aggregate the
+	//   "LOW" - The API implementation may cache and aggregate the
 	// data.
-	// Deduplication based on `operation_id` is performed for
-	// monetary
-	// values. If the method returns successfully, it's guaranteed that
-	// the data are persisted in durable storage.
+	// The data may be lost when rare and unexpected system failures occur.
+	//   "HIGH" - The API implementation doesn't cache and aggregate the
+	// data.
+	// If the method returns successfully, it's guaranteed that the data
+	// has
+	// been persisted in durable storage.
 	Importance string `json:"importance,omitempty"`
 
 	// Labels: Labels describing the operation. Only the following labels
@@ -653,12 +736,20 @@ type Operation struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "ConsumerId") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *Operation) MarshalJSON() ([]byte, error) {
 	type noMethod Operation
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // ReportError: Represents the processing error of one `Operation` in
@@ -677,12 +768,20 @@ type ReportError struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "OperationId") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *ReportError) MarshalJSON() ([]byte, error) {
 	type noMethod ReportError
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // ReportRequest: Request message for the Report method.
@@ -704,6 +803,14 @@ type ReportRequest struct {
 	// partial failure behavior.
 	Operations []*Operation `json:"operations,omitempty"`
 
+	// ServiceConfigId: Specifies which version of service config should be
+	// used to process the
+	// request.
+	//
+	// If unspecified or no matching version can be found, the
+	// latest one will be used.
+	ServiceConfigId string `json:"serviceConfigId,omitempty"`
+
 	// ForceSendFields is a list of field names (e.g. "Operations") to
 	// unconditionally include in API requests. By default, fields with
 	// empty values are omitted from API requests. However, any non-pointer,
@@ -711,12 +818,20 @@ type ReportRequest struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "Operations") to include in
+	// API requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *ReportRequest) MarshalJSON() ([]byte, error) {
 	type noMethod ReportRequest
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // ReportResponse: Response message for the Report method.
@@ -735,10 +850,14 @@ type ReportResponse struct {
 	//    `Operations` in the request succeeded. Each
 	//    `Operation` that failed processing has a corresponding item
 	//    in this list.
-	// 3. A failed RPC status indicates a complete failure where none of
-	// the
-	//    `Operations` in the request succeeded.
+	// 3. A failed RPC status indicates a general non-deterministic
+	// failure.
+	//    When this happens, it's impossible to know which of the
+	//    'Operations' in the request succeeded or failed.
 	ReportErrors []*ReportError `json:"reportErrors,omitempty"`
+
+	// ServiceConfigId: The actual config id used to process the request.
+	ServiceConfigId string `json:"serviceConfigId,omitempty"`
 
 	// ServerResponse contains the HTTP response code and headers from the
 	// server.
@@ -751,12 +870,20 @@ type ReportResponse struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "ReportErrors") to include
+	// in API requests with the JSON null value. By default, fields with
+	// empty values are omitted from API requests. However, any field with
+	// an empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *ReportResponse) MarshalJSON() ([]byte, error) {
 	type noMethod ReportResponse
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
 
 // Status: The `Status` type defines a logical error model that is
@@ -846,7 +973,7 @@ type Status struct {
 	// Details: A list of messages that carry the error details.  There will
 	// be a
 	// common set of message types for APIs to use.
-	Details []StatusDetails `json:"details,omitempty"`
+	Details []googleapi.RawMessage `json:"details,omitempty"`
 
 	// Message: A developer-facing error message, which should be in
 	// English. Any
@@ -862,15 +989,21 @@ type Status struct {
 	// server regardless of whether the field is empty or not. This may be
 	// used to include empty fields in Patch requests.
 	ForceSendFields []string `json:"-"`
+
+	// NullFields is a list of field names (e.g. "Code") to include in API
+	// requests with the JSON null value. By default, fields with empty
+	// values are omitted from API requests. However, any field with an
+	// empty value appearing in NullFields will be sent to the server as
+	// null. It is an error if a field in this list has a non-empty value.
+	// This may be used to include null fields in Patch requests.
+	NullFields []string `json:"-"`
 }
 
 func (s *Status) MarshalJSON() ([]byte, error) {
 	type noMethod Status
 	raw := noMethod(*s)
-	return gensupport.MarshalJSON(raw, s.ForceSendFields)
+	return gensupport.MarshalJSON(raw, s.ForceSendFields, s.NullFields)
 }
-
-type StatusDetails interface{}
 
 // method id "servicecontrol.services.check":
 
@@ -880,6 +1013,7 @@ type ServicesCheckCall struct {
 	checkrequest *CheckRequest
 	urlParams_   gensupport.URLParams
 	ctx_         context.Context
+	header_      http.Header
 }
 
 // Check: Checks an operation with Google Service Control to decide
@@ -887,6 +1021,12 @@ type ServicesCheckCall struct {
 // the given operation should proceed. It should be called before
 // the
 // operation is executed.
+//
+// If feasible, the client should cache the check results and reuse them
+// for
+// up to 60s. In case of server errors, the client may rely on the
+// cached
+// results for longer time.
 //
 // This method requires the `servicemanagement.services.check`
 // permission
@@ -915,8 +1055,20 @@ func (c *ServicesCheckCall) Context(ctx context.Context) *ServicesCheckCall {
 	return c
 }
 
+// Header returns an http.Header that can be modified by the caller to
+// add HTTP headers to the request.
+func (c *ServicesCheckCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
 func (c *ServicesCheckCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := make(http.Header)
+	for k, v := range c.header_ {
+		reqHeaders[k] = v
+	}
 	reqHeaders.Set("User-Agent", c.s.userAgent())
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.checkrequest)
@@ -973,7 +1125,7 @@ func (c *ServicesCheckCall) Do(opts ...googleapi.CallOption) (*CheckResponse, er
 	}
 	return ret, nil
 	// {
-	//   "description": "Checks an operation with Google Service Control to decide whether\nthe given operation should proceed. It should be called before the\noperation is executed.\n\nThis method requires the `servicemanagement.services.check` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
+	//   "description": "Checks an operation with Google Service Control to decide whether\nthe given operation should proceed. It should be called before the\noperation is executed.\n\nIf feasible, the client should cache the check results and reuse them for\nup to 60s. In case of server errors, the client may rely on the cached\nresults for longer time.\n\nThis method requires the `servicemanagement.services.check` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
 	//   "flatPath": "v1/services/{serviceName}:check",
 	//   "httpMethod": "POST",
 	//   "id": "servicecontrol.services.check",
@@ -1011,11 +1163,22 @@ type ServicesReportCall struct {
 	reportrequest *ReportRequest
 	urlParams_    gensupport.URLParams
 	ctx_          context.Context
+	header_       http.Header
 }
 
 // Report: Reports operations to Google Service Control. It should be
 // called
 // after the operation is completed.
+//
+// If feasible, the client should aggregate reporting data for up to 5s
+// to
+// reduce API traffic. Limiting aggregation to 5s is to reduce data
+// loss
+// during client crashes. Clients should carefully choose the
+// aggregation
+// window to avoid data loss risk more than 0.01% for business
+// and
+// compliance reasons.
 //
 // This method requires the `servicemanagement.services.report`
 // permission
@@ -1044,8 +1207,20 @@ func (c *ServicesReportCall) Context(ctx context.Context) *ServicesReportCall {
 	return c
 }
 
+// Header returns an http.Header that can be modified by the caller to
+// add HTTP headers to the request.
+func (c *ServicesReportCall) Header() http.Header {
+	if c.header_ == nil {
+		c.header_ = make(http.Header)
+	}
+	return c.header_
+}
+
 func (c *ServicesReportCall) doRequest(alt string) (*http.Response, error) {
 	reqHeaders := make(http.Header)
+	for k, v := range c.header_ {
+		reqHeaders[k] = v
+	}
 	reqHeaders.Set("User-Agent", c.s.userAgent())
 	var body io.Reader = nil
 	body, err := googleapi.WithoutDataWrapper.JSONReader(c.reportrequest)
@@ -1102,7 +1277,7 @@ func (c *ServicesReportCall) Do(opts ...googleapi.CallOption) (*ReportResponse, 
 	}
 	return ret, nil
 	// {
-	//   "description": "Reports operations to Google Service Control. It should be called\nafter the operation is completed.\n\nThis method requires the `servicemanagement.services.report` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
+	//   "description": "Reports operations to Google Service Control. It should be called\nafter the operation is completed.\n\nIf feasible, the client should aggregate reporting data for up to 5s to\nreduce API traffic. Limiting aggregation to 5s is to reduce data loss\nduring client crashes. Clients should carefully choose the aggregation\nwindow to avoid data loss risk more than 0.01% for business and\ncompliance reasons.\n\nThis method requires the `servicemanagement.services.report` permission\non the specified service. For more information, see\n[Google Cloud IAM](https://cloud.google.com/iam).",
 	//   "flatPath": "v1/services/{serviceName}:report",
 	//   "httpMethod": "POST",
 	//   "id": "servicecontrol.services.report",

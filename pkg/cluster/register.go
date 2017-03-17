@@ -14,70 +14,70 @@ limitations under the License.
 package cluster
 
 import (
-	"k8s.io/kubernetes/pkg/api/meta"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func (i User) GetObjectKind() unversioned.ObjectKind {
+func (i User) Get() schema.ObjectKind {
 	return &i.TypeMeta
 }
 
-func (i User) GetObjectMeta() meta.Object {
+func (i User) GetObjectMeta() metav1.Object {
 	return &i.ObjectMeta
 }
 
-func (il UserList) GetObjectKind() unversioned.ObjectKind {
+func (il UserList) Get() schema.ObjectKind {
 	return &il.TypeMeta
 }
 
-func (il UserList) GetObjectMeta() unversioned.List {
+func (il UserList) GetObjectMeta() metav1.List {
 	return &il.ListMeta
 }
 
-func (i Network) GetObjectKind() unversioned.ObjectKind {
+func (i Network) Get() schema.ObjectKind {
 	return &i.TypeMeta
 }
 
-func (i Network) GetObjectMeta() meta.Object {
+func (i Network) GetObjectMeta() metav1.Object {
 	return &i.ObjectMeta
 }
 
-func (il NetworkList) GetObjectKind() unversioned.ObjectKind {
+func (il NetworkList) Get() schema.ObjectKind {
 	return &il.TypeMeta
 }
 
-func (il NetworkList) GetObjectMeta() unversioned.List {
+func (il NetworkList) GetObjectMeta() metav1.List {
 	return &il.ListMeta
 }
 
-func (i InstanceGroup) GetObjectKind() unversioned.ObjectKind {
+func (i InstanceGroup) Get() schema.ObjectKind {
 	return &i.TypeMeta
 }
 
-func (i InstanceGroup) GetObjectMeta() meta.Object {
+func (i InstanceGroup) GetObjectMeta() metav1.Object {
 	return &i.ObjectMeta
 }
 
-func (il InstanceGroupList) GetObjectKind() unversioned.ObjectKind {
+func (il InstanceGroupList) Get() schema.ObjectKind {
 	return &il.TypeMeta
 }
 
-func (il InstanceGroupList) GetObjectMeta() unversioned.List {
+func (il InstanceGroupList) GetObjectMeta() metav1.List {
 	return &il.ListMeta
 }
 
-func (i Instance) GetObjectKind() unversioned.ObjectKind {
+func (i Instance) Get() schema.ObjectKind {
 	return &i.TypeMeta
 }
 
-func (i Instance) GetObjectMeta() meta.Object {
+func (i Instance) GetObjectMeta() metav1.Object {
 	return &i.ObjectMeta
 }
 
-func (il InstanceList) GetObjectKind() unversioned.ObjectKind {
+func (il InstanceList) Get() schema.ObjectKind {
 	return &il.TypeMeta
 }
 
-func (il InstanceList) GetObjectMeta() unversioned.List {
+func (il InstanceList) GetObjectMeta() metav1.List {
 	return &il.ListMeta
 }

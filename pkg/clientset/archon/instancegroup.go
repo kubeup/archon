@@ -14,9 +14,9 @@ limitations under the License.
 package archon
 
 import (
-	"k8s.io/kubernetes/pkg/api"
-	rest "k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/watch"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	watch "k8s.io/apimachinery/pkg/watch"
+	rest "k8s.io/client-go/rest"
 	"kubeup.com/archon/pkg/cluster"
 )
 
@@ -33,8 +33,8 @@ type InstanceGroupInterface interface {
 	UpdateStatus(*cluster.InstanceGroup) (*cluster.InstanceGroup, error)
 	Delete(name string) error
 	Get(name string) (*cluster.InstanceGroup, error)
-	List(api.ListOptions) (*cluster.InstanceGroupList, error)
-	Watch(api.ListOptions) (watch.Interface, error)
+	List(metav1.ListOptions) (*cluster.InstanceGroupList, error)
+	Watch(metav1.ListOptions) (watch.Interface, error)
 }
 
 // instancegroups implements InstanceGroupInterface
@@ -111,7 +111,7 @@ func (c *instancegroups) Get(name string) (result *cluster.InstanceGroup, err er
 }
 
 // List takes label and field selectors, and returns the list of InstanceGroups that match those selectors.
-func (c *instancegroups) List(options api.ListOptions) (result *cluster.InstanceGroupList, err error) {
+func (c *instancegroups) List(options metav1.ListOptions) (result *cluster.InstanceGroupList, err error) {
 	result = &cluster.InstanceGroupList{}
 	err = c.client.Get().
 		Namespace(c.ns).
@@ -122,7 +122,7 @@ func (c *instancegroups) List(options api.ListOptions) (result *cluster.Instance
 }
 
 // Watch returns a watch.Interface that watches the requested instancegroups.
-func (c *instancegroups) Watch(options api.ListOptions) (watch.Interface, error) {
+func (c *instancegroups) Watch(options metav1.ListOptions) (watch.Interface, error) {
 	return c.client.Get().
 		Prefix("watch").
 		Namespace(c.ns).

@@ -318,14 +318,15 @@ func (p *awsCloud) createRouteTable(an *AWSNetwork) (rtID string, err error) {
 		return
 	}
 
-	if cn, ok := an.Labels[k8saws.TagNameKubernetesCluster]; ok {
+	// TODO: Update to use prefix
+	if cn, ok := an.Labels[k8saws.TagNameKubernetesClusterLegacy]; ok {
 		params5 := &ec2.CreateTagsInput{
 			Resources: []*string{
 				resp.RouteTables[0].RouteTableId,
 			},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(k8saws.TagNameKubernetesCluster),
+					Key:   aws.String(k8saws.TagNameKubernetesClusterLegacy),
 					Value: aws.String(cn),
 				},
 			},

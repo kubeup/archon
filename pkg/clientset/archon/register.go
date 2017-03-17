@@ -16,15 +16,16 @@ package archon
 import (
 	"kubeup.com/archon/pkg/cluster"
 
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	//"k8s.io/kubernetes/pkg/api"
 )
 
 var (
 	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 	AddToScheme   = SchemeBuilder.AddToScheme
-	Scheme        = runtime.NewScheme()
+	//Scheme        = runtime.NewScheme()
 )
 
 // GroupName is the group name use in this package
@@ -32,7 +33,7 @@ const GroupName = "archon.kubeup.com"
 const GroupVersion = "v1"
 
 // SchemeGroupVersion is group version used to register these objects
-var SchemeGroupVersion = unversioned.GroupVersion{Group: GroupName, Version: GroupVersion}
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
 
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
@@ -45,8 +46,9 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&cluster.InstanceGroupList{},
 		&cluster.Network{},
 		&cluster.NetworkList{},
-		&api.ListOptions{},
-		&api.DeleteOptions{},
+	//	&api.ListOptions{},
+	//		&api.DeleteOptions{},
 	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

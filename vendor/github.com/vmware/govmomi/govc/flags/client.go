@@ -17,6 +17,7 @@ limitations under the License.
 package flags
 
 import (
+	"context"
 	"crypto/sha1"
 	"crypto/tls"
 	"encoding/json"
@@ -33,7 +34,6 @@ import (
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -47,6 +47,8 @@ const (
 	envMinAPIVersion = "GOVC_MIN_API_VERSION"
 	envVimNamespace  = "GOVC_VIM_NAMESPACE"
 	envVimVersion    = "GOVC_VIM_VERSION"
+	envTLSCaCerts    = "GOVC_TLS_CA_CERTS"
+	envTLSKnownHosts = "GOVC_TLS_KNOWN_HOSTS"
 )
 
 const cDescr = "ESX or vCenter URL"
@@ -66,11 +68,23 @@ type ClientFlag struct {
 	minAPIVersion string
 	vimNamespace  string
 	vimVersion    string
+	tlsCaCerts    string
+	tlsKnownHosts string
+	tlsHostHash   string
 
 	client *vim25.Client
 }
 
-var clientFlagKey = flagKey("client")
+var (
+	home          = os.Getenv("GOVMOMI_HOME")
+	clientFlagKey = flagKey("client")
+)
+
+func init() {
+	if home == "" {
+		home = filepath.Join(os.Getenv("HOME"), ".govmomi")
+	}
+}
 
 func NewClientFlag(ctx context.Context) (*ClientFlag, context.Context) {
 	if v := ctx.Value(clientFlagKey); v != nil {
@@ -91,6 +105,10 @@ func (flag *ClientFlag) URLWithoutPassword() *url.URL {
 	withoutCredentials := *flag.url
 	withoutCredentials.User = url.User(flag.url.User.Username())
 	return &withoutCredentials
+}
+
+func (flag *ClientFlag) IsSecure() bool {
+	return !flag.insecure
 }
 
 func (flag *ClientFlag) String() string {
@@ -162,7 +180,7 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 		{
 			env := os.Getenv(envMinAPIVersion)
 			if env == "" {
-				env = "5.5"
+				env = soap.DefaultMinVimVersion
 			}
 
 			flag.minAPIVersion = env
@@ -184,6 +202,18 @@ func (flag *ClientFlag) Register(ctx context.Context, f *flag.FlagSet) {
 			}
 			usage := fmt.Sprintf("Vim version [%s]", envVimVersion)
 			f.StringVar(&flag.vimVersion, "vim-version", value, usage)
+		}
+
+		{
+			value := os.Getenv(envTLSCaCerts)
+			usage := fmt.Sprintf("TLS CA certificates file [%s]", envTLSCaCerts)
+			f.StringVar(&flag.tlsCaCerts, "tls-ca-certs", value, usage)
+		}
+
+		{
+			value := os.Getenv(envTLSKnownHosts)
+			usage := fmt.Sprintf("TLS known hosts file [%s]", envTLSKnownHosts)
+			f.StringVar(&flag.tlsKnownHosts, "tls-known-hosts", value, usage)
 		}
 	})
 }
@@ -229,10 +259,25 @@ func (flag *ClientFlag) Process(ctx context.Context) error {
 	})
 }
 
-// Retry twice when a temporary I/O error occurs.
-// This means a maximum of 3 attempts.
-func attachRetries(rt soap.RoundTripper) soap.RoundTripper {
-	return vim25.Retry(rt, vim25.TemporaryNetworkError(3))
+// configure TLS and retry settings before making any connections
+func (flag *ClientFlag) configure(sc *soap.Client) (soap.RoundTripper, error) {
+	// Set namespace and version
+	sc.Namespace = flag.vimNamespace
+	sc.Version = flag.vimVersion
+
+	sc.UserAgent = fmt.Sprintf("govc/%s", Version)
+
+	if err := flag.SetRootCAs(sc); err != nil {
+		return nil, err
+	}
+
+	if err := sc.LoadThumbprints(flag.tlsKnownHosts); err != nil {
+		return nil, err
+	}
+
+	// Retry twice when a temporary I/O error occurs.
+	// This means a maximum of 3 attempts.
+	return vim25.Retry(sc, vim25.TemporaryNetworkError(3)), nil
 }
 
 func (flag *ClientFlag) sessionFile() string {
@@ -242,7 +287,7 @@ func (flag *ClientFlag) sessionFile() string {
 	// Hash key to get a predictable, canonical format.
 	key := fmt.Sprintf("%s#insecure=%t", url.String(), flag.insecure)
 	name := fmt.Sprintf("%040x", sha1.Sum([]byte(key)))
-	return filepath.Join(os.Getenv("HOME"), ".govmomi", "sessions", name)
+	return filepath.Join(home, "sessions", name)
 }
 
 func (flag *ClientFlag) saveClient(c *vim25.Client) error {
@@ -306,8 +351,10 @@ func (flag *ClientFlag) loadClient() (*vim25.Client, error) {
 		return nil, nil
 	}
 
-	// Add retry functionality before making any calls
-	c.RoundTripper = attachRetries(c.RoundTripper)
+	c.RoundTripper, err = flag.configure(c.Client)
+	if err != nil {
+		return nil, err
+	}
 
 	m := session.NewManager(c)
 	u, err := m.UserSession(context.TODO())
@@ -331,7 +378,15 @@ func (flag *ClientFlag) loadClient() (*vim25.Client, error) {
 	return c, nil
 }
 
+func (flag *ClientFlag) SetRootCAs(c *soap.Client) error {
+	if flag.tlsCaCerts != "" {
+		return c.SetRootCAs(flag.tlsCaCerts)
+	}
+	return nil
+}
+
 func (flag *ClientFlag) newClient() (*vim25.Client, error) {
+	ctx := context.TODO()
 	sc := soap.NewClient(flag.url, flag.insecure)
 	isTunnel := false
 
@@ -345,13 +400,12 @@ func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 		sc.SetCertificate(cert)
 	}
 
-	// Set namespace and version
-	sc.Namespace = flag.vimNamespace
-	sc.Version = flag.vimVersion
+	rt, err := flag.configure(sc)
+	if err != nil {
+		return nil, err
+	}
 
-	// Add retry functionality before making any calls
-	rt := attachRetries(sc)
-	c, err := vim25.NewClient(context.TODO(), rt)
+	c, err := vim25.NewClient(ctx, rt)
 	if err != nil {
 		return nil, err
 	}
@@ -364,19 +418,19 @@ func (flag *ClientFlag) newClient() (*vim25.Client, error) {
 
 	if u.Username() == "" {
 		// Assume we are running on an ESX or Workstation host if no username is provided
-		u, err = flag.localTicket(context.TODO(), m)
+		u, err = flag.localTicket(ctx, m)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if isTunnel {
-		err = m.LoginExtensionByCertificate(context.TODO(), u.Username(), "")
+		err = m.LoginExtensionByCertificate(ctx, u.Username(), "")
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		err = m.Login(context.TODO(), u)
+		err = m.Login(ctx, u)
 		if err != nil {
 			return nil, err
 		}

@@ -17,12 +17,11 @@ limitations under the License.
 package logs
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"text/tabwriter"
-
-	"golang.org/x/net/context"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
@@ -47,6 +46,14 @@ func (cmd *ls) Process(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+func (cmd *ls) Description() string {
+	return `List diagnostic log keys.
+
+Examples:
+  govc logs.ls
+  govc logs.ls -host host-a`
 }
 
 func (cmd *ls) Run(ctx context.Context, f *flag.FlagSet) error {

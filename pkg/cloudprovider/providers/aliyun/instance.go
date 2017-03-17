@@ -19,9 +19,9 @@ import (
 	"github.com/denverdino/aliyungo/ecs"
 	"github.com/golang/glog"
 	cloudinit "github.com/tryk8s/ssh-cloudinit/client"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
-	"k8s.io/kubernetes/pkg/util/wait"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/userdata"
 	"kubeup.com/archon/pkg/util"
@@ -86,7 +86,7 @@ func instanceToStatus(i ecs.InstanceAttributesType) *cluster.InstanceStatus {
 		PrivateIP:         firstIP(i.VpcAttributes.PrivateIpAddress),
 		PublicIP:          publicIP,
 		InstanceID:        i.InstanceId,
-		CreationTimestamp: unversioned.NewTime(time.Time(i.CreationTime)),
+		CreationTimestamp: metav1.NewTime(time.Time(i.CreationTime)),
 	}
 }
 
@@ -322,7 +322,7 @@ func (p *aliyunCloud) initializeInstance(clusterName string, instance *cluster.I
 
 	// Set password if provided in secret
 	for _, s := range instance.Dependency.Secrets {
-		if s.Type == api.SecretTypeBasicAuth {
+		if s.Type == v1.SecretTypeBasicAuth {
 			_, ok := s.Data["username"]
 			if ok {
 				glog.V(4).Infof("Username in secret %s is ignored", s.Name)

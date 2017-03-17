@@ -14,8 +14,10 @@ limitations under the License.
 package cluster
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/api/unversioned"
+	"k8s.io/kubernetes/pkg/api/v1"
+	//"k8s.io/kubernetes/pkg/apis/meta/v1"
 )
 
 const AnnotationPrefix = "archon.kubeup.com/"
@@ -38,14 +40,14 @@ type UserSpec struct {
 }
 
 type User struct {
-	unversioned.TypeMeta `json:",inline"`
-	api.ObjectMeta       `json:"metadata"`
-	Spec                 UserSpec `json:"spec"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              UserSpec `json:"spec"`
 }
 
 type UserList struct {
-	unversioned.TypeMeta `json:",inline"`
-	unversioned.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []*User `json:"items"`
 }
@@ -70,24 +72,24 @@ const (
 )
 
 type Network struct {
-	unversioned.TypeMeta `json:",inline"`
-	api.ObjectMeta       `json:"metadata"`
-	Spec                 NetworkSpec   `json:"spec,omitempty"`
-	Status               NetworkStatus `json:"status,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              NetworkSpec   `json:"spec,omitempty"`
+	Status            NetworkStatus `json:"status,omitempty"`
 }
 
 type NetworkList struct {
-	unversioned.TypeMeta `json:",inline"`
-	unversioned.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []*Network `json:"items"`
 }
 
 type InstanceGroup struct {
-	unversioned.TypeMeta `json:",inline"`
-	api.ObjectMeta       `json:"metadata"`
-	Spec                 InstanceGroupSpec   `json:"spec,omitempty"`
-	Status               InstanceGroupStatus `json:"status,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              InstanceGroupSpec   `json:"spec,omitempty"`
+	Status            InstanceGroupStatus `json:"status,omitempty"`
 }
 
 type InstanceGroupSpec struct {
@@ -97,9 +99,9 @@ type InstanceGroupSpec struct {
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (instance will be considered available as soon as it is ready)
 	// +optional
-	MinReadySeconds int32                      `json:"minReadySeconds,omitempty"`
-	Selector        *unversioned.LabelSelector `json:"selector,omitempty"`
-	Template        InstanceTemplateSpec       `json:"template,omitempty"`
+	MinReadySeconds int32                 `json:"minReadySeconds,omitempty"`
+	Selector        *metav1.LabelSelector `json:"selector,omitempty"`
+	Template        InstanceTemplateSpec  `json:"template,omitempty"`
 }
 
 type InstanceGroupConditionType string
@@ -120,7 +122,7 @@ type InstanceGroupCondition struct {
 	Status api.ConditionStatus `json:"status"`
 	// The last time the condition transitioned from one status to another.
 	// +optional
-	LastTransitionTime unversioned.Time `json:"lastTransitionTime,omitempty"`
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 	// The reason for the condition's last transition.
 	// +optional
 	Reason string `json:"reason,omitempty"`
@@ -153,8 +155,8 @@ type InstanceGroupStatus struct {
 }
 
 type InstanceGroupList struct {
-	unversioned.TypeMeta `json:",inline"`
-	unversioned.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []*InstanceGroup `json:"items"`
 }
@@ -170,9 +172,9 @@ type FileSpec struct {
 }
 
 type InstanceTemplateSpec struct {
-	api.ObjectMeta `json:"metadata"`
-	Spec           InstanceSpec `json:"spec,omitempty"`
-	Secrets        []api.Secret `json:"secrets,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              InstanceSpec `json:"spec,omitempty"`
+	Secrets           []v1.Secret  `json:"secrets,omitempty"`
 }
 
 type InstanceOptions struct {
@@ -180,17 +182,17 @@ type InstanceOptions struct {
 }
 
 type InstanceDependency struct {
-	Network Network      `json:"network,omitempty"`
-	Secrets []api.Secret `json:"secrets,omitempty"`
-	Users   []User       `json:"users,omitempty"`
+	Network Network     `json:"network,omitempty"`
+	Secrets []v1.Secret `json:"secrets,omitempty"`
+	Users   []User      `json:"users,omitempty"`
 }
 
 type Instance struct {
-	unversioned.TypeMeta `json:",inline"`
-	api.ObjectMeta       `json:"metadata"`
-	Spec                 InstanceSpec       `json:"spec,omitempty"`
-	Status               InstanceStatus     `json:"status,omitempty"`
-	Dependency           InstanceDependency `json:"-"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              InstanceSpec       `json:"spec,omitempty"`
+	Status            InstanceStatus     `json:"status,omitempty"`
+	Dependency        InstanceDependency `json:"-"`
 }
 
 type InstanceSpec struct {
@@ -209,10 +211,10 @@ type InstanceStatus struct {
 	Phase      InstancePhase       `json:"phase,omitempty"`
 	Conditions []InstanceCondition `json:"conditions,omitempty"`
 	// TODO: allow multiple ips
-	PrivateIP         string           `json:"privateIP,omitempty"`
-	PublicIP          string           `json:"publicIP,omitempty"`
-	InstanceID        string           `json:"instanceID,omitempty"`
-	CreationTimestamp unversioned.Time `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
+	PrivateIP         string      `json:"privateIP,omitempty"`
+	PublicIP          string      `json:"publicIP,omitempty"`
+	InstanceID        string      `json:"instanceID,omitempty"`
+	CreationTimestamp metav1.Time `json:"creationTimestamp,omitempty" protobuf:"bytes,8,opt,name=creationTimestamp"`
 }
 
 type InstancePhase string
@@ -245,9 +247,9 @@ type InstanceCondition struct {
 	Type   InstanceConditionType `json:"type"`
 	Status api.ConditionStatus   `json:"status"`
 	// +optional
-	LastProbeTime unversioned.Time `json:"lastProbeTime,omitempty"`
+	LastProbeTime metav1.Time `json:"lastProbeTime,omitempty"`
 	// +optional
-	LastTransitionTime unversioned.Time `json:"lastTransitionTime,omitempty"`
+	LastTransitionTime metav1.Time `json:"lastTransitionTime,omitempty"`
 	// +optional
 	Reason string `json:"reason,omitempty"`
 	// +optional
@@ -255,8 +257,8 @@ type InstanceCondition struct {
 }
 
 type InstanceList struct {
-	unversioned.TypeMeta `json:",inline"`
-	unversioned.ListMeta `json:"metadata"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
 
 	Items []*Instance `json:"items"`
 }

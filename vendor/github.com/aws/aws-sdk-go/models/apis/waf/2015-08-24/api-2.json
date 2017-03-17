@@ -1,14 +1,16 @@
 {
   "version":"2.0",
   "metadata":{
+    "uid":"waf-2015-08-24",
     "apiVersion":"2015-08-24",
     "endpointPrefix":"waf",
     "jsonVersion":"1.1",
+    "protocol":"json",
     "serviceAbbreviation":"WAF",
     "serviceFullName":"AWS WAF",
     "signatureVersion":"v4",
     "targetPrefix":"AWSWAF_20150824",
-    "protocol":"json"
+    "uid":"waf-2015-08-24"
   },
   "operations":{
     "CreateByteMatchSet":{
@@ -20,31 +22,12 @@
       "input":{"shape":"CreateByteMatchSetRequest"},
       "output":{"shape":"CreateByteMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFDisallowedNameException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "CreateIPSet":{
@@ -56,31 +39,12 @@
       "input":{"shape":"CreateIPSetRequest"},
       "output":{"shape":"CreateIPSetResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFDisallowedNameException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "CreateRule":{
@@ -92,27 +56,28 @@
       "input":{"shape":"CreateRuleRequest"},
       "output":{"shape":"CreateRuleResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFDisallowedNameException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFLimitsExceededException"}
+      ]
+    },
+    "CreateSizeConstraintSet":{
+      "name":"CreateSizeConstraintSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"CreateSizeConstraintSetRequest"},
+      "output":{"shape":"CreateSizeConstraintSetResponse"},
+      "errors":[
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "CreateSqlInjectionMatchSet":{
@@ -124,31 +89,12 @@
       "input":{"shape":"CreateSqlInjectionMatchSetRequest"},
       "output":{"shape":"CreateSqlInjectionMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFDisallowedNameException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "CreateWebACL":{
@@ -160,31 +106,29 @@
       "input":{"shape":"CreateWebACLRequest"},
       "output":{"shape":"CreateWebACLResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFDisallowedNameException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFLimitsExceededException"}
+      ]
+    },
+    "CreateXssMatchSet":{
+      "name":"CreateXssMatchSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"CreateXssMatchSetRequest"},
+      "output":{"shape":"CreateXssMatchSetResponse"},
+      "errors":[
+        {"shape":"WAFDisallowedNameException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "DeleteByteMatchSet":{
@@ -196,31 +140,12 @@
       "input":{"shape":"DeleteByteMatchSetRequest"},
       "output":{"shape":"DeleteByteMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonEmptyEntityException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFNonEmptyEntityException"}
       ]
     },
     "DeleteIPSet":{
@@ -232,31 +157,12 @@
       "input":{"shape":"DeleteIPSetRequest"},
       "output":{"shape":"DeleteIPSetResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonEmptyEntityException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFNonEmptyEntityException"}
       ]
     },
     "DeleteRule":{
@@ -268,31 +174,29 @@
       "input":{"shape":"DeleteRuleRequest"},
       "output":{"shape":"DeleteRuleResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonEmptyEntityException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFNonEmptyEntityException"}
+      ]
+    },
+    "DeleteSizeConstraintSet":{
+      "name":"DeleteSizeConstraintSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"DeleteSizeConstraintSetRequest"},
+      "output":{"shape":"DeleteSizeConstraintSetResponse"},
+      "errors":[
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFNonEmptyEntityException"}
       ]
     },
     "DeleteSqlInjectionMatchSet":{
@@ -304,31 +208,12 @@
       "input":{"shape":"DeleteSqlInjectionMatchSetRequest"},
       "output":{"shape":"DeleteSqlInjectionMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonEmptyEntityException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFNonEmptyEntityException"}
       ]
     },
     "DeleteWebACL":{
@@ -340,31 +225,29 @@
       "input":{"shape":"DeleteWebACLRequest"},
       "output":{"shape":"DeleteWebACLResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonEmptyEntityException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFNonEmptyEntityException"}
+      ]
+    },
+    "DeleteXssMatchSet":{
+      "name":"DeleteXssMatchSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"DeleteXssMatchSetRequest"},
+      "output":{"shape":"DeleteXssMatchSetResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFNonEmptyEntityException"}
       ]
     },
     "GetByteMatchSet":{
@@ -376,19 +259,9 @@
       "input":{"shape":"GetByteMatchSetRequest"},
       "output":{"shape":"GetByteMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "GetChangeToken":{
@@ -400,11 +273,7 @@
       "input":{"shape":"GetChangeTokenRequest"},
       "output":{"shape":"GetChangeTokenResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        }
+        {"shape":"WAFInternalErrorException"}
       ]
     },
     "GetChangeTokenStatus":{
@@ -416,15 +285,8 @@
       "input":{"shape":"GetChangeTokenStatusRequest"},
       "output":{"shape":"GetChangeTokenStatusResponse"},
       "errors":[
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        }
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFInternalErrorException"}
       ]
     },
     "GetIPSet":{
@@ -436,19 +298,9 @@
       "input":{"shape":"GetIPSetRequest"},
       "output":{"shape":"GetIPSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "GetRule":{
@@ -460,19 +312,9 @@
       "input":{"shape":"GetRuleRequest"},
       "output":{"shape":"GetRuleResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "GetSampledRequests":{
@@ -484,10 +326,22 @@
       "input":{"shape":"GetSampledRequestsRequest"},
       "output":{"shape":"GetSampledRequestsResponse"},
       "errors":[
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFInternalErrorException"}
+      ]
+    },
+    "GetSizeConstraintSet":{
+      "name":"GetSizeConstraintSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"GetSizeConstraintSetRequest"},
+      "output":{"shape":"GetSizeConstraintSetResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "GetSqlInjectionMatchSet":{
@@ -499,19 +353,9 @@
       "input":{"shape":"GetSqlInjectionMatchSetRequest"},
       "output":{"shape":"GetSqlInjectionMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "GetWebACL":{
@@ -523,19 +367,23 @@
       "input":{"shape":"GetWebACLRequest"},
       "output":{"shape":"GetWebACLResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
+      ]
+    },
+    "GetXssMatchSet":{
+      "name":"GetXssMatchSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"GetXssMatchSetRequest"},
+      "output":{"shape":"GetXssMatchSetResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFNonexistentItemException"}
       ]
     },
     "ListByteMatchSets":{
@@ -547,15 +395,8 @@
       "input":{"shape":"ListByteMatchSetsRequest"},
       "output":{"shape":"ListByteMatchSetsResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
       ]
     },
     "ListIPSets":{
@@ -567,15 +408,8 @@
       "input":{"shape":"ListIPSetsRequest"},
       "output":{"shape":"ListIPSetsResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
       ]
     },
     "ListRules":{
@@ -587,15 +421,21 @@
       "input":{"shape":"ListRulesRequest"},
       "output":{"shape":"ListRulesResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
+      ]
+    },
+    "ListSizeConstraintSets":{
+      "name":"ListSizeConstraintSets",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"ListSizeConstraintSetsRequest"},
+      "output":{"shape":"ListSizeConstraintSetsResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
       ]
     },
     "ListSqlInjectionMatchSets":{
@@ -607,15 +447,8 @@
       "input":{"shape":"ListSqlInjectionMatchSetsRequest"},
       "output":{"shape":"ListSqlInjectionMatchSetsResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
       ]
     },
     "ListWebACLs":{
@@ -627,15 +460,21 @@
       "input":{"shape":"ListWebACLsRequest"},
       "output":{"shape":"ListWebACLsResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
+      ]
+    },
+    "ListXssMatchSets":{
+      "name":"ListXssMatchSets",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"ListXssMatchSetsRequest"},
+      "output":{"shape":"ListXssMatchSetsResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"}
       ]
     },
     "UpdateByteMatchSet":{
@@ -647,39 +486,14 @@
       "input":{"shape":"UpdateByteMatchSetRequest"},
       "output":{"shape":"UpdateByteMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidOperationException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentContainerException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "UpdateIPSet":{
@@ -691,43 +505,15 @@
       "input":{"shape":"UpdateIPSetRequest"},
       "output":{"shape":"UpdateIPSetResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidOperationException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentContainerException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "UpdateRule":{
@@ -739,43 +525,35 @@
       "input":{"shape":"UpdateRuleRequest"},
       "output":{"shape":"UpdateRuleResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidOperationException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentContainerException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFLimitsExceededException"}
+      ]
+    },
+    "UpdateSizeConstraintSet":{
+      "name":"UpdateSizeConstraintSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"UpdateSizeConstraintSetRequest"},
+      "output":{"shape":"UpdateSizeConstraintSetResponse"},
+      "errors":[
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "UpdateSqlInjectionMatchSet":{
@@ -787,39 +565,14 @@
       "input":{"shape":"UpdateSqlInjectionMatchSetRequest"},
       "output":{"shape":"UpdateSqlInjectionMatchSetResponse"},
       "errors":[
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidOperationException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentContainerException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     },
     "UpdateWebACL":{
@@ -831,43 +584,34 @@
       "input":{"shape":"UpdateWebACLRequest"},
       "output":{"shape":"UpdateWebACLResponse"},
       "errors":[
-        {
-          "shape":"WAFStaleDataException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInternalErrorException",
-          "exception":true,
-          "fault":true
-        },
-        {
-          "shape":"WAFInvalidAccountException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidOperationException",
-          "exception":true
-        },
-        {
-          "shape":"WAFInvalidParameterException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentContainerException",
-          "exception":true
-        },
-        {
-          "shape":"WAFNonexistentItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFReferencedItemException",
-          "exception":true
-        },
-        {
-          "shape":"WAFLimitsExceededException",
-          "exception":true
-        }
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFReferencedItemException"},
+        {"shape":"WAFLimitsExceededException"}
+      ]
+    },
+    "UpdateXssMatchSet":{
+      "name":"UpdateXssMatchSet",
+      "http":{
+        "method":"POST",
+        "requestUri":"/"
+      },
+      "input":{"shape":"UpdateXssMatchSetRequest"},
+      "output":{"shape":"UpdateXssMatchSetResponse"},
+      "errors":[
+        {"shape":"WAFInternalErrorException"},
+        {"shape":"WAFInvalidAccountException"},
+        {"shape":"WAFInvalidOperationException"},
+        {"shape":"WAFInvalidParameterException"},
+        {"shape":"WAFNonexistentContainerException"},
+        {"shape":"WAFNonexistentItemException"},
+        {"shape":"WAFStaleDataException"},
+        {"shape":"WAFLimitsExceededException"}
       ]
     }
   },
@@ -959,13 +703,27 @@
         "DELETE"
       ]
     },
-    "ChangeToken":{"type":"string"},
+    "ChangeToken":{
+      "type":"string",
+      "min":1
+    },
     "ChangeTokenStatus":{
       "type":"string",
       "enum":[
         "PROVISIONED",
         "PENDING",
         "INSYNC"
+      ]
+    },
+    "ComparisonOperator":{
+      "type":"string",
+      "enum":[
+        "EQ",
+        "NE",
+        "LE",
+        "LT",
+        "GE",
+        "GT"
       ]
     },
     "Country":{"type":"string"},
@@ -1025,6 +783,24 @@
         "ChangeToken":{"shape":"ChangeToken"}
       }
     },
+    "CreateSizeConstraintSetRequest":{
+      "type":"structure",
+      "required":[
+        "Name",
+        "ChangeToken"
+      ],
+      "members":{
+        "Name":{"shape":"ResourceName"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "CreateSizeConstraintSetResponse":{
+      "type":"structure",
+      "members":{
+        "SizeConstraintSet":{"shape":"SizeConstraintSet"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
     "CreateSqlInjectionMatchSetRequest":{
       "type":"structure",
       "required":[
@@ -1062,6 +838,24 @@
       "type":"structure",
       "members":{
         "WebACL":{"shape":"WebACL"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "CreateXssMatchSetRequest":{
+      "type":"structure",
+      "required":[
+        "Name",
+        "ChangeToken"
+      ],
+      "members":{
+        "Name":{"shape":"ResourceName"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "CreateXssMatchSetResponse":{
+      "type":"structure",
+      "members":{
+        "XssMatchSet":{"shape":"XssMatchSet"},
         "ChangeToken":{"shape":"ChangeToken"}
       }
     },
@@ -1116,6 +910,23 @@
         "ChangeToken":{"shape":"ChangeToken"}
       }
     },
+    "DeleteSizeConstraintSetRequest":{
+      "type":"structure",
+      "required":[
+        "SizeConstraintSetId",
+        "ChangeToken"
+      ],
+      "members":{
+        "SizeConstraintSetId":{"shape":"ResourceId"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "DeleteSizeConstraintSetResponse":{
+      "type":"structure",
+      "members":{
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
     "DeleteSqlInjectionMatchSetRequest":{
       "type":"structure",
       "required":[
@@ -1145,6 +956,23 @@
       }
     },
     "DeleteWebACLResponse":{
+      "type":"structure",
+      "members":{
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "DeleteXssMatchSetRequest":{
+      "type":"structure",
+      "required":[
+        "XssMatchSetId",
+        "ChangeToken"
+      ],
+      "members":{
+        "XssMatchSetId":{"shape":"ResourceId"},
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
+    "DeleteXssMatchSetResponse":{
       "type":"structure",
       "members":{
         "ChangeToken":{"shape":"ChangeToken"}
@@ -1244,6 +1072,19 @@
         "TimeWindow":{"shape":"TimeWindow"}
       }
     },
+    "GetSizeConstraintSetRequest":{
+      "type":"structure",
+      "required":["SizeConstraintSetId"],
+      "members":{
+        "SizeConstraintSetId":{"shape":"ResourceId"}
+      }
+    },
+    "GetSizeConstraintSetResponse":{
+      "type":"structure",
+      "members":{
+        "SizeConstraintSet":{"shape":"SizeConstraintSet"}
+      }
+    },
     "GetSqlInjectionMatchSetRequest":{
       "type":"structure",
       "required":["SqlInjectionMatchSetId"],
@@ -1268,6 +1109,19 @@
       "type":"structure",
       "members":{
         "WebACL":{"shape":"WebACL"}
+      }
+    },
+    "GetXssMatchSetRequest":{
+      "type":"structure",
+      "required":["XssMatchSetId"],
+      "members":{
+        "XssMatchSetId":{"shape":"ResourceId"}
+      }
+    },
+    "GetXssMatchSetResponse":{
+      "type":"structure",
+      "members":{
+        "XssMatchSet":{"shape":"XssMatchSet"}
       }
     },
     "HTTPHeader":{
@@ -1321,7 +1175,10 @@
     },
     "IPSetDescriptorType":{
       "type":"string",
-      "enum":["IPV4"]
+      "enum":[
+        "IPV4",
+        "IPV6"
+      ]
     },
     "IPSetDescriptorValue":{"type":"string"},
     "IPSetDescriptors":{
@@ -1361,7 +1218,6 @@
     "IPString":{"type":"string"},
     "ListByteMatchSetsRequest":{
       "type":"structure",
-      "required":["Limit"],
       "members":{
         "NextMarker":{"shape":"NextMarker"},
         "Limit":{"shape":"PaginationLimit"}
@@ -1376,7 +1232,6 @@
     },
     "ListIPSetsRequest":{
       "type":"structure",
-      "required":["Limit"],
       "members":{
         "NextMarker":{"shape":"NextMarker"},
         "Limit":{"shape":"PaginationLimit"}
@@ -1391,12 +1246,11 @@
     },
     "ListMaxItems":{
       "type":"long",
-      "min":1,
-      "max":100
+      "max":100,
+      "min":1
     },
     "ListRulesRequest":{
       "type":"structure",
-      "required":["Limit"],
       "members":{
         "NextMarker":{"shape":"NextMarker"},
         "Limit":{"shape":"PaginationLimit"}
@@ -1409,9 +1263,22 @@
         "Rules":{"shape":"RuleSummaries"}
       }
     },
+    "ListSizeConstraintSetsRequest":{
+      "type":"structure",
+      "members":{
+        "NextMarker":{"shape":"NextMarker"},
+        "Limit":{"shape":"PaginationLimit"}
+      }
+    },
+    "ListSizeConstraintSetsResponse":{
+      "type":"structure",
+      "members":{
+        "NextMarker":{"shape":"NextMarker"},
+        "SizeConstraintSets":{"shape":"SizeConstraintSetSummaries"}
+      }
+    },
     "ListSqlInjectionMatchSetsRequest":{
       "type":"structure",
-      "required":["Limit"],
       "members":{
         "NextMarker":{"shape":"NextMarker"},
         "Limit":{"shape":"PaginationLimit"}
@@ -1426,7 +1293,6 @@
     },
     "ListWebACLsRequest":{
       "type":"structure",
-      "required":["Limit"],
       "members":{
         "NextMarker":{"shape":"NextMarker"},
         "Limit":{"shape":"PaginationLimit"}
@@ -1439,6 +1305,20 @@
         "WebACLs":{"shape":"WebACLSummaries"}
       }
     },
+    "ListXssMatchSetsRequest":{
+      "type":"structure",
+      "members":{
+        "NextMarker":{"shape":"NextMarker"},
+        "Limit":{"shape":"PaginationLimit"}
+      }
+    },
+    "ListXssMatchSetsResponse":{
+      "type":"structure",
+      "members":{
+        "NextMarker":{"shape":"NextMarker"},
+        "XssMatchSets":{"shape":"XssMatchSetSummaries"}
+      }
+    },
     "MatchFieldData":{"type":"string"},
     "MatchFieldType":{
       "type":"string",
@@ -1446,7 +1326,8 @@
         "URI",
         "QUERY_STRING",
         "HEADER",
-        "METHOD"
+        "METHOD",
+        "BODY"
       ]
     },
     "MetricName":{"type":"string"},
@@ -1457,8 +1338,8 @@
     },
     "PaginationLimit":{
       "type":"integer",
-      "min":1,
-      "max":100
+      "max":100,
+      "min":0
     },
     "ParameterExceptionField":{
       "type":"string",
@@ -1470,12 +1351,20 @@
         "BYTE_MATCH_FIELD_TYPE",
         "SQL_INJECTION_MATCH_FIELD_TYPE",
         "BYTE_MATCH_TEXT_TRANSFORMATION",
-        "BYTE_MATCH_POSITIONAL_CONSTRAINT"
+        "BYTE_MATCH_POSITIONAL_CONSTRAINT",
+        "SIZE_CONSTRAINT_COMPARISON_OPERATOR"
       ]
     },
     "ParameterExceptionParameter":{
       "type":"string",
       "min":1
+    },
+    "ParameterExceptionReason":{
+      "type":"string",
+      "enum":[
+        "INVALID_OPTION",
+        "ILLEGAL_COMBINATION"
+      ]
     },
     "PopulationSize":{"type":"long"},
     "PositionalConstraint":{
@@ -1498,16 +1387,17 @@
       "members":{
         "Negated":{"shape":"Negated"},
         "Type":{"shape":"PredicateType"},
-        "DataId":{"shape":"PredicateDataId"}
+        "DataId":{"shape":"ResourceId"}
       }
     },
-    "PredicateDataId":{"type":"string"},
     "PredicateType":{
       "type":"string",
       "enum":[
         "IPMatch",
         "ByteMatch",
-        "SqlInjectionMatch"
+        "SqlInjectionMatch",
+        "SizeConstraint",
+        "XssMatch"
       ]
     },
     "Predicates":{
@@ -1516,13 +1406,13 @@
     },
     "ResourceId":{
       "type":"string",
-      "min":1,
-      "max":128
+      "max":128,
+      "min":1
     },
     "ResourceName":{
       "type":"string",
-      "min":1,
-      "max":128
+      "max":128,
+      "min":1
     },
     "Rule":{
       "type":"structure",
@@ -1588,6 +1478,72 @@
     "SampledHTTPRequests":{
       "type":"list",
       "member":{"shape":"SampledHTTPRequest"}
+    },
+    "Size":{
+      "type":"long",
+      "max":21474836480,
+      "min":0
+    },
+    "SizeConstraint":{
+      "type":"structure",
+      "required":[
+        "FieldToMatch",
+        "TextTransformation",
+        "ComparisonOperator",
+        "Size"
+      ],
+      "members":{
+        "FieldToMatch":{"shape":"FieldToMatch"},
+        "TextTransformation":{"shape":"TextTransformation"},
+        "ComparisonOperator":{"shape":"ComparisonOperator"},
+        "Size":{"shape":"Size"}
+      }
+    },
+    "SizeConstraintSet":{
+      "type":"structure",
+      "required":[
+        "SizeConstraintSetId",
+        "SizeConstraints"
+      ],
+      "members":{
+        "SizeConstraintSetId":{"shape":"ResourceId"},
+        "Name":{"shape":"ResourceName"},
+        "SizeConstraints":{"shape":"SizeConstraints"}
+      }
+    },
+    "SizeConstraintSetSummaries":{
+      "type":"list",
+      "member":{"shape":"SizeConstraintSetSummary"}
+    },
+    "SizeConstraintSetSummary":{
+      "type":"structure",
+      "required":[
+        "SizeConstraintSetId",
+        "Name"
+      ],
+      "members":{
+        "SizeConstraintSetId":{"shape":"ResourceId"},
+        "Name":{"shape":"ResourceName"}
+      }
+    },
+    "SizeConstraintSetUpdate":{
+      "type":"structure",
+      "required":[
+        "Action",
+        "SizeConstraint"
+      ],
+      "members":{
+        "Action":{"shape":"ChangeAction"},
+        "SizeConstraint":{"shape":"SizeConstraint"}
+      }
+    },
+    "SizeConstraintSetUpdates":{
+      "type":"list",
+      "member":{"shape":"SizeConstraintSetUpdate"}
+    },
+    "SizeConstraints":{
+      "type":"list",
+      "member":{"shape":"SizeConstraint"}
     },
     "SqlInjectionMatchSet":{
       "type":"structure",
@@ -1727,6 +1683,25 @@
         "ChangeToken":{"shape":"ChangeToken"}
       }
     },
+    "UpdateSizeConstraintSetRequest":{
+      "type":"structure",
+      "required":[
+        "SizeConstraintSetId",
+        "ChangeToken",
+        "Updates"
+      ],
+      "members":{
+        "SizeConstraintSetId":{"shape":"ResourceId"},
+        "ChangeToken":{"shape":"ChangeToken"},
+        "Updates":{"shape":"SizeConstraintSetUpdates"}
+      }
+    },
+    "UpdateSizeConstraintSetResponse":{
+      "type":"structure",
+      "members":{
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
     "UpdateSqlInjectionMatchSetRequest":{
       "type":"structure",
       "required":[
@@ -1765,6 +1740,25 @@
         "ChangeToken":{"shape":"ChangeToken"}
       }
     },
+    "UpdateXssMatchSetRequest":{
+      "type":"structure",
+      "required":[
+        "XssMatchSetId",
+        "ChangeToken",
+        "Updates"
+      ],
+      "members":{
+        "XssMatchSetId":{"shape":"ResourceId"},
+        "ChangeToken":{"shape":"ChangeToken"},
+        "Updates":{"shape":"XssMatchSetUpdates"}
+      }
+    },
+    "UpdateXssMatchSetResponse":{
+      "type":"structure",
+      "members":{
+        "ChangeToken":{"shape":"ChangeToken"}
+      }
+    },
     "WAFDisallowedNameException":{
       "type":"structure",
       "members":{
@@ -1797,7 +1791,8 @@
       "type":"structure",
       "members":{
         "field":{"shape":"ParameterExceptionField"},
-        "parameter":{"shape":"ParameterExceptionParameter"}
+        "parameter":{"shape":"ParameterExceptionParameter"},
+        "reason":{"shape":"ParameterExceptionReason"}
       },
       "exception":true
     },
@@ -1902,6 +1897,63 @@
     "WebACLUpdates":{
       "type":"list",
       "member":{"shape":"WebACLUpdate"}
+    },
+    "XssMatchSet":{
+      "type":"structure",
+      "required":[
+        "XssMatchSetId",
+        "XssMatchTuples"
+      ],
+      "members":{
+        "XssMatchSetId":{"shape":"ResourceId"},
+        "Name":{"shape":"ResourceName"},
+        "XssMatchTuples":{"shape":"XssMatchTuples"}
+      }
+    },
+    "XssMatchSetSummaries":{
+      "type":"list",
+      "member":{"shape":"XssMatchSetSummary"}
+    },
+    "XssMatchSetSummary":{
+      "type":"structure",
+      "required":[
+        "XssMatchSetId",
+        "Name"
+      ],
+      "members":{
+        "XssMatchSetId":{"shape":"ResourceId"},
+        "Name":{"shape":"ResourceName"}
+      }
+    },
+    "XssMatchSetUpdate":{
+      "type":"structure",
+      "required":[
+        "Action",
+        "XssMatchTuple"
+      ],
+      "members":{
+        "Action":{"shape":"ChangeAction"},
+        "XssMatchTuple":{"shape":"XssMatchTuple"}
+      }
+    },
+    "XssMatchSetUpdates":{
+      "type":"list",
+      "member":{"shape":"XssMatchSetUpdate"}
+    },
+    "XssMatchTuple":{
+      "type":"structure",
+      "required":[
+        "FieldToMatch",
+        "TextTransformation"
+      ],
+      "members":{
+        "FieldToMatch":{"shape":"FieldToMatch"},
+        "TextTransformation":{"shape":"TextTransformation"}
+      }
+    },
+    "XssMatchTuples":{
+      "type":"list",
+      "member":{"shape":"XssMatchTuple"}
     },
     "errorMessage":{"type":"string"}
   }

@@ -17,12 +17,12 @@ limitations under the License.
 package cdrom
 
 import (
+	"context"
 	"flag"
 	"fmt"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -42,6 +42,16 @@ func (cmd *add) Register(ctx context.Context, f *flag.FlagSet) {
 	f.StringVar(&cmd.controller, "controller", "", "IDE controller name")
 }
 
+func (cmd *add) Description() string {
+	return `Add CD-ROM device to VM.
+
+Examples:
+  govc device.cdrom.add -vm $vm
+  govc device.ls -vm $vm | grep ide-
+  govc device.cdrom.add -vm $vm -controller ide-200
+  govc device.info cdrom-*`
+}
+
 func (cmd *add) Process(ctx context.Context) error {
 	if err := cmd.VirtualMachineFlag.Process(ctx); err != nil {
 		return err
@@ -59,7 +69,7 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		return flag.ErrHelp
 	}
 
-	devices, err := vm.Device(context.TODO())
+	devices, err := vm.Device(ctx)
 	if err != nil {
 		return err
 	}
@@ -74,13 +84,13 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	err = vm.AddDevice(context.TODO(), d)
+	err = vm.AddDevice(ctx, d)
 	if err != nil {
 		return err
 	}
 
 	// output name of device we just created
-	devices, err = vm.Device(context.TODO())
+	devices, err = vm.Device(ctx)
 	if err != nil {
 		return err
 	}

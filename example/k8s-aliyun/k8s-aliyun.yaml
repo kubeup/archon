@@ -12,12 +12,13 @@ spec:
       labels:
         app: k8s-aliyun
       annotations:
-        initializers: public-ip,private-ip
+        initializers: archon.kubeup.com/public-ip,archon.kubeup.com/private-ip
     spec:
       networkName: k8s-net
       instanceType: ecs.n1.tiny
       os: CoreOS
       image: coreos681_64_40G_aliaegis_20160222.vhd
+      hostname: {{ .Status.PrivateIP }}
       files:
       - name: coreos-update
         path: "/coreos/update"
@@ -43,6 +44,9 @@ spec:
           name: kubelet.service
           enable: true
           content: |-
+            [Unit]
+            Wants=flexv.service
+            After=flexv.service
             [Service]
             Environment=KUBELET_VERSION={{ index .Configs "k8s" "k8s-version"}}
             Environment=KUBELET_ACI={{ index .Configs "k8s" "kubelet-aci-img"}}
@@ -51,6 +55,8 @@ spec:
               --mount volume=dns,target=/etc/resolv.conf \
               --volume var-log,kind=host,source=/var/log \
               --mount volume=var-log,target=/var/log \
+              --volume k8s-opt,kind=host,source=/opt/k8s \
+              --mount volume=k8s-opt,target=/opt/k8s \
               --volume lib-modules,kind=host,source=/lib/modules \
               --mount volume=lib-modules,target=/lib/modules \
               --volume var-cni,kind=host,source=/var/lib/cni \
@@ -65,10 +71,11 @@ spec:
               --api_servers=http://localhost:8080 \
               --register-schedulable=true \
               --allow-privileged=true \
-              --config=/etc/kubernetes/manifests \
+              --pod-manifest-path=/etc/kubernetes/manifests \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
               --node-ip={{.Status.PrivateIP}} \
               --hostname-override={{.Status.PrivateIP}} \
+              --volume-plugin-dir=/opt/k8s/volume/plugins \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
@@ -138,6 +145,7 @@ spec:
               - --service-cluster-ip-range={{ index .Configs "k8s" "service-ip-range" }}
               - --runtime-config=extensions/v1beta1=true,extensions/v1beta1/thirdpartyresources=true
               - --secure-port=443
+              - --storage-backend=etcd2
               - --advertise-address={{.Status.PrivateIP}}
               - --admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
               - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
@@ -223,9 +231,21 @@ spec:
               - --leader-elect=true
               - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
               - --root-ca-file=/etc/kubernetes/ssl/ca.pem
+              - --flex-volume-plugin-dir=/opt/k8s/volume/plugins
               - --allocate-node-cidrs=true
               - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
               - --configure-cloud-routes=false
+              env:
+              - name: ALIYUN_ACCESS_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKey
+              - name: ALIYUN_ACCESS_KEY_SECRET
+                valueFrom:
+                  secretKeyRef:
+                    name: aliyun-creds
+                    key: accessKeySecret
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
@@ -240,7 +260,13 @@ spec:
               - mountPath: /etc/ssl/certs
                 name: ssl-certs-host
                 readOnly: true
+              - mountPath: /opt/k8s
+                name: k8s-opt
+                readOnly: true
             volumes:
+            - hostPath:
+                path: /opt/k8s
+              name: k8s-opt
             - hostPath:
                 path: /etc/kubernetes/ssl
               name: ssl-certs-kubernetes
@@ -307,6 +333,8 @@ spec:
                     key: accessKeySecret
               - name: ALIYUN_REGION
                 value: {{ .Network.Spec.Region }}
+              - name: ALIYUN_ZONE
+                value: {{ .Network.Spec.Zone }}
               - name: ALIYUN_VPC
                 value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vpc-id" }}
               - name: ALIYUN_ROUTER
@@ -318,11 +346,11 @@ spec:
       configs:
       - name: k8s
         data:
-          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.5.1
+          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
           kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
-          k8s-version: v1.5.1_coreos.0
+          k8s-version: v1.6.0-beta.3_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
           dns-service-ip: 10.3.0.10

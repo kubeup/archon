@@ -22,7 +22,7 @@ import (
 	"github.com/cloudflare/cfssl/initca"
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
-	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/api/validation"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/render"
@@ -39,7 +39,7 @@ const (
 )
 
 type CertificateControlInterface interface {
-	GenerateCertificate(secret *api.Secret, instance *cluster.Instance) error
+	GenerateCertificate(secret *v1.Secret, instance *cluster.Instance) error
 }
 
 type CertificateControl struct {
@@ -60,7 +60,7 @@ func NewCertificateControl(caCertFile, caKeyFile string) (*CertificateControl, e
 	return cc, nil
 }
 
-func NewCertificateControlFromSecret(secret *api.Secret) (*CertificateControl, error) {
+func NewCertificateControlFromSecret(secret *v1.Secret) (*CertificateControl, error) {
 	cacert := secret.Data["tls-cert"]
 	cakey := secret.Data["tls-key"]
 	policy := &config.Signing{
@@ -109,7 +109,7 @@ func validator(req *csr.CertificateRequest) error {
 	return nil
 }
 
-func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *cluster.Instance) error {
+func (cc *CertificateControl) GenerateCertificate(secret *v1.Secret, instance *cluster.Instance) error {
 	csrTemplate := secret.Annotations[CSRKey]
 	if len(csrTemplate) == 0 {
 		return fmt.Errorf("No CSR template in secret annotations")
@@ -156,7 +156,7 @@ func (cc *CertificateControl) GenerateCertificate(secret *api.Secret, instance *
 	return nil
 }
 
-func GenerateCA(secret *api.Secret) error {
+func GenerateCA(secret *v1.Secret) error {
 	csrTemplate := secret.Annotations[CSRKey]
 	if len(csrTemplate) == 0 {
 		return fmt.Errorf("No CSR template in secret annotations")

@@ -1,4 +1,25 @@
 # CHANGELOG
+## v7.2.3
+- Fixing bug in calls to `DelayForBackoff` that caused doubling of delay duration.
+
+## v7.2.2
+- autorest/azure: added ASM and ARM VM DNS suffixes.
+
+## v7.2.1
+- fixed parsing of UTC times that are not RFC3339 conformant.
+
+## v7.2.0
+- autorest/validation: Reformat validation error for better error message.
+
+## v7.1.0
+- preparer: Added support for multipart formdata - WithMultiPartFormdata()
+- preparer: Added support for sending file in request body - WithFile
+- client: Added RetryDuration parameter.
+- autorest/validation: new package for validation code for Azure Go SDK.
+
+## v7.0.7
+- Add trailing / to endpoint
+- azure: add EnvironmentFromName
 
 ## v7.0.6
 - Add retry logic for 408, 500, 502, 503 and 504 status codes.

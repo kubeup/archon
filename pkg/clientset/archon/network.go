@@ -14,8 +14,8 @@ limitations under the License.
 package archon
 
 import (
-	rest "k8s.io/kubernetes/pkg/client/restclient"
-	"k8s.io/kubernetes/pkg/watch"
+	watch "k8s.io/apimachinery/pkg/watch"
+	rest "k8s.io/client-go/rest"
 	"kubeup.com/archon/pkg/cluster"
 )
 

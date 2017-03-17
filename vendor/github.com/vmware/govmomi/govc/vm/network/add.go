@@ -17,12 +17,12 @@ limitations under the License.
 package network
 
 import (
+	"context"
 	"errors"
 	"flag"
 
 	"github.com/vmware/govmomi/govc/cli"
 	"github.com/vmware/govmomi/govc/flags"
-	"golang.org/x/net/context"
 )
 
 type add struct {
@@ -39,6 +39,14 @@ func (cmd *add) Register(ctx context.Context, f *flag.FlagSet) {
 	cmd.VirtualMachineFlag.Register(ctx, f)
 	cmd.NetworkFlag, ctx = flags.NewNetworkFlag(ctx)
 	cmd.NetworkFlag.Register(ctx, f)
+}
+
+func (cmd *add) Description() string {
+	return `Add network adapter to VM.
+
+Examples:
+  govc vm.network.add -vm $vm -net "VM Network" -net.adapter e1000e
+  govc device.info -vm $vm ethernet-*`
 }
 
 func (cmd *add) Process(ctx context.Context) error {
@@ -71,5 +79,5 @@ func (cmd *add) Run(ctx context.Context, f *flag.FlagSet) error {
 		return err
 	}
 
-	return vm.AddDevice(context.TODO(), net)
+	return vm.AddDevice(ctx, net)
 }
