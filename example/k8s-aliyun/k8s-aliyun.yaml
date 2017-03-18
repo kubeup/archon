@@ -24,11 +24,15 @@ spec:
         path: "/coreos/update"
         content: |-
           server: https://kubeup.com/coreos_update
-      - name: unit-etcd2
-        path: "/coreos/unit/etcd2"
+      - name: unit-docker
+        path: "/coreos/unit/docker"
         content: |-
-          name: etcd2.service
-          command: start
+          name: docker.service
+          drop-ins:
+          - name: "50-docker-opts.conf"
+            content: |
+              [Service]
+              Environment=DOCKER_OPTS='--registry-mirror="{{ index .Configs "k8s" "registry-mirror"}}"'
       - name: unit-aliyun-update
         path: "/coreos/unit/aliyun-update"
         template: |-
@@ -62,7 +66,6 @@ spec:
               --volume var-cni,kind=host,source=/var/lib/cni \
               --mount volume=var-cni,target=/var/lib/cni"
             ExecStartPre=/usr/bin/systemctl stop update-engine
-            ExecStartPre=/usr/bin/systemctl start etcd2
             ExecStartPre=/usr/bin/mkdir -p /etc/kubernetes/manifests
             ExecStartPre=/usr/bin/mkdir -p /var/log/containers
             ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
@@ -78,6 +81,8 @@ spec:
               --volume-plugin-dir=/opt/k8s/volume/plugins \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
+              --tls-cert-file=/etc/kubernetes/ssl/server.pem \
+              --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
@@ -97,30 +102,62 @@ spec:
             User=root
             [Install]
             WantedBy=multi-user.target
-      - name: tokens.csv
-        path: "/etc/kubernetes/token/tokens.csv"
-        permissions: "0600"
-        owner: "root"
-        template: |-
-          {{ index .Configs "k8s" "admin-password" }},admin,admin
-      - name: ca.pem
-        path: "/etc/kubernetes/ssl/ca.pem"
+      - name: etcd.yaml
+        path: "/etc/kubernetes/manifests/etcd.yaml"
         permissions: "0644"
         owner: "root"
         template: |-
-          {{ index .Configs "k8s" "ca-cert" }}
-      - name: apiserver.pem
-        path: "/etc/kubernetes/ssl/apiserver.pem"
-        permissions: "0644"
-        owner: "root"
-        template: |-
-          {{ index .Secrets "apiserver" "tls-cert" | printf "%s" }}
-      - name: apiserver-key.pem
-        path: "/etc/kubernetes/ssl/apiserver-key.pem"
-        permissions: "0600"
-        owner: "root"
-        template: |-
-          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+          kind: Pod
+          apiVersion: v1
+          metadata:
+            name: etcd
+            namespace: kube-system
+            creationTimestamp: 
+            labels:
+              component: etcd
+              tier: control-plane
+          spec:
+            volumes:
+            - name: certs
+              hostPath:
+                path: "/etc/ssl/certs"
+            - name: etcd
+              hostPath:
+                path: "/var/lib/etcd"
+            - name: k8s
+              hostPath:
+                path: "/etc/kubernetes"
+            containers:
+            - name: etcd
+              image: registry.aliyuncs.com/tryk8s/etcd-amd64:3.0.14-kubeadm
+              command:
+              - etcd
+              - "--listen-client-urls=http://127.0.0.1:2379"
+              - "--advertise-client-urls=http://127.0.0.1:2379"
+              - "--data-dir=/var/etcd/data"
+              resources:
+                requests:
+                  cpu: 200m
+              volumeMounts:
+              - name: certs
+                mountPath: "/etc/ssl/certs"
+              - name: etcd
+                mountPath: "/var/etcd"
+              - name: k8s
+                readOnly: true
+                mountPath: "/etc/kubernetes/"
+              livenessProbe:
+                httpGet:
+                  path: "/health"
+                  port: 2379
+                  host: 127.0.0.1
+                initialDelaySeconds: 15
+                timeoutSeconds: 15
+                failureThreshold: 8
+              securityContext:
+                seLinuxOptions:
+                  type: spc_t
+            hostNetwork: true
       - name: kube-apiserver.yaml
         path: "/etc/kubernetes/manifests/kube-apiserver.yaml"
         permissions: "0644"
@@ -145,13 +182,13 @@ spec:
               - --service-cluster-ip-range={{ index .Configs "k8s" "service-ip-range" }}
               - --runtime-config=extensions/v1beta1=true,extensions/v1beta1/thirdpartyresources=true
               - --secure-port=443
-              - --storage-backend=etcd2
+              - --storage-backend=etcd3
               - --advertise-address={{.Status.PrivateIP}}
               - --admission-control=NamespaceLifecycle,NamespaceExists,LimitRanger,SecurityContextDeny,ServiceAccount,ResourceQuota
               - --tls-cert-file=/etc/kubernetes/ssl/apiserver.pem
               - --tls-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --service-account-key-file=/etc/kubernetes/ssl/serviceaccount-key.pem
               - --client-ca-file=/etc/kubernetes/ssl/ca.pem
-              - --token-auth-file=/etc/kubernetes/token/tokens.csv
               ports:
               - containerPort: 443
                 hostPort: 443
@@ -229,7 +266,7 @@ spec:
               - controller-manager
               - --master=http://127.0.0.1:8080
               - --leader-elect=true
-              - --service-account-private-key-file=/etc/kubernetes/ssl/apiserver-key.pem
+              - --service-account-private-key-file=/etc/kubernetes/ssl/serviceaccount-key.pem
               - --root-ca-file=/etc/kubernetes/ssl/ca.pem
               - --flex-volume-plugin-dir=/opt/k8s/volume/plugins
               - --allocate-node-cidrs=true
@@ -343,6 +380,48 @@ spec:
                 value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/route-table-id" }}
               - name: ALIYUN_VSWITCH
                 value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vswitch-id" }}
+      - name: ca.pem
+        path: "/etc/kubernetes/ssl/ca.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "ca" "tls-cert" | printf "%s" }}
+      - name: apiserver.pem
+        path: "/etc/kubernetes/ssl/apiserver.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-cert" | printf "%s" }}
+      - name: apiserver-key.pem
+        path: "/etc/kubernetes/ssl/apiserver-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
+      - name: server.pem
+        path: "/etc/kubernetes/ssl/server.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "server" "tls-cert" | printf "%s" }}
+      - name: server-key.pem
+        path: "/etc/kubernetes/ssl/server-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "server" "tls-key" | printf "%s" }}
+      - name: serviceaccount.pem
+        path: "/etc/kubernetes/ssl/serviceaccount.pem"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "serviceaccount" "tls-cert" | printf "%s" }}
+      - name: serviceaccount-key.pem
+        path: "/etc/kubernetes/ssl/serviceaccount-key.pem"
+        permissions: "0600"
+        owner: "root"
+        template: |-
+          {{ index .Secrets "serviceaccount" "tls-key" | printf "%s" }}
       configs:
       - name: k8s
         data:
@@ -355,11 +434,12 @@ spec:
           pod-ip-range: 10.2.0.0/16
           dns-service-ip: 10.3.0.10
           k8s-service-ip: 10.3.0.1
-          admin-password: kubeup
-          ca-cert: |-
-            PUT YOUR CA CERTIFICATE HERE
+          registry-mirror: https://YOUR_KEY.mirror.aliyuncs.com
       users:
       - name: core
+      secrets:
+      - name: k8s-ca
+      - name: serviceaccount
     secrets:
     - metadata:
         name: apiserver
@@ -389,5 +469,32 @@ spec:
                 ]
               }
             archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
+            archon.kubeup.com/type: csr
+    - metadata:
+        name: server
+        annotations:
+            archon.kubeup.com/csr: |-
+              {
+                "CN": "{{ .Meta.Name }}",
+                "hosts": [
+                  "{{ .Meta.Name }}",
+                  "{{ .Status.PrivateIP }}",
+                  "{{ .Status.PublicIP }}"
+                ],
+                "key": {
+                  "algo": "ecdsa",
+                  "size": 256
+                },
+                "names": [
+                  {
+                    "C": "US",
+                    "L": "CA",
+                    "ST": "San Francisco"
+                  }
+                ]
+              }
+            archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
             archon.kubeup.com/type: csr
       type: Opaque

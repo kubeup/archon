@@ -24,11 +24,15 @@ spec:
         path: "/coreos/update"
         content: |-
           server: https://kubeup.com/coreos_update
-      - name: unit-etcd2
-        path: "/coreos/unit/etcd2"
+      - name: unit-docker
+        path: "/coreos/unit/docker"
         content: |-
-          name: etcd2.service
-          enable: false
+          name: docker.service
+          drop-ins:
+          - name: "50-docker-opts.conf"
+            content: |
+              [Service]
+              Environment=DOCKER_OPTS='--registry-mirror="{{ index .Configs "k8s" "registry-mirror"}}"'
       - name: unit-aliyun-update
         path: "/coreos/unit/aliyun-update"
         template: |-
@@ -88,9 +92,9 @@ spec:
               --network-plugin=kubenet \
               --volume-plugin-dir=/opt/k8s/volume/plugins \
               --enable-controller-attach-detach \
-              --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml \
-              --tls-cert-file=/etc/kubernetes/ssl/node.pem \
-              --tls-private-key-file=/etc/kubernetes/ssl/node-key.pem
+              --kubeconfig=/etc/kubernetes/kubeconfig.yaml \
+              --tls-cert-file=/etc/kubernetes/ssl/server.pem \
+              --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
@@ -103,21 +107,21 @@ spec:
         permissions: "0644"
         owner: "root"
         template: |-
-          {{ index .Configs "k8s" "ca-cert" }}
-      - name: node.pem
-        path: "/etc/kubernetes/ssl/node.pem"
+          {{ index .Secrets "ca" "tls-cert" | printf "%s" }}
+      - name: server.pem
+        path: "/etc/kubernetes/ssl/server.pem"
         permissions: "0644"
         owner: "root"
         template: |-
-          {{ index .Secrets "node" "tls-cert" | printf "%s" }}
-      - name: node-key.pem
-        path: "/etc/kubernetes/ssl/node-key.pem"
+          {{ index .Secrets "server" "tls-cert" | printf "%s" }}
+      - name: server-key.pem
+        path: "/etc/kubernetes/ssl/server-key.pem"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "node" "tls-key" | printf "%s" }}
-      - name: node-kubeconfig.yaml
-        path: "/etc/kubernetes/node-kubeconfig.yaml"
+          {{ index .Secrets "server" "tls-key" | printf "%s" }}
+      - name: kubeconfig.yaml
+        path: "/etc/kubernetes/kubeconfig.yaml"
         permissions: "0644"
         owner: "root"
         template: |-
@@ -130,8 +134,8 @@ spec:
           users:
           - name: kubelet
             user:
-              client-certificate: /etc/kubernetes/ssl/node.pem
-              client-key: /etc/kubernetes/ssl/node-key.pem
+              client-certificate: /etc/kubernetes/ssl/server.pem
+              client-key: /etc/kubernetes/ssl/server-key.pem
           contexts:
           - context:
               cluster: local
@@ -157,14 +161,14 @@ spec:
               - /hyperkube
               - proxy
               - --master={{ index .Configs "k8s" "api-servers" }}
-              - --kubeconfig=/etc/kubernetes/node-kubeconfig.yaml
+              - --kubeconfig=/etc/kubernetes/kubeconfig.yaml
               securityContext:
                 privileged: true
               volumeMounts:
               - mountPath: /etc/ssl/certs
                 name: ssl-certs-host
                 readOnly: true
-              - mountPath: /etc/kubernetes/node-kubeconfig.yaml
+              - mountPath: /etc/kubernetes/kubeconfig.yaml
                 name: kubeconfig
                 readOnly: true
               - mountPath: /etc/kubernetes/ssl
@@ -175,7 +179,7 @@ spec:
                 path: /usr/share/ca-certificates
               name: ssl-certs-host
             - hostPath:
-                path: /etc/kubernetes/node-kubeconfig.yaml
+                path: /etc/kubernetes/kubeconfig.yaml
               name: kubeconfig
             - hostPath:
                 path: /etc/kubernetes/ssl
@@ -190,13 +194,14 @@ spec:
           api-servers: https://PUT_YOUR_MASTER_PRIVATE_IP_HERE
           dns-service-ip: 10.3.0.10
           k8s-version: v1.6.0-beta.3_coreos.0
-          ca-cert: |-
-            PUT YOUR CA CERTIFICATE HERE
+          registry-mirror: https://YOUR_KEY.mirror.aliyuncs.com
       users:
       - name: core
+      secrets:
+      - name: k8s-ca
     secrets:
     - metadata:
-        name: node
+        name: server
         annotations:
             archon.kubeup.com/csr: |-
               {
