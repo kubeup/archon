@@ -90,11 +90,12 @@ spec:
               --node-ip={{.Status.PrivateIP}} \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
+              --node-labels=node=true \
               --volume-plugin-dir=/opt/k8s/volume/plugins \
               --enable-controller-attach-detach \
               --kubeconfig=/etc/kubernetes/kubeconfig.yaml \
               --tls-cert-file=/etc/kubernetes/ssl/server.pem \
-              --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem
+              --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
@@ -196,7 +197,7 @@ spec:
           hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
-          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
+          kube-aliyun-img: kubeup/kube-aliyun
           api-servers: https://PUT_YOUR_MASTER_PRIVATE_IP_HERE
           dns-service-ip: 10.3.0.10
           k8s-version: v1.6.0-beta.3_coreos.0

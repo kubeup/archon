@@ -81,6 +81,7 @@ spec:
               --volume-plugin-dir=/opt/k8s/volume/plugins \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
+              --node-labels=master=true \
               --tls-cert-file=/etc/kubernetes/ssl/server.pem \
               --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
@@ -354,7 +355,7 @@ spec:
             hostNetwork: true
             containers:
             - name: aliyun-controller
-              image: {{ index .Configs "k8s" "kube-aliyun-image" }} 
+              image: {{ index .Configs "k8s" "kube-aliyun-img" }}
               command:
               - /aliyun-controller
               - --server=http://127.0.0.1:8080
@@ -431,7 +432,7 @@ spec:
           hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
-          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
+          kube-aliyun-img: kubeup/kube-aliyun
           k8s-version: v1.6.0-beta.3_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
