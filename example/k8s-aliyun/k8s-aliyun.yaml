@@ -25,9 +25,9 @@ spec:
           server: https://kubeup.com/coreos_update
       - name: unit-docker
         path: "/coreos/unit/docker"
-        content: |-
+        template: |-
           name: docker.service
-          drop-ins:
+          drop_ins:
           - name: "50-docker-opts.conf"
             content: |
               [Service]
@@ -37,7 +37,7 @@ spec:
         template: |-
           name: aliyun-update.service
           command: start
-          template: |-
+          content: |-
             [Service]
             ExecStartPre=/usr/bin/hostname {{ .Status.PrivateIP }}
             ExecStart=/usr/bin/sh -c 'sleep 30 && update_engine_client -update && sleep 5 && systemctl reboot'
@@ -160,9 +160,6 @@ spec:
                 initialDelaySeconds: 15
                 timeoutSeconds: 15
                 failureThreshold: 8
-              securityContext:
-                seLinuxOptions:
-                  type: spc_t
             hostNetwork: true
       - name: kube-apiserver.yaml
         path: "/etc/kubernetes/manifests/kube-apiserver.yaml"

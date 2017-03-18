@@ -18,7 +18,6 @@ spec:
       instanceType: ecs.n1.tiny
       os: CoreOS
       image: coreos681_64_40G_aliaegis_20160222.vhd
-      hostname: {{ .Status.PrivateIP }}
       files:
       - name: coreos-update
         path: "/coreos/update"
@@ -26,9 +25,9 @@ spec:
           server: https://kubeup.com/coreos_update
       - name: unit-docker
         path: "/coreos/unit/docker"
-        content: |-
+        template: |-
           name: docker.service
-          drop-ins:
+          drop_ins:
           - name: "50-docker-opts.conf"
             content: |
               [Service]
@@ -40,6 +39,7 @@ spec:
           command: start
           content: |-
             [Service]
+            ExecStartPre=/usr/bin/hostname {{ .Status.PrivateIP }}
             ExecStart=/usr/bin/sh -c 'sleep 30 && update_engine_client -update && sleep 5 && systemctl reboot'
             User=root
       - name: unit-flexv
@@ -102,6 +102,12 @@ spec:
             User=root
             [Install]
             WantedBy=multi-user.target
+      - name: hostname
+        path: "/etc/hostname"
+        permissions: "0644"
+        owner: "root"
+        template: |-
+          {{ .Status.PrivateIP }}
       - name: ca.pem
         path: "/etc/kubernetes/ssl/ca.pem"
         permissions: "0644"
