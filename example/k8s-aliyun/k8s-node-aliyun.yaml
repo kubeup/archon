@@ -231,6 +231,7 @@ spec:
                 ]
               }
             archon.kubeup.com/status: Pending
+            archon.kubeup.com/ca: k8s-ca
             archon.kubeup.com/type: csr
       type: Opaque
 
