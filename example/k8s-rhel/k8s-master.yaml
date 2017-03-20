@@ -1,0 +1,96 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-master
+  template:
+    metadata:
+      labels:
+        app: k8s-master
+      annotations:
+        aws.archon.kubeup.com/instance-profile: "k8s-master"
+    spec:
+      networkName: k8s-net
+      instanceType: t2.small
+      os: RedHat
+      image: ami-2cade64c
+      files:
+      - name: yum-repos
+        path: "/config/yum_repos"
+        content: |-
+          kubernetes:
+            name: Kubernetes
+            baseurl: http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+            enabled: true
+            gpgcheck: true
+            gpgkey: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      - name: packages
+        path: "/config/packages"
+        content: |-
+          - yum-utils
+          - kubelet
+          - kubeadm
+          - kubectl
+          - kubernetes-cni
+      - name: setenforce
+        path: "/config/runcmd/setenforce"
+        template: |-
+          - setenforce
+          - "0"
+      - name: enable-repo
+        path: "/config/runcmd/enable-repo"
+        template: |-
+          - yum-config-manager
+          - --enable
+          - rhui-REGION-rhel-server-extras
+      - name: install-docker
+        path: "/config/runcmd/install-docker"
+        template: |-
+          - yum
+          - install
+          - -y
+          - docker
+      - name: enable-docker
+        path: "/config/runcmd/enable-docker"
+        template: |-
+          - systemctl
+          - enable
+          - docker
+      - name: start-docker
+        path: "/config/runcmd/start-docker"
+        template: |-
+          - systemctl
+          - start
+          - docker
+      - name: enable-kubelet
+        path: "/config/runcmd/enable-kubelet"
+        template: |-
+          - systemctl
+          - enable
+          - kubelet
+      - name: start-kubelet
+        path: "/config/runcmd/start-kubelet"
+        template: |-
+          - systemctl
+          - start
+          - kubelet
+      - name: kubeadm
+        path: "/config/runcmd/kubeadm"
+        template: |-
+          - kubeadm
+          - init
+          - --pod-network-cidr
+          - {{ index .Configs "k8s" "pod-ip-range" }}
+          - --token
+          - {{ index .Configs "k8s" "token" }}
+      configs:
+      - name: k8s
+        data:
+          pod-ip-range: 10.244.0.0/16
+          token: TOKEN
+      users:
+      - name: rhel

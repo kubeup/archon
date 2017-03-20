@@ -147,6 +147,13 @@ func GenerateCloudConfig(instance *cluster.Instance) ([]byte, error) {
 				return nil, err
 			}
 			result.Apt = c
+		} else if f.Path == "/config/yum_repos" {
+			c := make(map[string]cloudinit.YumRepo)
+			err = yaml.Unmarshal([]byte(f.Content), &c)
+			if err != nil {
+				return nil, err
+			}
+			result.YumRepos = c
 		} else if f.Path == "/config/packages" {
 			c := []string{}
 			err = yaml.Unmarshal([]byte(f.Content), &c)

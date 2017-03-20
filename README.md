@@ -64,6 +64,8 @@ Supported operating system:
 
   - [CoreOS]
   - [Ubuntu]
+  - [CentOS]
+  - [RedHat]
 
 Supported bootstrapping tool:
 
@@ -153,7 +155,9 @@ Example
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
   - [Self-hosted Kubernetes cluster with bootkube][bootkube-example]
-  - [Kubernetes cluster with ubuntu and kubeadm][ubuntu-example]
+  - [Kubernetes cluster with Ubuntu and kubeadm][ubuntu-example]
+  - [Kubernetes cluster with CentOS and kubeadm][centos-example]
+  - [Kubernetes cluster with RedHat and kubeadm][redhat-example]
   - [Aliyun one machine Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
 
@@ -165,10 +169,14 @@ Example
 [Aliyun]: https://www.aliyun.com
 [CoreOS]: https://coreos.com/os/docs/latest/
 [Ubuntu]: https://www.ubuntu.com
+[CentOS]: https://www.centos.org
+[RedHat]: https://www.redhat.com
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
 [bootkube-example]: https://github.com/kubeup/archon/tree/master/example/k8s-bootkube
 [ubuntu-example]: https://github.com/kubeup/archon/tree/master/example/k8s-ubuntu
+[centos-example]: https://github.com/kubeup/archon/tree/master/example/k8s-centos
+[redhat-example]: https://github.com/kubeup/archon/tree/master/example/k8s-redhat
 [aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
 [etcd-example]: https://github.com/kubeup/archon/tree/master/example/etcd-cluster
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206

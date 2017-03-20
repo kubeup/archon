@@ -18,13 +18,14 @@ import (
 )
 
 type CloudConfig struct {
-	Apt            Apt        `yaml:"apt,omitempty"`
-	Packages       []string   `yaml:"packages,omitempty"`
-	Runcmd         [][]string `yaml:"runcmd,omitempty"`
-	WriteFiles     []File     `yaml:"write_files,omitempty"`
-	Hostname       string     `yaml:"hostname,omitempty"`
-	Users          []User     `yaml:"users,omitempty"`
-	ManageEtcHosts string     `yaml:"manage_etc_hosts,omitempty"`
+	Apt            Apt                `yaml:"apt,omitempty"`
+	Packages       []string           `yaml:"packages,omitempty"`
+	Runcmd         [][]string         `yaml:"runcmd,omitempty"`
+	WriteFiles     []File             `yaml:"write_files,omitempty"`
+	Hostname       string             `yaml:"hostname,omitempty"`
+	Users          []User             `yaml:"users,omitempty"`
+	ManageEtcHosts string             `yaml:"manage_etc_hosts,omitempty"`
+	YumRepos       map[string]YumRepo `yaml:"yum_repos,omitempty"`
 }
 
 type Apt struct {
@@ -34,6 +35,14 @@ type Apt struct {
 type AptSource struct {
 	Source string `yaml:"source,omitempty"`
 	Key    string `yaml:"key,omitempty"`
+}
+
+type YumRepo struct {
+	Name     string `yaml:"name,omitempty"`
+	BaseUrl  string `yaml:"baseurl,omitempty"`
+	Enabled  bool   `yaml:"enabled,omitempty"`
+	GPGCheck bool   `yaml:"gpgcheck,omitempty"`
+	GPGKey   string `yaml:"gpgkey,omitempty"`
 }
 
 func (uc CloudConfig) Bytes() ([]byte, error) {
