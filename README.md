@@ -62,15 +62,15 @@ Supported cloud providers:
 
 Supported operating system:
 
-  - [CoreOS]
-  - [Ubuntu]
-  - [CentOS]
-  - [RedHat]
+  - [CoreOS][bootkube-example]
+  - [Ubuntu][ubuntu-example]
+  - [CentOS][centos-example]
+  - [RedHat][redhat-example]
 
 Supported bootstrapping tool:
 
-  - [bootkube]
-  - [kubeadm]
+  - [bootkube][bootkube-example]
+  - [kubeadm][ubuntu-example]
 
 At the moment, we only support limited cloud providers and oses. More cloud providers
 and operating systems support will be added when the core is stable.
@@ -167,10 +167,6 @@ Example
 [kops]: https://github.com/kubernetes/kops
 [AWS]: https://aws.amazon.com
 [Aliyun]: https://www.aliyun.com
-[CoreOS]: https://coreos.com/os/docs/latest/
-[Ubuntu]: https://www.ubuntu.com
-[CentOS]: https://www.centos.org
-[RedHat]: https://www.redhat.com
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple
 [master-node-example]: https://github.com/kubeup/archon/tree/master/example/k8s-master-node
 [bootkube-example]: https://github.com/kubeup/archon/tree/master/example/k8s-bootkube
