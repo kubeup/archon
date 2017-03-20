@@ -85,19 +85,19 @@ You could launch Archon locally or install it into your cluster.
 Download the latest release from Github.
 
 ```
-wget https://github.com/kubeup/archon/releases/download/v0.0.1/archon-controller-v0.0.1-linux-amd64.gz
-gunzip archon-controller-v0.0.1-linux-amd64.gz
-chmod +x archon-controller-v0.0.1-linux-amd64
-mv archon-controller-v0.0.1-linux-amd64 /usr/local/bin/archon-controller
+wget https://github.com/kubeup/archon/releases/download/v0.2.0/archon-controller-v0.2.0-linux-amd64.gz
+gunzip archon-controller-v0.2.0-linux-amd64.gz
+chmod +x archon-controller-v0.2.0-linux-amd64
+mv archon-controller-v0.2.0-linux-amd64 /usr/local/bin/archon-controller
 ```
 
 On OSX, just change `linux` to `darwin`:
 
 ```
-wget https://github.com/kubeup/archon/releases/download/v0.0.1/archon-controller-v0.0.1-darwin-amd64.gz
-gunzip archon-controller-v0.0.1-darwin-amd64.gz
-chmod +x archon-controller-v0.0.1-darwin-amd64
-mv archon-controller-v0.0.1-darwin-amd64 /usr/local/bin/archon-controller
+wget https://github.com/kubeup/archon/releases/download/v0.2.0/archon-controller-v0.2.0-darwin-amd64.gz
+gunzip archon-controller-v0.2.0-darwin-amd64.gz
+chmod +x archon-controller-v0.2.0-darwin-amd64
+mv archon-controller-v0.2.0-darwin-amd64 /usr/local/bin/archon-controller
 ```
 
 ### Launch locally
