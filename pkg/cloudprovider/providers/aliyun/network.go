@@ -199,6 +199,18 @@ func (p *aliyunCloud) createVPC(clusterName string, network *cluster.Network, an
 		return aliyunSafeError(err)
 	}
 
+	err = p.ecs.AuthorizeSecurityGroup(&ecs.AuthorizeSecurityGroupArgs{
+		SecurityGroupId: an.SecurityGroup,
+		RegionId:        region,
+		NicType:         ecs.NicTypeIntranet,
+		IpProtocol:      ecs.IpProtocolAll,
+		Policy:          ecs.PermissionPolicyAccept,
+		PortRange:       "1/65535",
+		SourceCidrIp:    an.VPCIPRange,
+	})
+	if err != nil {
+		return aliyunSafeError(err)
+	}
 	return
 }
 
