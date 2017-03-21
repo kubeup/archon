@@ -29,6 +29,7 @@ type AliyunNetwork struct {
 	SecurityGroup string `k8s:"security-group-id"`
 	RouteTable    string `k8s:"route-table-id"`
 	Router        string `k8s:"router-id"`
+	VPCIPRange    string `k8s:"vpc-ip-range"`
 }
 
 func (p *aliyunCloud) EnsureNetwork(clusterName string, network *cluster.Network) (status *cluster.NetworkStatus, err error) {
@@ -145,12 +146,15 @@ func (p *aliyunCloud) AddNetworkAnnotation(clusterName string, instance *cluster
 }
 
 func (p *aliyunCloud) createVPC(clusterName string, network *cluster.Network, an *AliyunNetwork) (err error) {
+	if an.VPCIPRange == "" {
+		return fmt.Errorf("vpn-ip-range should not be empty")
+	}
 	region := common.Region(network.Spec.Region)
 
 	glog.V(4).Infof("Creating VPC in aliyun for %s (%v)", clusterName, network.Spec)
 	resp, err := p.ecs.CreateVpc(&ecs.CreateVpcArgs{
 		RegionId:    region,
-		CidrBlock:   network.Spec.Subnet,
+		CidrBlock:   an.VPCIPRange,
 		VpcName:     clusterName + "-vpc",
 		Description: "Archon managed vpc",
 		ClientToken: util.RandNano(),
@@ -199,10 +203,8 @@ func (p *aliyunCloud) createVPC(clusterName string, network *cluster.Network, an
 }
 
 func (p *aliyunCloud) createVSwitch(clusterName string, network *cluster.Network, an *AliyunNetwork) (err error) {
-	// TODO: allow customizing vpc cidr and subnet cidr separately
 	_, sub, _ := net.ParseCIDR(network.Spec.Subnet)
 	sub2 := util.FromIPNet(sub)
-	sub2.PrefixLen += sub2.PrefixLen
 
 	args := &ecs.CreateVSwitchArgs{
 		ZoneId:      network.Spec.Zone,
