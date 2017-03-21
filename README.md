@@ -13,6 +13,27 @@ cluster with yaml files then use `kubectl` to create and scale it.
 
 WARNING: Archon is currently in alpha status.
 
+Features
+--------
+
+Archon itself is an execution engine. It provides following fundamental capabilities:
+
+  - Certificates management. Creating CA, signing new certificates with `Secret`.
+  - Network management. Create VPC from definition resource and manage its lifecyle.
+  - User management. Create user definitions used as default users for instances.
+  - Instance group management. Manage a group of instances with similar configurations.
+    Scale the group by changing the `replicas` field.
+  - Instance management. Create instance with generated `userdata` for [cloudinit]
+    from definition resource. Manage the instance lifecyle by watching its status.
+
+We have put together some examples to showcase various ways to bootstrap and manage
+a Kubernetes cluster with Archon with following features:
+
+  - HA master to prevent single point of failure
+  - Rolling update by creating a new instance group and delete the old one
+  - Support various operating systems using [bootkube] or [kubeadm]
+  - Scale the cluster with one command
+
 Why Archon
 ----------
 
@@ -152,6 +173,10 @@ Please follow these instructions if you plan to deploy Archon into your cluster:
 Example
 -------
 
+We believe every cluster is different. So we provides some ways to bootstrap a
+Kubernetes cluster as examples. You could choose one as the starting point and
+customize it to match your needs.
+
   - [Simple one machine Kubernetes cluster][simple-example]
   - [One master multiple nodes Kubernetes cluster][master-node-example]
   - [Self-hosted Kubernetes cluster with bootkube][bootkube-example]
@@ -165,6 +190,7 @@ Example
 [kubeadm]: https://github.com/kubernetes/kubeadm
 [bootkube]: https://github.com/kubernetes-incubator/bootkube
 [kops]: https://github.com/kubernetes/kops
+[cloudinit]: http://cloudinit.readthedocs.io/en/latest/
 [AWS]: https://aws.amazon.com
 [Aliyun]: https://www.aliyun.com
 [simple-example]: https://github.com/kubeup/archon/tree/master/example/k8s-simple

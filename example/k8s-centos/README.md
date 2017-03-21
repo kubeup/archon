@@ -17,7 +17,7 @@ Step 2
 Create a new namespace for this cluster:
 
 ```
-kubectl create k8s-centos
+kubectl create namespace k8s-centos
 ```
 
 Step 3
