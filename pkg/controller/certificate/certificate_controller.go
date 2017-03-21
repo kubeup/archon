@@ -201,10 +201,6 @@ func (cc *CertificateController) maybeSignCertificate(key string) error {
 			}
 		}
 
-		if certControl == nil {
-			return fmt.Errorf("Failed to generate certificate. Certificate control is not there")
-		}
-
 		var instance *cluster.Instance
 		if instanceName := secret.Annotations[ResourceInstanceKey]; instanceName != "" {
 			var err error

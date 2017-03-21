@@ -110,6 +110,9 @@ func validator(req *csr.CertificateRequest) error {
 }
 
 func (cc *CertificateControl) GenerateCertificate(secret *v1.Secret, instance *cluster.Instance) error {
+	if cc == nil {
+		return fmt.Errorf("CertificateControl is nil")
+	}
 	csrTemplate := secret.Annotations[CSRKey]
 	if len(csrTemplate) == 0 {
 		return fmt.Errorf("No CSR template in secret annotations")
