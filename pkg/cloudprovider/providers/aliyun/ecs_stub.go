@@ -28,6 +28,9 @@ type ECS interface {
 	WaitForInstance(string, ecs.InstanceStatus, int) error
 	ModifyInstanceAttribute(*ecs.ModifyInstanceAttributeArgs) error
 
+	DescribeDisks(args *ecs.DescribeDisksArgs) (disks []ecs.DiskItemType, err error)
+	ReInitDisk(string) error
+
 	AllocatePublicIpAddress(string) (string, error)
 	AllocateEipAddress(*ecs.AllocateEipAddressArgs) (string, string, error)
 	WaitForEip(common.Region, string, ecs.EipStatus, int) error
@@ -47,6 +50,7 @@ type ECS interface {
 	WaitForVpcAvailable(common.Region, string, int) error
 
 	AddTags(*ecs.AddTagsArgs) error
+	RemoveTags(*ecs.RemoveTagsArgs) error
 }
 
 type aliyunECS struct {
@@ -101,6 +105,31 @@ func (p *aliyunECS) WaitForInstance(id string, status ecs.InstanceStatus, timeou
 }
 func (p *aliyunECS) ModifyInstanceAttribute(input *ecs.ModifyInstanceAttributeArgs) error {
 	return p.ecs.ModifyInstanceAttribute(input)
+}
+
+func (p *aliyunECS) DescribeDisks(args *ecs.DescribeDisksArgs) (disks []ecs.DiskItemType, err error) {
+	pg := &common.Pagination{
+		PageNumber: 0,
+		PageSize:   50,
+	}
+
+	for {
+		ret, pgresp, err := p.ecs.DescribeDisks(args)
+		if err != nil {
+			return nil, err
+		}
+		disks = append(disks, ret...)
+		pg = pgresp.NextPage()
+		if pg == nil {
+			break
+		}
+	}
+
+	return
+}
+
+func (p *aliyunECS) ReInitDisk(diskId string) error {
+	return p.ecs.ReInitDisk(diskId)
 }
 
 func (p *aliyunECS) AllocatePublicIpAddress(id string) (string, error) {
@@ -176,4 +205,8 @@ func (p *aliyunECS) WaitForVpcAvailable(region common.Region, id string, timeout
 
 func (p *aliyunECS) AddTags(args *ecs.AddTagsArgs) error {
 	return p.ecs.AddTags(args)
+}
+
+func (p *aliyunECS) RemoveTags(args *ecs.RemoveTagsArgs) error {
+	return p.ecs.RemoveTags(args)
 }

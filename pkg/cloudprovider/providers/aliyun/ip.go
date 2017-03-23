@@ -88,7 +88,11 @@ func (p *aliyunCloud) EnsurePublicIPDeleted(clusterName string, instance *cluste
 		return
 	}
 
+	networkSpec := instance.Dependency.Network.Spec
+
 	if eip.AllocationID != "" {
+		p.ecs.WaitForEip(common.Region(networkSpec.Region), eip.AllocationID, ecs.EipStatusAvailable, 0)
+
 		err = p.ecs.ReleaseEipAddress(eip.AllocationID)
 
 		if err != nil {

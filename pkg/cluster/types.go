@@ -180,7 +180,8 @@ type InstanceTemplateSpec struct {
 }
 
 type InstanceOptions struct {
-	UsePrivateIP string `k8s:"use-private-ip"`
+	UseInstanceID string `k8s:"use-instance-id"`
+	UsePrivateIP  string `k8s:"use-private-ip"`
 }
 
 type InstanceDependency struct {
@@ -198,15 +199,16 @@ type Instance struct {
 }
 
 type InstanceSpec struct {
-	OS           string                 `json:"os,omitempty"`
-	Image        string                 `json:"image,omitempty"`
-	InstanceType string                 `json:"instanceType,omitempty"`
-	NetworkName  string                 `json:"networkName,omitempty"`
-	Files        []FileSpec             `json:"files,omitempty"`
-	Secrets      []LocalObjectReference `json:"secrets,omitempty"`
-	Configs      []ConfigSpec           `json:"configs,omitempty"`
-	Users        []LocalObjectReference `json:"users,omitempty"`
-	Hostname     string                 `json:"hostname,omitempty"`
+	OS            string                 `json:"os,omitempty"`
+	Image         string                 `json:"image,omitempty"`
+	InstanceType  string                 `json:"instanceType,omitempty"`
+	NetworkName   string                 `json:"networkName,omitempty"`
+	ReclaimPolicy InstanceReclaimPolicy  `json:"reclaimPolicy,omitempty"`
+	Files         []FileSpec             `json:"files,omitempty"`
+	Secrets       []LocalObjectReference `json:"secrets,omitempty"`
+	Configs       []ConfigSpec           `json:"configs,omitempty"`
+	Users         []LocalObjectReference `json:"users,omitempty"`
+	Hostname      string                 `json:"hostname,omitempty"`
 }
 
 type InstanceStatus struct {
@@ -220,13 +222,19 @@ type InstanceStatus struct {
 }
 
 type InstancePhase string
+type InstanceReclaimPolicy string
 
 const (
+	// TODO: Populate defaults when a new resource is created. So we don't have use
+	// "" as a meaningful and the default state
 	InstancePending      InstancePhase = ""
 	InstanceInitializing InstancePhase = "Initializing"
 	InstanceRunning      InstancePhase = "Running"
 	InstanceFailed       InstancePhase = "Failed"
 	InstanceUnknown      InstancePhase = "Unknown"
+
+	InstanceRecycle InstanceReclaimPolicy = "Recycle"
+	InstanceDelete  InstanceReclaimPolicy = ""
 )
 
 type InstanceConditionType string

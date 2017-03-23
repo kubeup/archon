@@ -362,6 +362,33 @@ func (s *InstanceController) ensureSecrets(key string, instance *cluster.Instanc
 	return nil
 }
 
+// Do a initial instance sync from cloudprovider. Ignore failures on the cloudpovide side
+// (maybe populate defaults too?)
+func (s *InstanceController) initializeNewInstance(instance *cluster.Instance) (updatedInstance *cluster.Instance, err error) {
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
+	if options.UseInstanceID != "" {
+		instance.Status.InstanceID = options.UseInstanceID
+	}
+
+	status, err := s.archon.GetInstance(s.clusterName, instance)
+	if err == nil {
+		instance.Status = *status
+		err = s.persistUpdate(instance)
+		if err != nil {
+			err = fmt.Errorf("Unable to persist initial instance status sync: %v", err)
+			return
+		}
+	}
+
+	return instance, nil
+}
+
 // Returns an error if processing the instance update failed, along with a time.Duration
 // indicating whether processing should be retried; zero means no-retry; otherwise
 // we should retry in that Duration.
@@ -374,6 +401,17 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 	// Instance is being initialized by InstanceGroup controller. so abort now.
 	if instance.Status.Phase == cluster.InstanceInitializing {
 		return nil, doNotRetry
+	}
+
+	// Update instance if it's newly created
+	new := cachedInstance.state == nil
+	if new && instance.GetDeletionTimestamp() == nil {
+		instance, err = s.initializeNewInstance(instance)
+		if err != nil {
+			return fmt.Errorf("Failed to initialize new instance: %v", err), cachedInstance.nextRetryDelay()
+		}
+		cachedInstance.state = instance
+		return
 	}
 
 	// cache the instance, we need the info for instance deletion
@@ -674,6 +712,16 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 		instance = obj.(*cluster.Instance)
 	}
 
+	if instance == nil {
+		return fmt.Errorf("Unable to process deletion when instance = nil"), doNotRetry
+	}
+
+	err, deps := s.ensureDependency(key, instance)
+	if err != nil {
+		return fmt.Errorf("Failed to ensure all dependencies %s: %v", key, err), cachedInstance.nextRetryDelay()
+	}
+	instance.Dependency = *deps
+
 	// Instance
 	//	glog.Infof("deleting instance %v", instance)
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletingInstance", "Deleting instance")
@@ -702,27 +750,8 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 	}
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
 
-	/*
-		// IP
-		s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Releasing ip if needed")
-		err, retry := s.ipController.SyncIP(s.clusterName, instance, true)
-		if err != nil {
-			message := "Error syncing ip of instance"
-			if retry {
-				message += " (will retry): "
-			} else {
-				message += " (will not retry): "
-			}
-			message += err.Error()
-			s.eventRecorder.Event(instance, api.EventTypeWarning, "SyncIPFailed", message)
-			if retry {
-				return err, cachedInstance.nextRetryDelay()
-			} else {
-				return err, doNotRetry
-			}
-		}
-		s.eventRecorder.Event(instance, api.EventTypeNormal, "SyncIP", "Sync ip done")
-	*/
+	// TODO: Handle reclaimPolicy
+	// Put instanceId and network under a dedicated RecycledInstance resource
 
 	s.cache.delete(key)
 

@@ -68,7 +68,7 @@ func instanceToStatus(i ecs.InstanceAttributesType) *cluster.InstanceStatus {
 	// return Pending
 	initialized := false
 	for _, tag := range i.Tags.Tag {
-		if tag.TagKey == InitializedTagKey {
+		if tag.TagKey == InitializedTagKey && tag.TagValue == "true" {
 			initialized = true
 		}
 	}
@@ -153,11 +153,25 @@ func (p *aliyunCloud) EnsureInstance(clusterName string, instance *cluster.Insta
 		return
 	}
 
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
 	if instance.Status.InstanceID == "" {
-		status, err = p.createInstance(clusterName, instance)
+		if options.UseInstanceID != "" {
+			networkSpec := instance.Dependency.Network.Spec
+			status, err = p.getInstance(networkSpec.Region, options.UseInstanceID)
+		} else {
+			status, err = p.createInstance(clusterName, instance)
+		}
+
 		if err != nil {
 			return
 		}
+
 		instance.Status = *status
 	}
 
@@ -175,6 +189,85 @@ func (p *aliyunCloud) EnsureInstance(clusterName string, instance *cluster.Insta
 	return p.initializeInstance(clusterName, instance)
 }
 
+func (p *aliyunCloud) resetInstance(instance *cluster.Instance) (err error) {
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
+	networkSpec := instance.Dependency.Network.Spec
+
+	instanceID := instance.Status.InstanceID
+	if instanceID == "" {
+		instanceID = options.UseInstanceID
+	}
+
+	// Ignore err in case the instance is already stopped
+	err = p.ecs.StopInstance(instanceID, false)
+	if err != nil {
+		err = fmt.Errorf("Unable to stop instance: %v", aliyunSafeError(err))
+		return
+	}
+
+	// Remove initialized tag
+	tags := map[string]string{
+		InitializedTagKey: "false",
+	}
+	// RemoveTags doesn't work. Not sure why
+	err = p.ecs.AddTags(&ecs.AddTagsArgs{
+		RegionId:     common.Region(networkSpec.Region),
+		ResourceId:   instanceID,
+		ResourceType: ecs.TagResourceInstance,
+		Tag:          tags,
+	})
+
+	if err != nil {
+		err = aliyunSafeError(err)
+		glog.Infof("Unable to untag instance uninitialized!  %+v", err)
+		return
+	}
+
+	// Find the system disk
+	disks, err := p.ecs.DescribeDisks(&ecs.DescribeDisksArgs{
+		RegionId:   common.Region(networkSpec.Region),
+		InstanceId: instanceID,
+	})
+	if err != nil {
+		err = aliyunSafeError(err)
+		glog.Warningf("Error getting Aliyun vps disks: %+v", err)
+		return
+	}
+	sdisk := (*ecs.DiskItemType)(nil)
+	for _, d := range disks {
+		if d.Type == ecs.DiskTypeAllSystem || d.Type == ecs.DiskTypeAll {
+			sdisk = &d
+		}
+	}
+	if sdisk == nil {
+		err = fmt.Errorf("Unable to find the system disk of this vps %s", instanceID)
+		return
+	}
+
+	err = p.ecs.WaitForInstance(instanceID, ecs.Stopped, 0)
+	if err != nil {
+		err = aliyunSafeError(err)
+		glog.Warningf("Error waiting Aliyun vps: %+v", err)
+		return
+	}
+
+	// Reinit disk
+	err = p.ecs.ReInitDisk(sdisk.DiskId)
+	if err != nil {
+		err = aliyunSafeError(err)
+		glog.Warningf("Error resetting Aliyun vps disk: %+v", err)
+		return err
+	}
+
+	return
+}
+
 func (p *aliyunCloud) createInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
 	var vpsID string
 	defer func() {
@@ -188,12 +281,10 @@ func (p *aliyunCloud) createInstance(clusterName string, instance *cluster.Insta
 
 	glog.Infof("Creating instance: %v", instance.Name)
 	options := cluster.InstanceOptions{}
-	if instance.Labels != nil {
-		err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
-		if err != nil {
-			err = fmt.Errorf("Can't get instance options: %s", err.Error())
-			return
-		}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
 	}
 
 	networkSpec := instance.Dependency.Network.Spec
@@ -237,6 +328,7 @@ func (p *aliyunCloud) createInstance(clusterName string, instance *cluster.Insta
 		InstanceName:            instance.Name,
 		Description:             "Archon managed instance",
 		HostName:                instance.Spec.Hostname,
+		PrivateIpAddress:        options.UsePrivateIP,
 		IoOptimized:             ecs.IoOptimizedOptimized,
 		InternetChargeType:      common.PayByTraffic,
 		InternetMaxBandwidthOut: aio.InternetMaxBandwidthOut,
@@ -437,12 +529,23 @@ func (p *aliyunCloud) EnsureInstanceDeleted(clusterName string, instance *cluste
 		return nil
 	}
 
-	err = p.deleteInstance(instance.Status.InstanceID)
-	if err != nil {
-		return
+	policy := instance.Spec.ReclaimPolicy
+	switch policy {
+	case cluster.InstanceDelete:
+		err = p.deleteInstance(instance.Status.InstanceID)
+		if err != nil {
+			return
+		}
+		p.ecs.WaitForInstance(instance.Status.InstanceID, ecs.Deleted, 0)
+	case cluster.InstanceRecycle:
+		err = p.resetInstance(instance)
+		if err != nil {
+			return
+		}
+	default:
+		err = fmt.Errorf("Unsupported instance reclaim policy for instance %v: %v", instance.Name, policy)
 	}
 
-	p.ecs.WaitForInstance(instance.Status.InstanceID, ecs.Deleted, 0)
 	instance.Status.InstanceID = ""
 
 	return

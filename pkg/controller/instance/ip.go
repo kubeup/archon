@@ -94,6 +94,18 @@ func (ec *IPInitializer) syncPublicIP(obj initializer.Object, deleting bool) (up
 		return
 	}
 
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
+	if options.UseInstanceID != "" {
+		err = fmt.Errorf("IP initializer is not supported on preallocated instances")
+		return
+	}
+
 	previousStatus := *cluster.InstanceStatusDeepCopy(&instance.Status)
 	previousAnnotations := (map[string]string)(nil)
 	if instance.Annotations != nil {
@@ -167,6 +179,18 @@ func (ec *IPInitializer) syncPrivateIP(obj initializer.Object, deleting bool) (u
 	pip, supported := ec.archon.PrivateIP()
 	if supported == false {
 		err = fmt.Errorf("Instance wants preallocated Private IP but the cloudprovider doesn't support it")
+		return
+	}
+
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
+	if options.UseInstanceID != "" {
+		err = fmt.Errorf("IP initializer is not supported on preallocated instances")
 		return
 	}
 

@@ -283,7 +283,8 @@ func (r RealInstanceControl) createSecrets(namespace string, template *cluster.I
 	for _, secret := range secretTemplates {
 		if newSecret, err := r.KubeClient.Core().Secrets(namespace).Create(&secret); err != nil {
 			r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
-			return nil, fmt.Errorf("unable to create secrets: %v", err)
+			// Still return secrets so we can revert creation
+			return secrets, fmt.Errorf("unable to create secrets: %v", err)
 		} else {
 			secrets = append(secrets, newSecret)
 			accessor, err := meta.Accessor(object)
@@ -299,12 +300,26 @@ func (r RealInstanceControl) createSecrets(namespace string, template *cluster.I
 }
 
 func (r RealInstanceControl) createInstances(nodeName, namespace string, template *cluster.InstanceTemplateSpec, object runtime.Object, controllerRef *metav1.OwnerReference) (err error) {
-	var newInstance *cluster.Instance
+	var (
+		newInstance *cluster.Instance
+		secrets     []*v1.Secret
+	)
 	defer func() {
-		if err != nil && newInstance != nil {
-			err2 := r.KubeClient.Archon().Instances(namespace).Delete(newInstance.Name)
-			if err2 != nil {
-				glog.Errorf("Unable to revert createInstances: %v", err2)
+		if err != nil {
+			if newInstance != nil {
+				err2 := r.KubeClient.Archon().Instances(namespace).Delete(newInstance.Name)
+				if err2 != nil {
+					glog.Errorf("Unable to revert createInstances: %v", err2)
+				}
+			}
+			glog.Errorf("Secrets: %+v", secrets)
+			if len(secrets) > 0 {
+				for _, s := range secrets {
+					err2 := r.KubeClient.Core().Secrets(namespace).Delete(s.Name, &metav1.DeleteOptions{})
+					if err2 != nil {
+						glog.Errorf("Unable to revert secrets: %v", err2)
+					}
+				}
 			}
 		}
 	}()
@@ -330,7 +345,7 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 			glog.V(4).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
 			r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created instance: %v", newInstance.Name)
 		}
-		secrets, err := r.createSecrets(namespace, template, newInstance, nil)
+		secrets, err = r.createSecrets(namespace, template, newInstance, nil)
 		if err != nil {
 			return fmt.Errorf("unable to create secrets for instance %s", newInstance.Name)
 		}

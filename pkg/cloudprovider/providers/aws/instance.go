@@ -191,6 +191,11 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		}
 	}
 
+	if options.UseInstanceID != "" {
+		err = fmt.Errorf("AWS cloudprovider doesn't support reuse a preallocated instance.")
+		return
+	}
+
 	awsnetwork := AWSNetwork{}
 	err = util.MapToStruct(instance.Dependency.Network.Annotations, &awsnetwork, AWSAnnotationPrefix)
 	if err != nil || awsnetwork.Subnet == "" || awsnetwork.VPC == "" {
