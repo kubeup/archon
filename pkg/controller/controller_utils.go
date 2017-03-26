@@ -16,6 +16,7 @@ import (
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/initializer"
+	"kubeup.com/archon/pkg/util"
 )
 
 // Reasons for instance events
@@ -107,6 +108,9 @@ type InstanceControlInterface interface {
 	DeleteInstance(namespace string, instanceID string, object runtime.Object) error
 	// PatchInstance patches the instance.
 	PatchInstance(namespace, name string, data []byte) error
+	// Unbind
+	UnbindInstanceWithReservedInstance(instance *cluster.Instance) error
+	BindReservedInstance(ri *cluster.ReservedInstance, instance *cluster.Instance, unbind bool) (updatedRI *cluster.ReservedInstance, err error)
 }
 
 // RealInstanceControl is the default implementation of InstanceControlInterface.
@@ -305,19 +309,23 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 		secrets     []*v1.Secret
 	)
 	defer func() {
+		// Undo in case of error
 		if err != nil {
 			if newInstance != nil {
-				err2 := r.KubeClient.Archon().Instances(namespace).Delete(newInstance.Name)
+				err2 := r.UnbindInstanceWithReservedInstance(newInstance)
 				if err2 != nil {
-					glog.Errorf("Unable to revert createInstances: %v", err2)
+					glog.Errorf("Unable to undo bindReservedInstance: %v", err2)
+				}
+				err2 = r.KubeClient.Archon().Instances(namespace).Delete(newInstance.Name)
+				if err2 != nil {
+					glog.Errorf("Unable to undo createInstances: %v", err2)
 				}
 			}
-			glog.Errorf("Secrets: %+v", secrets)
 			if len(secrets) > 0 {
 				for _, s := range secrets {
 					err2 := r.KubeClient.Core().Secrets(namespace).Delete(s.Name, &metav1.DeleteOptions{})
 					if err2 != nil {
-						glog.Errorf("Unable to revert secrets: %v", err2)
+						glog.Errorf("Unable to undo creating secrets: %v", err2)
 					}
 				}
 			}
@@ -330,35 +338,48 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 	if labels.Set(instance.Labels).AsSelectorPreValidated().Empty() {
 		return fmt.Errorf("unable to create instances, no labels")
 	}
+
 	if len(template.Secrets) > 0 {
+		// Automatically add CSR initializer so secrets can be processed
 		initializer.AddInitializer(instance, CSRToken)
-		instance.Status.Phase = cluster.InstanceInitializing
 	}
+
+	// Until all required secrets are created and reserved instance is bound, we
+	// want InstanceController to ignore this instance. So we put it in Initializing phase.
+	instance.Status.Phase = cluster.InstanceInitializing
+
 	if newInstance, err = r.KubeClient.Archon().Instances(namespace).Create(instance); err != nil {
 		r.Recorder.Eventf(object, api.EventTypeWarning, FailedCreateInstanceReason, "Error creating: %v", err)
 		return fmt.Errorf("unable to create instances: %v", err)
+	}
+
+	if err = r.handleProvisionPolicy(newInstance, object); err != nil {
+		return fmt.Errorf("Unable to provision instance: %v", err)
+	}
+	glog.Infof("Handle provision policy: %v", newInstance.Annotations)
+
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		glog.Errorf("parentObject does not have ObjectMeta, %v", err)
 	} else {
-		accessor, err := meta.Accessor(object)
-		if err != nil {
-			glog.Errorf("parentObject does not have ObjectMeta, %v", err)
-		} else {
-			glog.V(4).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
-			r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created instance: %v", newInstance.Name)
+		glog.V(4).Infof("Controller %v created instance %v", accessor.GetName(), newInstance.Name)
+		r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulCreateInstanceReason, "Created instance: %v", newInstance.Name)
+	}
+
+	secrets, err = r.createSecrets(namespace, template, newInstance, nil)
+	if err != nil {
+		return fmt.Errorf("unable to create secrets for instance %s", newInstance.Name)
+	}
+	if len(secrets) > 0 {
+		for _, s := range secrets {
+			newInstance.Spec.Secrets = append(newInstance.Spec.Secrets, cluster.LocalObjectReference{Name: s.Name})
 		}
-		secrets, err = r.createSecrets(namespace, template, newInstance, nil)
-		if err != nil {
-			return fmt.Errorf("unable to create secrets for instance %s", newInstance.Name)
-		}
-		if len(secrets) > 0 {
-			for _, s := range secrets {
-				newInstance.Spec.Secrets = append(newInstance.Spec.Secrets, cluster.LocalObjectReference{Name: s.Name})
-			}
-			newInstance.Status.Phase = cluster.InstancePending
-			_, err = r.KubeClient.Archon().Instances(namespace).Update(newInstance)
-			if err != nil {
-				return fmt.Errorf("unable to save secrets dependency for instance %s", newInstance.Name)
-			}
-		}
+	}
+
+	newInstance.Status.Phase = cluster.InstancePending
+	_, err = r.KubeClient.Archon().Instances(namespace).Update(newInstance)
+	if err != nil {
+		return fmt.Errorf("unable to save secrets dependency for instance %s", newInstance.Name)
 	}
 	return nil
 }
@@ -376,4 +397,138 @@ func (r RealInstanceControl) DeleteInstance(namespace string, instanceID string,
 		r.Recorder.Eventf(object, api.EventTypeNormal, SuccessfulDeleteInstanceReason, "Deleted instance: %v", instanceID)
 	}
 	return nil
+}
+
+func (r RealInstanceControl) UnbindInstanceWithReservedInstance(instance *cluster.Instance) (err error) {
+	_, err = r.BindReservedInstance(nil, instance, true)
+	return
+}
+
+// Update both reserved instance and instance. Get related reserved instance if not provided.
+// Update only instance if no reserved instance provided or found
+func (r RealInstanceControl) BindReservedInstance(ri *cluster.ReservedInstance, instance *cluster.Instance, unbind bool) (updatedRI *cluster.ReservedInstance, err error) {
+	client := r.KubeClient.Archon().ReservedInstances(instance.Namespace)
+	ref := instance.Spec.ReservedInstanceRef
+
+	if ri == nil && ref != nil && ref.Name != "" {
+		ri, err = client.Get(ref.Name)
+		if err != nil {
+			return
+		}
+	}
+
+	if ri == nil && unbind == false {
+		err = fmt.Errorf("Unable to bind a nil reversed instance")
+		return
+	}
+
+	options := cluster.InstanceOptions{}
+	err = util.MapToStruct(instance.Labels, &options, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Can't get instance options: %s", err.Error())
+		return
+	}
+
+	useInstanceID := ""
+	ref = nil
+	reclaimPolicy := cluster.InstanceReclaimDelete
+
+	// Update reserved instance
+	if ri != nil {
+		if unbind == true {
+			ri.Status.InstanceName = ""
+			ri.Status.Phase = cluster.ReservedInstanceAvailable
+		} else {
+			ri.Status.InstanceName = instance.Name
+			ri.Status.Phase = cluster.ReservedInstanceBound
+			reclaimPolicy = cluster.InstanceReclaimRecycle
+			ref = &cluster.LocalObjectReference{
+				Name: ri.Name,
+			}
+			useInstanceID = ri.Spec.InstanceID
+			reclaimPolicy = cluster.InstanceReclaimRecycle
+		}
+
+		updatedRI, err = client.Update(ri)
+		if err != nil {
+			return
+		}
+	}
+
+	// Update instance
+	instance.Spec.ReservedInstanceRef = ref
+	instance.Spec.ReclaimPolicy = reclaimPolicy
+	options.UseInstanceID = useInstanceID
+
+	if instance.Labels == nil {
+		instance.Labels = make(map[string]string)
+	}
+
+	err = util.StructToMap(&options, instance.Labels, cluster.AnnotationPrefix)
+	if err != nil {
+		err = fmt.Errorf("Unable to update instance labels: %v", err)
+		return
+	}
+	return
+}
+
+func (r RealInstanceControl) handleProvisionPolicy(instance *cluster.Instance, object runtime.Object) (err error) {
+	var boundRI *cluster.ReservedInstance
+	client := r.KubeClient.Archon().ReservedInstances(instance.Namespace)
+
+	defer func() {
+		if boundRI != nil && err != nil {
+			_, err2 := r.BindReservedInstance(boundRI, instance, true)
+			if err2 != nil {
+				glog.Errorf("Unabel to revert locked reserved instance: %s, %v", boundRI.Name, err2)
+			}
+		}
+	}()
+
+	ig, ok := object.(*cluster.InstanceGroup)
+	if !ok {
+		return fmt.Errorf("Failed to get provision policy. Instance's controller object is not an InstanceGroup: %+v", object)
+	}
+
+	switch ig.Spec.ProvisionPolicy {
+	case cluster.InstanceGroupProvisionReservedFirst, cluster.InstanceGroupProvisionReservedOnly:
+		// Get an available reserved instance
+		labelSelector := ""
+		if ig.Spec.ReservedInstanceSelector != nil {
+			labelSelector = ig.Spec.ReservedInstanceSelector.String()
+		}
+		ril, err := client.List(metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			return fmt.Errorf("Unable to list reserved instances: %v", err)
+		}
+		for _, ri := range ril.Items {
+			if ri.Status.Phase != cluster.ReservedInstanceAvailable {
+				continue
+			}
+
+			// Try binding it
+			boundRI, err = r.BindReservedInstance(&ri, instance, false)
+			if err == nil {
+				cluster.ReservedInstanceToInstance(boundRI, instance)
+				glog.V(2).Infof("Bind instance %v with reserved %v", instance.Name, boundRI.Name)
+				return err
+			}
+
+			// Otherwise we try the next one
+		}
+
+		// No match
+		if ig.Spec.ProvisionPolicy == cluster.InstanceGroupProvisionReservedOnly {
+			return fmt.Errorf("No available reserved instance for instance group: %v", ig.Name)
+		}
+		glog.V(2).Infof("Instance %v doesn't have a matching reserved instance. Will dynamically provision", instance.Name)
+	case cluster.InstanceGroupProvisionDynamicOnly:
+		return
+	default:
+		err = fmt.Errorf("Unsupoorted provisioPolicy: %v", ig.Spec.ProvisionPolicy)
+	}
+
+	return
 }

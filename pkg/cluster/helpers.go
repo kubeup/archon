@@ -93,3 +93,40 @@ func InstanceStatusDeepCopy(s *InstanceStatus) *InstanceStatus {
 
 	return ret
 }
+
+func ReservedInstanceToInstance(ri *ReservedInstance, i *Instance) {
+	if ri.Spec.Image != "" {
+		i.Spec.Image = ri.Spec.Image
+	}
+	if ri.Spec.OS != "" {
+		i.Spec.OS = ri.Spec.OS
+	}
+	if ri.Spec.InstanceType != "" {
+		i.Spec.InstanceType = ri.Spec.InstanceType
+	}
+	if ri.Spec.NetworkName != "" {
+		i.Spec.NetworkName = ri.Spec.NetworkName
+	}
+	if ri.Spec.Hostname != "" {
+		i.Spec.Hostname = ri.Spec.Hostname
+	}
+
+	// Merge config
+	specMap := make(map[string]*ConfigSpec)
+	for _, cs := range i.Spec.Configs {
+		specMap[cs.Name] = &cs
+	}
+
+	for _, cs := range ri.Spec.Configs {
+		c, _ := specMap[cs.Name]
+		if c == nil {
+			i.Spec.Configs = append(i.Spec.Configs, cs)
+			continue
+		}
+
+		// Merge map
+		for k, v := range cs.Data {
+			c.Data[k] = v
+		}
+	}
+}

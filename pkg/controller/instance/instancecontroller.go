@@ -20,15 +20,6 @@ import (
 	"sync"
 	"time"
 
-	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
-	archoncache "kubeup.com/archon/pkg/cache"
-	"kubeup.com/archon/pkg/clientset"
-	"kubeup.com/archon/pkg/cloudprovider"
-	"kubeup.com/archon/pkg/cluster"
-	"kubeup.com/archon/pkg/controller/certificate"
-	"kubeup.com/archon/pkg/initializer"
-	"kubeup.com/archon/pkg/util"
-
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	watch "k8s.io/apimachinery/pkg/watch"
+	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	clientv1 "k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -44,6 +36,14 @@ import (
 	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/controller"
 	"k8s.io/kubernetes/pkg/util/metrics"
+	archoncache "kubeup.com/archon/pkg/cache"
+	"kubeup.com/archon/pkg/clientset"
+	"kubeup.com/archon/pkg/cloudprovider"
+	"kubeup.com/archon/pkg/cluster"
+	archoncontroller "kubeup.com/archon/pkg/controller"
+	"kubeup.com/archon/pkg/controller/certificate"
+	"kubeup.com/archon/pkg/initializer"
+	"kubeup.com/archon/pkg/util"
 )
 
 const (
@@ -90,6 +90,7 @@ type InstanceController struct {
 	instanceStore archoncache.StoreToInstanceLister
 	// Watches changes to all instances
 	instanceController cache.Controller
+	instanceControl    archoncontroller.InstanceControlInterface
 	eventBroadcaster   record.EventBroadcaster
 	eventRecorder      record.EventRecorder
 	// instances that need to be synced
@@ -134,12 +135,16 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 		cloud:              cloud,
 		kubeClient:         kubeClient,
 		initializerManager: manager,
-		clusterName:        clusterName,
-		namespace:          namespace,
-		cache:              &instanceCache{instanceMap: make(map[string]*cachedInstance)},
-		eventBroadcaster:   broadcaster,
-		eventRecorder:      recorder,
-		workingQueue:       workqueue.NewDelayingQueue(),
+		instanceControl: archoncontroller.RealInstanceControl{
+			KubeClient: kubeClient,
+			Recorder:   recorder,
+		},
+		clusterName:      clusterName,
+		namespace:        namespace,
+		cache:            &instanceCache{instanceMap: make(map[string]*cachedInstance)},
+		eventBroadcaster: broadcaster,
+		eventRecorder:    recorder,
+		workingQueue:     workqueue.NewDelayingQueue(),
 	}
 	s.instanceStore.Indexer, s.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
@@ -206,7 +211,7 @@ func (s *InstanceController) syncCloudInstances() {
 	// List all instances in all networks in the cloud
 	cloudStatus := make(map[string]*cluster.InstanceStatus)
 	for _, n := range networks.Items {
-		names, statuses, err := s.archon.ListInstances(s.clusterName, n, nil)
+		names, statuses, err := s.archon.ListInstances(s.clusterName, &n, nil)
 		if err != nil {
 			glog.Errorf("Couldn't get instances for network %s. Skipping: %+v", n.Name, err)
 			continue
@@ -250,7 +255,7 @@ func (s *InstanceController) syncCloudInstances() {
 			cachedInstance := s.cache.getOrCreate(key)
 			if cachedInstance.mu.TryLock() {
 				instance.Status = *status
-				updatedInstance, err := s.kubeClient.Archon().Instances(instance.Namespace).Update(instance)
+				updatedInstance, err := s.kubeClient.Archon().Instances(instance.Namespace).Update(&instance)
 				if err != nil {
 					glog.Errorf("Couldn't update instance %s in k8s: %+v", key, err)
 					continue
@@ -309,21 +314,6 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 	if network.Status.Phase != cluster.NetworkRunning {
 		return fmt.Errorf("Network is not ready %s: %v", instance.Spec.NetworkName, network.Status.Phase), nil
 	}
-
-	/*
-		err = s.archon.AddNetworkAnnotation(s.clusterName, instance, network)
-		if err != nil {
-			return fmt.Errorf("Failed to add network annotation %s: %v", instance.Spec.NetworkName, err), nil
-		}
-	*/
-
-	/*
-		// Ensure IP prerequistes
-		err, _ = s.ipController.SyncIP(key, instance, false)
-		if err != nil {
-			return fmt.Errorf("Failed to sync ip %s: %v", key, err), nil
-		}
-	*/
 
 	users := make([]cluster.User, 0)
 
@@ -748,11 +738,13 @@ func (s *InstanceController) processInstanceDeletion(key string) (error, time.Du
 		instance, _ = obj.(*cluster.Instance)
 		cachedInstance.state = instance
 	}
+
+	err = s.instanceControl.UnbindInstanceWithReservedInstance(instance)
+	if err != nil {
+		return err, cachedInstance.nextRetryDelay()
+	}
+
 	s.eventRecorder.Event(instance, api.EventTypeNormal, "DeletedInstance", "Deleted instance")
-
-	// TODO: Handle reclaimPolicy
-	// Put instanceId and network under a dedicated RecycledInstance resource
-
 	s.cache.delete(key)
 
 	cachedInstance.resetRetryDelay()

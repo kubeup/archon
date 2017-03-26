@@ -15,8 +15,43 @@ package cluster
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
+
+var (
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes, addDefaultingFuncs)
+	AddToScheme   = SchemeBuilder.AddToScheme
+	//Scheme        = runtime.NewScheme()
+)
+
+// GroupName is the group name use in this package
+const GroupName = "archon.kubeup.com"
+const GroupVersion = "v1"
+
+// SchemeGroupVersion is group version used to register these objects
+var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
+
+// Adds the list of known types to api.Scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	RegisterDefaults(scheme)
+	scheme.AddKnownTypes(SchemeGroupVersion,
+		&User{},
+		&UserList{},
+		&Instance{},
+		&InstanceList{},
+		&InstanceGroup{},
+		&InstanceGroupList{},
+		&Network{},
+		&NetworkList{},
+		&ReservedInstance{},
+		&ReservedInstanceList{},
+	//	&api.ListOptions{},
+	//		&api.DeleteOptions{},
+	)
+	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
+	return nil
+}
 
 func (i User) Get() schema.ObjectKind {
 	return &i.TypeMeta
@@ -79,5 +114,21 @@ func (il InstanceList) Get() schema.ObjectKind {
 }
 
 func (il InstanceList) GetObjectMeta() metav1.List {
+	return &il.ListMeta
+}
+
+func (i ReservedInstance) Get() schema.ObjectKind {
+	return &i.TypeMeta
+}
+
+func (i ReservedInstance) GetObjectMeta() metav1.Object {
+	return &i.ObjectMeta
+}
+
+func (il ReservedInstanceList) Get() schema.ObjectKind {
+	return &il.TypeMeta
+}
+
+func (il ReservedInstanceList) GetObjectMeta() metav1.List {
 	return &il.ListMeta
 }

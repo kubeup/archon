@@ -26,7 +26,6 @@ import (
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
 	archoncache "kubeup.com/archon/pkg/cache"
 	"kubeup.com/archon/pkg/clientset"
-	"kubeup.com/archon/pkg/clientset/archon"
 	"kubeup.com/archon/pkg/cluster"
 	archoncontroller "kubeup.com/archon/pkg/controller"
 
@@ -64,7 +63,7 @@ const (
 )
 
 func getIGKind() schema.GroupVersionKind {
-	return archon.SchemeGroupVersion.WithKind("InstanceGroup")
+	return cluster.SchemeGroupVersion.WithKind("InstanceGroup")
 }
 
 // InstanceGroupController is responsible for synchronizing InstanceGroup objects stored
@@ -436,6 +435,7 @@ func (rsc *InstanceGroupController) processNextWorkItem() bool {
 	}
 
 	utilruntime.HandleError(fmt.Errorf("Sync %q failed with %v", key, err))
+	// TODO: Delay ig sync when running out of reserved instances
 	rsc.queue.AddRateLimited(key)
 
 	return true

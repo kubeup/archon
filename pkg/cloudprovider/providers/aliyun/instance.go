@@ -442,13 +442,13 @@ func (p *aliyunCloud) initializeInstance(clusterName string, instance *cluster.I
 
 	/*
 		// Modify userdata, aliyun api will encode it
-					err = p.ecs.ModifyInstanceAttribute(&ecs.ModifyInstanceAttributeArgs{
-										InstanceId: vpsID,
-														UserData:   u,
-																	})
-																				if err != nil {
-																									return nil, err
-																												}
+		err = p.ecs.ModifyInstanceAttribute(&ecs.ModifyInstanceAttributeArgs{
+				InstanceId: vpsID,
+				UserData:   u,
+				})
+		if err != nil {
+			return nil, err
+		}
 	*/
 
 	// Start instance
@@ -531,19 +531,20 @@ func (p *aliyunCloud) EnsureInstanceDeleted(clusterName string, instance *cluste
 
 	policy := instance.Spec.ReclaimPolicy
 	switch policy {
-	case cluster.InstanceDelete:
+	case cluster.InstanceReclaimDelete:
 		err = p.deleteInstance(instance.Status.InstanceID)
 		if err != nil {
 			return
 		}
 		p.ecs.WaitForInstance(instance.Status.InstanceID, ecs.Deleted, 0)
-	case cluster.InstanceRecycle:
+	case cluster.InstanceReclaimRecycle:
 		err = p.resetInstance(instance)
 		if err != nil {
 			return
 		}
 	default:
 		err = fmt.Errorf("Unsupported instance reclaim policy for instance %v: %v", instance.Name, policy)
+		return
 	}
 
 	instance.Status.InstanceID = ""

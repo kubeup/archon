@@ -9,8 +9,8 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/
 
+*/
 package cluster
 
 import (
@@ -51,7 +51,7 @@ type UserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []*User `json:"items"`
+	Items []User `json:"items"`
 }
 
 type NetworkSpec struct {
@@ -84,7 +84,7 @@ type NetworkList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []*Network `json:"items"`
+	Items []Network `json:"items"`
 }
 
 type InstanceGroup struct {
@@ -95,15 +95,17 @@ type InstanceGroup struct {
 }
 
 type InstanceGroupSpec struct {
-	Replicas int32 `json:"replicas,omitempty"`
+	Replicas        int32                        `json:"replicas,omitempty"`
+	ProvisionPolicy InstanceGroupProvisionPolicy `json:"provisionPolicy,omitempty"`
 
 	// Minimum number of seconds for which a newly created instance should be ready
 	// without any of its container crashing, for it to be considered available.
 	// Defaults to 0 (instance will be considered available as soon as it is ready)
 	// +optional
-	MinReadySeconds int32                 `json:"minReadySeconds,omitempty"`
-	Selector        *metav1.LabelSelector `json:"selector,omitempty"`
-	Template        InstanceTemplateSpec  `json:"template,omitempty"`
+	MinReadySeconds          int32                 `json:"minReadySeconds,omitempty"`
+	Selector                 *metav1.LabelSelector `json:"selector,omitempty"`
+	ReservedInstanceSelector *metav1.LabelSelector `json:"reservedInstaceSelector,omitempty"`
+	Template                 InstanceTemplateSpec  `json:"template,omitempty"`
 }
 
 type InstanceGroupConditionType string
@@ -160,8 +162,16 @@ type InstanceGroupList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []*InstanceGroup `json:"items"`
+	Items []InstanceGroup `json:"items"`
 }
+
+type InstanceGroupProvisionPolicy string
+
+const (
+	InstanceGroupProvisionReservedOnly  InstanceGroupProvisionPolicy = "ReservedOnly"
+	InstanceGroupProvisionDynamicOnly   InstanceGroupProvisionPolicy = "DynamicOnly"
+	InstanceGroupProvisionReservedFirst InstanceGroupProvisionPolicy = "ReservedFirst"
+)
 
 type FileSpec struct {
 	Name               string `json:"name,omitempty" yaml:"name,omitempty"`
@@ -198,17 +208,20 @@ type Instance struct {
 	Dependency        InstanceDependency `json:"-"`
 }
 
+var _ metav1.Object = &Instance{}
+
 type InstanceSpec struct {
-	OS            string                 `json:"os,omitempty"`
-	Image         string                 `json:"image,omitempty"`
-	InstanceType  string                 `json:"instanceType,omitempty"`
-	NetworkName   string                 `json:"networkName,omitempty"`
-	ReclaimPolicy InstanceReclaimPolicy  `json:"reclaimPolicy,omitempty"`
-	Files         []FileSpec             `json:"files,omitempty"`
-	Secrets       []LocalObjectReference `json:"secrets,omitempty"`
-	Configs       []ConfigSpec           `json:"configs,omitempty"`
-	Users         []LocalObjectReference `json:"users,omitempty"`
-	Hostname      string                 `json:"hostname,omitempty"`
+	OS                  string                 `json:"os,omitempty"`
+	Image               string                 `json:"image,omitempty"`
+	InstanceType        string                 `json:"instanceType,omitempty"`
+	NetworkName         string                 `json:"networkName,omitempty"`
+	ReclaimPolicy       InstanceReclaimPolicy  `json:"reclaimPolicy,omitempty"`
+	Files               []FileSpec             `json:"files,omitempty"`
+	Secrets             []LocalObjectReference `json:"secrets,omitempty"`
+	Configs             []ConfigSpec           `json:"configs,omitempty"`
+	Users               []LocalObjectReference `json:"users,omitempty"`
+	Hostname            string                 `json:"hostname,omitempty"`
+	ReservedInstanceRef *LocalObjectReference  `json:"reservedInstanceRef,omitempty"`
 }
 
 type InstanceStatus struct {
@@ -227,14 +240,14 @@ type InstanceReclaimPolicy string
 const (
 	// TODO: Populate defaults when a new resource is created. So we don't have use
 	// "" as a meaningful and the default state
-	InstancePending      InstancePhase = ""
+	InstancePending      InstancePhase = "Pending"
 	InstanceInitializing InstancePhase = "Initializing"
 	InstanceRunning      InstancePhase = "Running"
 	InstanceFailed       InstancePhase = "Failed"
 	InstanceUnknown      InstancePhase = "Unknown"
 
-	InstanceRecycle InstanceReclaimPolicy = "Recycle"
-	InstanceDelete  InstanceReclaimPolicy = ""
+	InstanceReclaimRecycle InstanceReclaimPolicy = "Recycle"
+	InstanceReclaimDelete  InstanceReclaimPolicy = "Delete"
 )
 
 type InstanceConditionType string
@@ -270,5 +283,42 @@ type InstanceList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []*Instance `json:"items"`
+	Items []Instance `json:"items"`
+}
+
+type ReservedInstance struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ReservedInstanceSpec   `json:"spec,omitempty"`
+	Status            ReservedInstanceStatus `json:"status,omitempty"`
+}
+
+type ReservedInstanceSpec struct {
+	OS           string       `json:"os,omitempty"`
+	Image        string       `json:"image,omitempty"`
+	InstanceType string       `json:"instanceType,omitempty"`
+	NetworkName  string       `json:"networkName,omitempty"`
+	Hostname     string       `json:"hostname,omitempty"`
+	InstanceID   string       `json:"instanceID,omitempty"`
+	Configs      []ConfigSpec `json:"configs,omitempty"`
+}
+
+type ReservedInstanceStatus struct {
+	Phase ReservedInstancePhase `json:"phase,omitempty"`
+	// Binding reference to the instance
+	InstanceName string `json:"instanceName,omitempty"`
+}
+
+type ReservedInstancePhase string
+
+const (
+	ReservedInstanceBound     ReservedInstancePhase = "Bound"
+	ReservedInstanceAvailable ReservedInstancePhase = "Available"
+)
+
+type ReservedInstanceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []ReservedInstance `json:"items"`
 }

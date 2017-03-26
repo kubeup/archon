@@ -15,9 +15,9 @@ package archon
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
-	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/api"
+	"kubeup.com/archon/pkg/cluster"
 )
 
 type ArchonInterface interface {
@@ -26,6 +26,7 @@ type ArchonInterface interface {
 	InstanceGroupsGetter
 	NetworksGetter
 	UsersGetter
+	ReservedInstancesGetter
 }
 
 // StorageV1beta1Client is used to interact with features provided by the k8s.io/kubernetes/pkg/apimachinery/registered.Group group.
@@ -47,6 +48,10 @@ func (c *ArchonClient) Networks(namespace string) NetworkInterface {
 
 func (c *ArchonClient) Users(namespace string) UserInterface {
 	return newUsers(c, namespace)
+}
+
+func (c *ArchonClient) ReservedInstances(namespace string) ReservedInstanceInterface {
+	return newReservedInstances(c, namespace)
 }
 
 // NewForConfig creates a new StorageV1beta1Client for the given config.
@@ -79,9 +84,11 @@ func New(c restclient.Interface) *ArchonClient {
 
 func setConfigDefaults(config *restclient.Config) error {
 	config.APIPath = "/apis"
-	config.GroupVersion = &SchemeGroupVersion
+	config.GroupVersion = &cluster.SchemeGroupVersion
 	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(api.Scheme)}
+	// DirectCodec doesn't do defaulting. Since we are using TPR, there's no defaulting on
+	// the server side. We will have to do it by ourselves on the clientside when decoding
+	config.NegotiatedSerializer = DirectDefaultingCodecFactory{api.Codecs}
 	return nil
 }
 
