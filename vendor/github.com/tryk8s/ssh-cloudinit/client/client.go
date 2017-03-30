@@ -8,6 +8,14 @@ import (
 	"syscall"
 )
 
+type ConnectionError struct {
+	error
+}
+
+type CloudInitError struct {
+	error
+}
+
 func PublicKeyFile(file string) ssh.AuthMethod {
 	buffer, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -46,20 +54,20 @@ func Run(conf *Config) error {
 	server := fmt.Sprintf("%s:%d", conf.Hostname, conf.Port)
 	conn, err := ssh.Dial("tcp", server, config)
 	if err != nil {
-		return fmt.Errorf("Unable to dial: %v", err)
+		return &ConnectionError{fmt.Errorf("Unable to dial: %v", err)}
 	}
 
 	if conf.UserData != "" {
 		err = ensureUserData(conn, conf.Stdout, conf.UserData)
 		if err != nil {
-			return fmt.Errorf("Unable to transfer userdata: %v", err)
+			return &CloudInitError{fmt.Errorf("Unable to transfer userdata: %v", err)}
 		}
 	}
 
 	err = executeCmds(conn, conf.Stdout, conf.GetCmds())
 	if err != nil {
 		fmt.Printf("Error: %s", err)
-		return fmt.Errorf("Unable to execute commands: %v", err)
+		return &CloudInitError{fmt.Errorf("Unable to execute commands: %v", err)}
 	}
 	return nil
 }

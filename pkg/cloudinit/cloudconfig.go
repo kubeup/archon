@@ -18,9 +18,11 @@ import (
 )
 
 type CloudConfig struct {
-	Apt            Apt                `yaml:"apt,omitempty"`
-	Packages       []string           `yaml:"packages,omitempty"`
-	Runcmd         [][]string         `yaml:"runcmd,omitempty"`
+	Apt           Apt      `yaml:"apt,omitempty"`
+	Packages      []string `yaml:"packages,omitempty"`
+	PackageUpdate bool     `yaml:"package_update,omitempty"`
+	// Runcmd could be either []string or string
+	Runcmd         []interface{}      `yaml:"runcmd,omitempty"`
 	WriteFiles     []File             `yaml:"write_files,omitempty"`
 	Hostname       string             `yaml:"hostname,omitempty"`
 	Users          []User             `yaml:"users,omitempty"`
@@ -29,7 +31,14 @@ type CloudConfig struct {
 }
 
 type Apt struct {
-	Sources map[string]AptSource `yaml:"sources,omitempty"`
+	Sources             map[string]AptSource `yaml:"sources,omitempty"`
+	Primary             []AptMirror          `yaml:"primary,omitempty"`
+	PreserveSourcesList bool                 `yaml:"preserve_sources_list,omitempty"`
+}
+
+type AptMirror struct {
+	Arches []string `yaml:"arches,omitempty"`
+	URI    string   `yaml:"uri,omitempty"`
 }
 
 type AptSource struct {

@@ -1,0 +1,91 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-node
+  provisionPolicy: DynamicOnly
+  template:
+    metadata:
+      labels:
+        app: k8s-node
+      annotations:
+        initializers: archon.kubeup.com/private-ip,archon.kubeup.com/public-ip
+        aliyun.archon.kubeup.com/use-ssh: "true"
+    spec:
+      networkName: k8s-net
+      instanceType: ecs.n1.tiny
+      os: Ubuntu
+      image: ubuntu_16_0402_64_40G_base_20170222.vhd
+      files:
+      - name: apt-pgp 
+        path: "/tmp/kubernetes.pgp"
+        content: |
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+          
+          mQENBFUd6rIBCAD6mhKRHDn3UrCeLDp7U5IE7AhhrOCPpqGF7mfTemZYHf/5Jdjx
+          cOxoSFlK7zwmFr3lVqJ+tJ9L1wd1K6P7RrtaNwCiZyeNPf/Y86AJ5NJwBe0VD0xH
+          TXzPNTqRSByVYtdN94NoltXUYFAAPZYQls0x0nUD1hLMlOlC2HdTPrD1PMCnYq/N
+          uL/Vk8sWrcUt4DIS+0RDQ8tKKe5PSV0+PnmaJvdF5CKawhh0qGTklS2MXTyKFoqj
+          XgYDfY2EodI9ogT/LGr9Lm/+u4OFPvmN9VN6UG+s0DgJjWvpbmuHL/ZIRwMEn/tp
+          uneaLTO7h1dCrXC849PiJ8wSkGzBnuJQUbXnABEBAAG0QEdvb2dsZSBDbG91ZCBQ
+          YWNrYWdlcyBBdXRvbWF0aWMgU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNv
+          bT6JAT4EEwECACgFAlUd6rICGy8FCQWjmoAGCwkIBwMCBhUIAgkKCwQWAgMBAh4B
+          AheAAAoJEDdGwginMXsPcLcIAKi2yNhJMbu4zWQ2tM/rJFovazcY28MF2rDWGOnc
+          9giHXOH0/BoMBcd8rw0lgjmOosBdM2JT0HWZIxC/Gdt7NSRA0WOlJe04u82/o3OH
+          WDgTdm9MS42noSP0mvNzNALBbQnlZHU0kvt3sV1YsnrxljoIuvxKWLLwren/GVsh
+          FLPwONjw3f9Fan6GWxJyn/dkX3OSUGaduzcygw51vksBQiUZLCD2Tlxyr9NvkZYT
+          qiaWW78L6regvATsLc9L/dQUiSMQZIK6NglmHE+cuSaoK0H4ruNKeTiQUw/EGFaL
+          ecay6Qy/s3Hk7K0QLd+gl0hZ1w1VzIeXLo2BRlqnjOYFX4A=
+          =HVTm
+          -----END PGP PUBLIC KEY BLOCK-----
+      - name: run-kubeadm
+        path: "/tmp/run-kubeadm"
+        permissions: "0755"
+        template: |
+          cloud-init-per once aptaddsource apt-key add /tmp/kubernetes.pgp
+          cloud-init-per once aptinstall /bin/sh -c "apt update && apt install -y docker.io kubelet kubeadm kubectl kubernetes-cni"
+
+          KUBE_HYPERKUBE_IMAGE={{ index .Configs "k8s" "hyperkube-img" }} KUBE_REPO_PREFIX={{ index .Configs "k8s" "repo-prefix" }} kubeadm join --token {{ index .Configs "k8s" "token" }} {{ index .Configs "k8s" "master-address" }} 
+      - name: unit-flexv
+        path: "/etc/systemd/system/flexv.service"
+        template: |-
+          name: flexv.service
+          content: |-
+            [Service]
+            ExecStart=/bin/sh -c 'FLEXPATH=/opt/k8s/volume/plugins/aliyun~flexv; sudo mkdir $FLEXPATH -p; docker run -v $FLEXPATH:/opt {{ index .Configs "k8s" "kube-aliyun-img" }} cp /flexv /opt/'
+            Restart=on-failure
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: kubelet-dropin
+        path: "/etc/systemd/system/kubelet.service.d/99-archon-dropin.conf"
+        template: |
+          [Unit]
+          Wants=flexv.service
+          After=flexv.service
+          [Service]
+          Environment="KUBELET_NETWORK_ARGS=--network-plugin=kubenet"
+          Environment="KUBELET_EXTRA_ARGS=--pod-infra-container-image={{ index .Configs "k8s" "pause-img"}} --volume-plugin-dir=/opt/k8s/volume/plugins"
+      - name: apt-source
+        path: "/etc/apt/sources.list.d/kubernetes.list"
+        content: |
+          deb https://mirrors.ustc.edu.cn/kubernetes/apt/ kubernetes-xenial main
+      - name: kubeadm
+        path: "/config/runcmd/kubeadm"
+        template: |-
+          - /tmp/run-kubeadm
+      configs:
+      - name: k8s
+        data:
+          pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
+          hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.1
+          repo-prefix: registry.aliyuncs.com/archon
+          master-address: YOUR_MASTER_PRIVATE_IP:6443
+          token: YOUR_KUBEADM_TOKEN
+      users:
+      - name: core
+

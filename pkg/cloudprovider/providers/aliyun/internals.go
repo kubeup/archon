@@ -30,7 +30,7 @@ type LogWriter struct {
 }
 
 func (lr *LogWriter) Write(p []byte) (int, error) {
-	glog.V(4).Infof("%v", string(p))
+	glog.V(2).Infof("%v", string(p))
 	return len(p), nil
 }
 
