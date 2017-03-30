@@ -5,17 +5,19 @@ import (
 )
 
 type Config struct {
-	Hostname      string
-	Port          int
-	User          string
-	Password      string
-	PublicKeyFile string
-	Cmds          []string
-	Os            string
-	Server        string
-	UserData      string
-	Callback      string
-	Stdout        io.Writer
+	Hostname                 string
+	Port                     int
+	User                     string
+	Password                 string
+	PublicKeyFile            string
+	Cmds                     []string
+	Os                       string
+	Server                   string
+	DontCleanCloudInitStatus bool
+	UseCloudDataSource       bool
+	UserData                 string
+	Callback                 string
+	Stdout                   io.Writer
 }
 
 func (conf *Config) GetCmds() []string {

@@ -96,7 +96,7 @@ kubectl create -f k8s-master.yaml --namespace=k8s-redhat
 Step 7
 ------
 
-SSH to the server. Wait for the the Kubernetes master boots up. Then install `flannel` into the cluster:
+SSH to the server. Wait for the Kubernetes master to boot up. Then install `flannel` into the cluster:
 
 ```
 wget https://github.com/coreos/flannel/raw/master/Documentation/kube-flannel.yml

@@ -142,7 +142,11 @@ func GenerateCloudConfig(instance *cluster.Instance) ([]byte, error) {
 			if err != nil {
 				return nil, err
 			}
-			result.Runcmd = append(result.Runcmd, c)
+			if len(c) == 1 {
+				result.Runcmd = append(result.Runcmd, c[0])
+			} else {
+				result.Runcmd = append(result.Runcmd, c)
+			}
 		} else if f.Path == "/config/apt" {
 			c := cloudinit.Apt{}
 			err = yaml.Unmarshal([]byte(f.Content), &c)
@@ -164,6 +168,7 @@ func GenerateCloudConfig(instance *cluster.Instance) ([]byte, error) {
 				return nil, err
 			}
 			result.Packages = c
+			result.PackageUpdate = true
 		} else {
 			files = append(files, f)
 		}

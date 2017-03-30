@@ -252,6 +252,10 @@ const (
 
 	InstanceReclaimRecycle InstanceReclaimPolicy = "Recycle"
 	InstanceReclaimDelete  InstanceReclaimPolicy = "Delete"
+
+	InstanceOSCoreOS string = "CoreOS"
+	InstanceOSUbuntu string = "Ubuntu"
+	InstanceOSCentOS string = "CentOS"
 )
 
 type InstanceConditionType string

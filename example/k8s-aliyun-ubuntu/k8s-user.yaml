@@ -1,0 +1,8 @@
+apiVersion: archon.kubeup.com/v1
+kind: User
+metadata:
+  name: core
+spec:
+  name: core
+  sshAuthorizedKeys:
+  - YOUR_SSH_KEY

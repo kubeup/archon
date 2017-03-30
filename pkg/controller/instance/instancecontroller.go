@@ -221,6 +221,7 @@ func (s *InstanceController) syncCloudInstances() {
 			cloudStatus[name] = statuses[i]
 		}
 	}
+	glog.Infof("Cloud statuses: %+v", cloudStatus)
 
 	// List all instances in the registry
 	instances, err := s.kubeClient.Archon().Instances(s.namespace).List(metav1.ListOptions{})
@@ -237,6 +238,7 @@ func (s *InstanceController) syncCloudInstances() {
 			continue
 		}
 
+		glog.Infof("Registry instance key: %v, name: %v", key, instance.Name)
 		status, ok := cloudStatus[instance.Name]
 		if !ok {
 			// Exists in registry but not in the cloud. Either waiting to be created or
@@ -254,6 +256,7 @@ func (s *InstanceController) syncCloudInstances() {
 			// Update only when there's no current operation going on with this instance
 			cachedInstance := s.cache.getOrCreate(key)
 			if cachedInstance.mu.TryLock() {
+				glog.V(4).Infof("Syncing instance %s from cloud", key)
 				instance.Status = *status
 				updatedInstance, err := s.kubeClient.Archon().Instances(instance.Namespace).Update(&instance)
 				if err != nil {
@@ -267,6 +270,8 @@ func (s *InstanceController) syncCloudInstances() {
 			} else {
 				glog.Errorf("Couldn't update instance %s. Coz there's an ongoing operation", key)
 			}
+		} else {
+			glog.V(4).Infof("Ignore syncing for instance %s. Status unchanged", key)
 		}
 	}
 
