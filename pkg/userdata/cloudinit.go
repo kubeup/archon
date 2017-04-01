@@ -101,7 +101,7 @@ func GenerateCoreOSCloudConfig(instance *cluster.Instance) ([]byte, error) {
 	result.Users = users
 
 	if instance.Spec.Hostname != "" {
-		result.Hostname, err = renderer.Render("hostname", result.Hostname)
+		result.Hostname, err = renderer.Render("hostname", instance.Spec.Hostname)
 		if err != nil {
 			return nil, err
 		}

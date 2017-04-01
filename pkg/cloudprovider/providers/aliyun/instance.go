@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/kubernetes/pkg/api/v1"
 	"kubeup.com/archon/pkg/cluster"
+	"kubeup.com/archon/pkg/render"
 	"kubeup.com/archon/pkg/userdata"
 	"kubeup.com/archon/pkg/util"
 	"time"
@@ -327,7 +328,6 @@ func (p *aliyunCloud) createInstance(clusterName string, instance *cluster.Insta
 		SecurityGroupId:         an.SecurityGroup,
 		InstanceName:            instance.Name,
 		Description:             "Archon managed instance",
-		HostName:                instance.Spec.Hostname,
 		PrivateIpAddress:        options.UsePrivateIP,
 		IoOptimized:             ecs.IoOptimizedOptimized,
 		InternetChargeType:      common.PayByTraffic,
@@ -409,7 +409,21 @@ func (p *aliyunCloud) initializeInstance(clusterName string, instance *cluster.I
 	}
 
 	args := &ecs.ModifyInstanceAttributeArgs{
-		InstanceId: vpsID,
+		InstanceId:   vpsID,
+		InstanceName: instance.Name,
+	}
+
+	// Set hostname if provided in spec
+	if instance.Spec.Hostname != "" {
+		renderer, err := render.NewInstanceRenderer(instance)
+		if err != nil {
+			return nil, err
+		}
+		hostname, err := renderer.Render("hostname", instance.Spec.Hostname)
+		if err != nil {
+			return nil, err
+		}
+		args.HostName = hostname
 	}
 
 	// Set password if provided in secret
