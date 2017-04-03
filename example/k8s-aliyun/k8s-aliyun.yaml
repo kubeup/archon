@@ -18,6 +18,8 @@ spec:
       instanceType: ecs.n1.tiny
       os: CoreOS
       image: coreos681_64_40G_aliaegis_20160222.vhd
+      hostname: |-
+        ip-{{ .Status.PrivateIP | replace "." "-" }}.i.k8scn.com
       files:
       - name: coreos-update
         path: "/coreos/update"
@@ -39,7 +41,6 @@ spec:
           command: start
           content: |-
             [Service]
-            ExecStartPre=/usr/bin/hostname {{ .Status.PrivateIP }}
             ExecStart=/usr/bin/sh -c 'sleep 30 && update_engine_client -update && sleep 5 && systemctl reboot'
             User=root
       - name: unit-kubelet
@@ -71,19 +72,17 @@ spec:
             ExecStartPre=/usr/bin/mkdir -p /var/lib/cni
             ExecStartPre=-/usr/bin/rkt rm --uuid-file=/var/run/kubelet-pod.uuid
             ExecStart=/usr/lib/coreos/kubelet-wrapper \
-              --api_servers=http://localhost:8080 \
+              --kubeconfig=/etc/kubernetes/kubeconfig \
+              --require-kubeconfig \
               --register-schedulable=true \
               --allow-privileged=true \
               --pod-manifest-path=/etc/kubernetes/manifests \
               --cluster-dns={{ index .Configs "k8s" "dns-service-ip"}} \
               --node-ip={{.Status.PrivateIP}} \
-              --hostname-override={{.Status.PrivateIP}} \
               --volume-plugin-dir=/opt/k8s/volume/plugins \
               --cluster-domain=cluster.local \
               --network-plugin=kubenet \
               --node-labels=master=true \
-              --tls-cert-file=/etc/kubernetes/ssl/server.pem \
-              --tls-private-key-file=/etc/kubernetes/ssl/server-key.pem \
               --pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}
             ExecStop=-/usr/bin/rkt stop --uuid-file=/var/run/kubelet-pod.uuid
             Restart=always
@@ -103,12 +102,27 @@ spec:
             User=root
             [Install]
             WantedBy=multi-user.target
-      - name: hostname
-        path: "/etc/hostname"
-        permissions: "0644"
+      - name: kubeconfig
+        path: "/etc/kubernetes/kubeconfig"
+        permissions: "0600"
         owner: "root"
         template: |-
-          {{ .Status.PrivateIP }}
+          apiVersion: v1
+          kind: Config
+          clusters:
+          - name: local
+            cluster:
+              server: https://127.0.0.1:443
+              certificate-authority-data: {{ index .Secrets "ca" "tls-cert" | printf "%s" | b64enc }}
+          users:
+          - name: kubelet
+            user:
+              client-certificate-data: {{ index .Secrets "kubelet" "tls-cert" | printf "%s" | b64enc }}
+              client-key-data: {{ index .Secrets "kubelet" "tls-key" | printf "%s" | b64enc }}
+          contexts:
+          - context:
+              cluster: local
+              user: kubelet
       - name: etcd.yaml
         path: "/etc/kubernetes/manifests/etcd.yaml"
         permissions: "0644"
@@ -119,7 +133,6 @@ spec:
           metadata:
             name: etcd
             namespace: kube-system
-            creationTimestamp: 
             labels:
               component: etcd
               tier: control-plane
@@ -384,6 +397,8 @@ spec:
                 value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/route-table-id" }}
               - name: ALIYUN_VSWITCH
                 value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vswitch-id" }}
+              - name: ALIYUN_NODE_NAME_TYPE
+                value: hostname
       - name: ca.pem
         path: "/etc/kubernetes/ssl/ca.pem"
         permissions: "0644"
@@ -402,18 +417,18 @@ spec:
         owner: "root"
         template: |-
           {{ index .Secrets "apiserver" "tls-key" | printf "%s" }}
-      - name: server.pem
-        path: "/etc/kubernetes/ssl/server.pem"
+      - name: kubelet.pem
+        path: "/etc/kubernetes/ssl/kubelet.pem"
         permissions: "0644"
         owner: "root"
         template: |-
-          {{ index .Secrets "server" "tls-cert" | printf "%s" }}
-      - name: server-key.pem
-        path: "/etc/kubernetes/ssl/server-key.pem"
+          {{ index .Secrets "kubelet" "tls-cert" | printf "%s" }}
+      - name: kubelet-key.pem
+        path: "/etc/kubernetes/ssl/kubelet-key.pem"
         permissions: "0600"
         owner: "root"
         template: |-
-          {{ index .Secrets "server" "tls-key" | printf "%s" }}
+          {{ index .Secrets "kubelet" "tls-key" | printf "%s" }}
       - name: serviceaccount.pem
         path: "/etc/kubernetes/ssl/serviceaccount.pem"
         permissions: "0644"
@@ -429,76 +444,20 @@ spec:
       configs:
       - name: k8s
         data:
-          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0-beta.2
+          hyper-kube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.0
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           kubelet-aci-img: kubeup.com/aci/coreos/hyperkube
           kube-aliyun-img: kubeup/kube-aliyun
-          k8s-version: v1.6.0-beta.3_coreos.0
+          k8s-version: v1.6.0_coreos.0
           service-ip-range: 10.3.0.0/24
           pod-ip-range: 10.2.0.0/16
           dns-service-ip: 10.3.0.10
           k8s-service-ip: 10.3.0.1
-          registry-mirror: https://YOUR_KEY.mirror.aliyuncs.com
+          registry-mirror: https://DOCKER_REGISTRY_MIRROR.mirror.aliyuncs.com
       users:
       - name: core
       secrets:
       - name: k8s-ca
       - name: serviceaccount
-    secrets:
-    - metadata:
-        name: apiserver
-        annotations:
-            archon.kubeup.com/csr: |-
-              {
-                "CN": "{{ .Meta.Name }}",
-                "hosts": [
-                  "kubernetes",
-                  "kubernetes.default",
-                  "kubernetes.default.svc",
-                  "kubernetes.default.svc.cluster.local",
-                  "{{ index .Configs "k8s" "k8s-service-ip" }}",
-                  "{{ .Status.PrivateIP }}",
-                  "{{ .Status.PublicIP }}"
-                ],
-                "key": {
-                  "algo": "ecdsa",
-                  "size": 256
-                },
-                "names": [
-                  {
-                    "C": "US",
-                    "L": "CA",
-                    "ST": "San Francisco"
-                  }
-                ]
-              }
-            archon.kubeup.com/status: Pending
-            archon.kubeup.com/ca: k8s-ca
-            archon.kubeup.com/type: csr
-    - metadata:
-        name: server
-        annotations:
-            archon.kubeup.com/csr: |-
-              {
-                "CN": "{{ .Meta.Name }}",
-                "hosts": [
-                  "{{ .Meta.Name }}",
-                  "{{ .Status.PrivateIP }}",
-                  "{{ .Status.PublicIP }}"
-                ],
-                "key": {
-                  "algo": "ecdsa",
-                  "size": 256
-                },
-                "names": [
-                  {
-                    "C": "US",
-                    "L": "CA",
-                    "ST": "San Francisco"
-                  }
-                ]
-              }
-            archon.kubeup.com/status: Pending
-            archon.kubeup.com/ca: k8s-ca
-            archon.kubeup.com/type: csr
-      type: Opaque
+      - name: apiserver
+      - name: kubelet

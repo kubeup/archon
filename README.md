@@ -4,8 +4,8 @@ Archon
 [![CircleCI](https://circleci.com/gh/kubeup/archon/tree/master.svg?style=shield)][circleci]
 
 Archon is an open source tool for cluster creation and daily operations.
-It is primarily targeted for Kubernetes clusters but extending to other
-distributed clusters should be easy due to its declarative nature.
+It is primarily designed for Kubernetes clusters but can easily be extended to other
+distributed clusters due to its declarative nature.
 
 Archon is designed following the principles of Kubernetes and it works as
 an extension of Kubernetes using [ThirdPartyResource]. You can define your
@@ -183,7 +183,7 @@ customize it to match your needs.
   - [Kubernetes cluster with Ubuntu and kubeadm][ubuntu-example]
   - [Kubernetes cluster with CentOS and kubeadm][centos-example]
   - [Kubernetes cluster with RedHat and kubeadm][redhat-example]
-  - [Aliyun one machine Kubernetes cluster][aliyun-example]
+  - [Aliyun Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/

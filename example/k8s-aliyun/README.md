@@ -39,16 +39,36 @@ kubectl create -f k8s-net.yaml --namespace=k8s-aliyun
 Step 5
 ------
 
-Modify `k8s-aliyun.yaml`. Replace `PUT YOUR CA CERTIFICATE HERE` with the content of
-`ca.pem` file you generated with `cfssl` during the installation process.
+Create certificates:
+
+```
+kubectl create -f k8s-ca.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-apiserver.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-kubelet.yaml --namespace=k8s-bootkube
+kubectl create -f k8s-serviceaccount.yaml --namespace=k8s-bootkube
+```
 
 Step 6
 ------
 
-Create the instance group and let the `archon-controller` create the instance for you:
+Replace `DOCKER_REGISTRY_MIRROR` in `k8s-aliyun.yaml` with the one you get from aliyun.
+
+Create the instance group and let the `archon-controller` create the master instance for you:
 
 ```
 kubectl create -f k8s-aliyun.yaml --namespace=k8s-aliyun
+```
+
+Step 7
+------
+
+Replace `DOCKER_REGISTRY_MIRROR` in `k8s-aliyun.yaml` with the one you get from aliyun.
+And replace `MASTER_HOSTNAME` with the hostname of the master instance.
+
+Create the instance group and let the `archon-controller` create the node instances for you:
+
+```
+kubectl create -f k8s-aliyun.yaml --namespace=k8s-node-aliyun
 ```
 
 Step 7
