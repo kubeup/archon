@@ -1,0 +1,18 @@
+{
+  "id": "node1",
+  "name": "Controller Node",
+  "profile": "bootkube-controller",
+  "selector": {
+    "mac": "52:54:00:a1:9c:ae",
+    "os": "installed"
+  },
+  "metadata": {
+    "domain_name": "node1.example.com",
+    "etcd_initial_cluster": "node1=http://node1.example.com:2380",
+    "etcd_name": "node1",
+    "k8s_dns_service_ip": "10.3.0.10",
+    "ssh_authorized_keys": [
+      "ADD ME"
+    ]
+  }
+}

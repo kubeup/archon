@@ -1,0 +1,24 @@
+language: go
+sudo: required
+services:
+  - docker
+go:
+  - 1.7.4
+  - 1.8
+  - tip
+matrix:
+  allow_failures:
+    - go: tip
+install:
+  - go get github.com/golang/lint/golint
+script:
+  - make test
+deploy:
+  provider: script
+  script: scripts/travis-docker-push
+  skip_cleanup: true
+  on:
+    branch: master
+    go: '1.8'
+notifications:
+  email: change

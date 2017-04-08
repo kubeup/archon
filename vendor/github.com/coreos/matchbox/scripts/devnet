@@ -1,0 +1,125 @@
+#!/bin/bash
+# Create a virtual bridge with PXE services and matchbox
+# USAGE: ./scripts/devnet create [example]
+# USAGE: ./scripts/devnet status
+# USAGE: ./scripts/devnet destroy
+set -u
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+EXAMPLE=${2:-}
+BRIDGE=metal0
+COREOS_CHANNEL=stable
+COREOS_VERSION=1235.9.0
+MATCHBOX_ARGS=""
+
+ASSETS_DIR="${ASSETS_DIR:-$PWD/examples/assets}"
+
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
+function main {
+  if [ "$#" -eq 0 ]; then
+    usage
+    exit 2
+  fi
+  case "$1" in
+    "create") create;;
+    "status") status;;
+    "destroy") destroy;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+}
+
+function usage {
+  echo "USAGE: ${0##*/} <command>"
+  echo "Commands:"
+  echo -e "\tcreate\tcreate matchbox and PXE services on the bridge"
+  echo -e "\tstatus\tshow the systemctl status of matchbox and dnsmasq"
+  echo -e "\tdestroy\tdestroy the services on the bridge"
+}
+
+function check {
+  # SELinux, if present, it cannot be in Enforcing mode
+  if [ $(getenforce) == 'Enforcing' ]; then
+    echo "SELinux must be in permissive mode: 'setenforce Permissive'"
+    exit 1
+  fi
+
+  if [ ! -d $ASSETS_DIR/coreos/$COREOS_VERSION ]; then
+    echo "Most examples use CoreOS $COREOS_CHANNEL $COREOS_VERSION. You may wish to download it with './scripts/get-coreos $COREOS_CHANNEL $COREOS_VERSION'."
+  fi
+}
+
+function create {
+  check
+
+  if [ -z "$EXAMPLE" ]; then
+    echo "Starting matchbox"
+  else
+    echo "Starting matchbox configured to boot $EXAMPLE"
+  fi
+
+  if [ -z "$EXAMPLE" ]; then
+    # Mount a data volume with assets and enable gRPC
+    MATCHBOX_ARGS="-rpc-address=0.0.0.0:8081"
+    DATA_MOUNT="--volume data,kind=host,source=$(mktemp -d) \
+    --mount volume=assets,target=/var/lib/matchbox/assets \
+    --volume assets,kind=host,source=$ASSETS_DIR,readOnly=true"
+  else
+    # Mount the given EXAMPLE
+    DATA_MOUNT="--volume data,kind=host,source=$PWD/examples \
+    --mount volume=groups,target=/var/lib/matchbox/groups \
+    --volume groups,kind=host,source=$DIR/../examples/groups/$EXAMPLE \
+    --mount volume=assets,target=/var/lib/matchbox/assets \
+    --volume assets,kind=host,source=$ASSETS_DIR,readOnly=true"
+  fi
+
+  rkt rm --uuid-file=/var/run/matchbox-pod.uuid > /dev/null 2>&1
+  systemd-run --unit=dev-matchbox \
+    rkt run \
+    --uuid-file-save=/var/run/matchbox-pod.uuid \
+    --trust-keys-from-https \
+    --net=metal0:IP=172.18.0.2 \
+    --mount volume=config,target=/etc/matchbox \
+    --volume config,kind=host,source=$PWD/examples/etc/matchbox,readOnly=true \
+    --mount volume=data,target=/var/lib/matchbox \
+    $DATA_MOUNT \
+    quay.io/coreos/matchbox:latest -- -address=0.0.0.0:8080 -log-level=debug $MATCHBOX_ARGS
+
+  echo "Starting dnsmasq to provide DHCP/TFTP/DNS services"
+  rkt rm --uuid-file=/var/run/dnsmasq-pod.uuid > /dev/null 2>&1
+  systemd-run --unit=dev-dnsmasq \
+    rkt run \
+    --uuid-file-save=/var/run/dnsmasq-pod.uuid \
+    --trust-keys-from-https \
+    --net=metal0:IP=172.18.0.3 \
+    --mount volume=config,target=/etc/dnsmasq.conf \
+    --volume config,kind=host,source=$DIR/../contrib/dnsmasq/metal0.conf \
+    coreos.com/dnsmasq:v0.3.0
+
+  status
+}
+
+function status {
+  echo ""
+  systemctl status dev-matchbox --lines=0 --no-pager
+  systemctl status dev-dnsmasq --lines=0 --no-pager
+  echo ""
+  echo "Use 'systemctl status dev-matchbox' or 'systemctl status dev-dnsmasq' to check individual statuses."
+  echo "Use 'journalctl -f -u dev-matchbox', etc. to tail the logs."
+}
+
+function destroy {
+  rkt stop --uuid-file=/var/run/matchbox-pod.uuid
+  rkt stop --uuid-file=/var/run/dnsmasq-pod.uuid
+  systemctl reset-failed dev-matchbox > /dev/null 2>&1
+  systemctl reset-failed dev-dnsmasq > /dev/null 2>&1
+}
+
+main $@

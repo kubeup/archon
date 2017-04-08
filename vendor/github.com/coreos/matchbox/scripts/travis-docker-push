@@ -1,0 +1,9 @@
+#!/bin/bash -e
+# Travis Deploy Docker Push
+
+docker info
+GOOS=linux make build
+make docker-image
+docker login -u="$DOCKER_USERNAME" -p=$DOCKER_PASSWORD quay.io
+make docker-push
+
