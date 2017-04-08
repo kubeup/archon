@@ -14,6 +14,7 @@ limitations under the License.
 package fake
 
 import (
+	"fmt"
 	"github.com/golang/glog"
 	"io"
 
@@ -22,6 +23,10 @@ import (
 	"kubeup.com/archon/pkg/userdata"
 
 	"k8s.io/kubernetes/pkg/cloudprovider/providers/fake"
+)
+
+var (
+	ErrorNotFound = fmt.Errorf("Instance is not found")
 )
 
 const ProviderName = "fake"
@@ -72,6 +77,12 @@ func (f *FakeCloud) EnsureNetworkDeleted(clusterName string, network *cluster.Ne
 
 // GetLoadBalancer is a stub implementation of LoadBalancer.GetLoadBalancer.
 func (f *FakeCloud) GetInstance(clusterName string, instance *cluster.Instance) (*cluster.InstanceStatus, error) {
+	if f.FakeInstances == nil {
+		return nil, ErrorNotFound
+	}
+	if _, ok := f.FakeInstances[instance.Name]; !ok {
+		return nil, ErrorNotFound
+	}
 	status := &cluster.InstanceStatus{}
 	status.Phase = cluster.InstanceRunning
 
@@ -90,10 +101,11 @@ func (f *FakeCloud) EnsureInstance(clusterName string, instance *cluster.Instanc
 	spec := instance.Spec
 	userdata, err := userdata.Generate(instance)
 	if err != nil {
+		glog.Errorf("Generate userdata error: %+v", err)
 		return nil, err
 	}
 
-	glog.V(2).Infof("Create instance with userdata: %s", string(userdata))
+	glog.Infof("Create instance with userdata:\n%s", string(userdata))
 
 	f.FakeInstances[name] = FakeInstance{name, spec, userdata}
 
