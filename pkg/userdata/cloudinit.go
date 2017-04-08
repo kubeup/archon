@@ -22,9 +22,12 @@ import (
 )
 
 func Generate(instance *cluster.Instance) ([]byte, error) {
-	if instance.Spec.OS == "CoreOS" {
+	switch instance.Spec.OS {
+	case "CoreOS":
 		return GenerateCoreOSCloudConfig(instance)
-	} else {
+	case "CoreOSIgnition":
+		return GenerateCoreOSIgnition(instance)
+	default:
 		return GenerateCloudConfig(instance)
 	}
 }
