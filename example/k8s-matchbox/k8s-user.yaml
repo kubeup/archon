@@ -1,0 +1,7 @@
+apiVersion: archon.kubeup.com/v1
+kind: User
+metadata:
+  name: core
+spec:
+  name: core
+  passwordHash: $1$415Yrmgj$kK2RZaUK0yhu5jXbQPOYj/

@@ -33,6 +33,7 @@ a Kubernetes cluster with Archon with following features:
   - Rolling update by creating a new instance group and delete the old one
   - Support various operating systems using [bootkube] or [kubeadm]
   - Scale the cluster with one command
+  - Manage baremetal servers using [Matchbox] and [PXE]
 
 Why Archon
 ----------
@@ -80,6 +81,10 @@ Supported cloud providers:
 
   - [AWS]
   - [Aliyun]
+
+Supported baremetal provisioners:
+
+  - [Matchbox]
 
 Supported operating system:
 
@@ -185,8 +190,11 @@ customize it to match your needs.
   - [Kubernetes cluster with RedHat and kubeadm][redhat-example]
   - [Aliyun Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
+  - [Baremetal Kubernetes cluster with PXE and Matchbox][matchbox-example]
 
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
+[Matchbox]: https://github.com/coreos/matchbox
+[PXE]: https://en.wikipedia.org/wiki/Preboot_Execution_Environment
 [kubeadm]: https://github.com/kubernetes/kubeadm
 [bootkube]: https://github.com/kubernetes-incubator/bootkube
 [kops]: https://github.com/kubernetes/kops
@@ -201,6 +209,7 @@ customize it to match your needs.
 [redhat-example]: https://github.com/kubeup/archon/tree/master/example/k8s-redhat
 [aliyun-example]: https://github.com/kubeup/archon/tree/master/example/k8s-aliyun
 [etcd-example]: https://github.com/kubeup/archon/tree/master/example/etcd-cluster
+[matchbox-example]: https://github.com/kubeup/archon/tree/master/example/k8s-matchbox
 [Self-hosted Kubernetes]: https://github.com/kubernetes/community/pull/206
 [AWS installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation.md
 [Aliyun installation instructions]: https://github.com/kubeup/archon/blob/master/docs/installation_aliyun.md

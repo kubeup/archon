@@ -1,0 +1,50 @@
+apiVersion: archon.kubeup.com/v1
+kind: Instance
+metadata:
+  annotations:
+    matchbox.archon.kubeup.com/mac: FF:FF:FF:FF:FF:FF
+    matchbox.archon.kubeup.com/extra-boot-args: "coreos.autologin"
+  name: installer
+spec:
+  networkName: k8s-net
+  os: CoreOSIgnition
+  image: 1235.9.0
+  files:
+  - name: unit-installer
+    path: "/coreos/systemd/installer"
+    content: |-
+      name: installer.service
+      enable: true
+      contents: |
+        [Unit]
+        Requires=network-online.target
+        After=network-online.target
+        [Service]
+        Type=simple
+        ExecStart=/opt/installer
+        [Install]
+        WantedBy=multi-user.target
+  - name: installer
+    filesystem: root
+    path: "/opt/installer"
+    permissions: "0500"
+    owner: "root"
+    content: |-
+      #!/bin/bash -ex
+      curl "{{.ignition_endpoint}}?{{.request.raw_query}}&os=installed" -o ignition.json
+      coreos-install -d /dev/sda -C {{.coreos_channel}} -V {{.coreos_version}} -i ignition.json {{if index . "baseurl"}}-b {{.baseurl}}{{end}}
+      WORKDIR="/tmp"
+      OEM_DEV=$(blkid -t "LABEL=OEM" -o device /dev/sda*)
+      mkdir -p "${WORKDIR}/oemfs"
+      mount "${OEM_DEV}" "${WORKDIR}/oemfs"
+      echo  "set linux_append=\"coreos.config.url=oem:///coreos-install.json net.ifnames=0\"" > "${WORKDIR}/oemfs/grub.cfg"
+      umount "${WORKDIR}/oemfs"
+      udevadm settle
+      systemctl reboot
+  configs:
+  - name: meta
+    data:
+      "coreos_channel": "stable"
+      "coreos_version": "1235.9.0"
+      "ignition_endpoint": "http://172.17.8.101:8080/ignition"
+      "baseurl": "http://172.17.8.101:8080/assets/coreos"

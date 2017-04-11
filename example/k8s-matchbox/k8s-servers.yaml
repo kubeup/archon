@@ -1,0 +1,36 @@
+---
+apiVersion: archon.kubeup.com/v1
+kind: ReservedInstance
+metadata:
+  name: master
+spec:
+  instanceID: master
+  configs:
+  - name: spec
+    data:
+      mac: "08:00:27:18:21:20"
+      private-ip: "172.17.8.11"
+---
+apiVersion: archon.kubeup.com/v1
+kind: ReservedInstance
+metadata:
+  name: node1
+spec:
+  instanceID: node1
+  configs:
+  - name: spec
+    data:
+      mac: "08:00:27:EF:D6:FC"
+      private-ip: "172.17.8.12"
+---
+apiVersion: archon.kubeup.com/v1
+kind: ReservedInstance
+metadata:
+  name: node2
+spec:
+  instanceID: node2
+  configs:
+  - name: spec
+    data:
+      mac: "08:00:27:A2:E5:8D"
+      private-ip: "172.17.8.13"
