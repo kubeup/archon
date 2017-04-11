@@ -15,13 +15,16 @@ package matchbox
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	archoncloudprovider "kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
 	"kubeup.com/archon/pkg/userdata"
+	"kubeup.com/archon/pkg/util"
 
 	"github.com/coreos/matchbox/matchbox/client"
 	pb "github.com/coreos/matchbox/matchbox/server/serverpb"
@@ -38,10 +41,18 @@ var (
 
 const ProviderName = "matchbox"
 
+type MatchboxInstanceOptions struct {
+	Mac           string `k8s:"mac"`
+	Selector      string `k8s:"selector"`
+	UseProfile    string `k8s:"use-profile"`
+	UseIgnition   string `k8s:"use-ignition"`
+	ExtraBootArgs string `k8s:"extra-boot-args"`
+}
+
 type FakeInstance struct {
-	name     string
-	spec     cluster.InstanceSpec
-	userdata []byte
+	name   string
+	spec   cluster.InstanceSpec
+	status *cluster.InstanceStatus
 }
 
 // MatchboxCloud is a test-double implementation of Interface, LoadBalancer, Instances, and Routes. It is useful for testing.
@@ -135,13 +146,12 @@ func (f *MatchboxCloud) GetInstance(clusterName string, instance *cluster.Instan
 	if f.FakeInstances == nil {
 		return nil, ErrorNotFound
 	}
-	if _, ok := f.FakeInstances[instance.Name]; !ok {
+	if i, ok := f.FakeInstances[instance.Name]; !ok {
 		return nil, ErrorNotFound
+	} else {
+		return i.status, f.Err
 	}
-	status := &cluster.InstanceStatus{}
-	status.Phase = cluster.InstanceRunning
-
-	return status, f.Err
+	return nil, nil
 }
 
 // EnsureLoadBalancer is a test-spy implementation of LoadBalancer.EnsureLoadBalancer.
@@ -152,84 +162,149 @@ func (f *MatchboxCloud) EnsureInstance(clusterName string, instance *cluster.Ins
 		f.FakeInstances = make(map[string]FakeInstance)
 	}
 
+	options := MatchboxInstanceOptions{}
+	err := util.MapToStruct(instance.Annotations, &options, MatchboxAnnotationPrefix)
+	if err != nil {
+		return nil, fmt.Errorf("Can't get instance options: %s", err.Error())
+	}
+
+	if i := instance.Dependency.ReservedInstance; i.Name != "" {
+		if i.Spec.InstanceID != "" {
+			instance.Status.InstanceID = i.Spec.InstanceID
+		}
+		for _, c := range i.Spec.Configs {
+			if c.Name == "spec" {
+				if options.Mac == "" {
+					options.Mac = c.Data["mac"]
+				}
+				if instance.Status.PrivateIP == "" {
+					instance.Status.PrivateIP = c.Data["private-ip"]
+				}
+			}
+		}
+	}
+
+	err = f.ensureGroup(clusterName, instance, &options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = f.ensureProfile(clusterName, instance, &options)
+	if err != nil {
+		return nil, err
+	}
+
+	err = f.ensureIgnition(clusterName, instance, &options)
+	if err != nil {
+		return nil, err
+	}
+
+	instance.Status.Phase = cluster.InstanceRunning
+
 	name := instance.Name
 	spec := instance.Spec
+	status := instance.Status
 
-	err := f.ensureGroup(clusterName, instance)
-	if err != nil {
-		return nil, err
-	}
+	f.FakeInstances[name] = FakeInstance{name, spec, &status}
 
-	err = f.ensureProfile(clusterName, instance)
-	if err != nil {
-		return nil, err
-	}
-
-	err = f.ensureIgnition(clusterName, instance)
-	if err != nil {
-		return nil, err
-	}
-
-	f.FakeInstances[name] = FakeInstance{name, spec, []byte{}}
-
-	status := &cluster.InstanceStatus{}
-	status.Phase = cluster.InstanceRunning
-
-	return status, f.Err
+	return &status, f.Err
 }
 
-func (f *MatchboxCloud) ensureGroup(clusterName string, instance *cluster.Instance) error {
-	mac := instance.Annotations[MatchboxAnnotationPrefix+"mac"]
-	if mac == "" {
+func (f *MatchboxCloud) ensureGroup(clusterName string, instance *cluster.Instance, options *MatchboxInstanceOptions) error {
+	if options.Mac == "" {
 		return fmt.Errorf("No mac address on instance")
 	}
+	groupID := instance.Name
+	if instance.Status.InstanceID != "" {
+		groupID = instance.Status.InstanceID
+	}
+	selector := map[string]string{}
+	if options.Selector != "" {
+		err := json.Unmarshal([]byte(options.Selector), &selector)
+		if err != nil {
+			return fmt.Errorf("Unmarshal selector error: %+v", err)
+		}
+	}
+	profileID := groupID
+	if options.UseProfile != "" {
+		profileID = options.UseProfile
+	}
 	group := &storagepb.Group{
-		Id:      instance.Name,
-		Name:    instance.Name,
-		Profile: instance.Name,
-		Selector: map[string]string{
-			"mac": mac,
-			"os":  "installed",
-		},
+		Id:       groupID,
+		Name:     instance.Name,
+		Profile:  profileID,
+		Selector: selector,
+	}
+	// we use FF:FF:FF:FF:FF:FF as a special mac address for default group
+	// in the default group, we don't set the mac selector so all servers will got a match
+	if options.Mac != "FF:FF:FF:FF:FF:FF" {
+		group.Selector["mac"] = options.Mac
+	}
+	for _, c := range instance.Spec.Configs {
+		if c.Name == "meta" {
+			meta, err := json.Marshal(c.Data)
+			if err != nil {
+				return fmt.Errorf("Marshal metadata error: %+v", err)
+			}
+			group.Metadata = meta
+		}
 	}
 	req := &pb.GroupPutRequest{Group: group}
 	_, err := f.client.Groups.GroupPut(context.TODO(), req)
 	return err
 }
 
-func (f *MatchboxCloud) ensureProfile(clusterName string, instance *cluster.Instance) error {
+func (f *MatchboxCloud) ensureProfile(clusterName string, instance *cluster.Instance, options *MatchboxInstanceOptions) error {
+	if options.UseProfile != "" {
+		return nil
+	}
+	profileID := instance.Name
+	if instance.Status.InstanceID != "" {
+		profileID = instance.Status.InstanceID
+	}
+	ignitionID := profileID
+	if options.UseIgnition != "" {
+		ignitionID = options.UseIgnition
+	}
 	profile := &storagepb.Profile{
-		Id:         instance.Name,
+		Id:         profileID,
 		Name:       instance.Name,
-		IgnitionId: instance.Name,
+		IgnitionId: ignitionID,
 		Boot: &storagepb.NetBoot{
 			Kernel: fmt.Sprintf("/assets/coreos/%s/coreos_production_pxe.vmlinuz", instance.Spec.Image),
 			Initrd: []string{fmt.Sprintf("/assets/coreos/%s/coreos_production_pxe_image.cpio.gz", instance.Spec.Image)},
 			Args: []string{
-				"root=/dev/sda1",
 				fmt.Sprintf("coreos.config.url=http://%s/ignition?uuid=${uuid}&mac=${mac:hexhyp}", f.endpoint),
 				"coreos.first_boot=yes",
 				"net.ifnames=0",
 				"console=tty0",
 				"console=ttyS0",
-				"coreos.autologin",
 			},
 		},
+	}
+	if options.ExtraBootArgs != "" {
+		profile.Boot.Args = append(profile.Boot.Args, strings.Split(options.ExtraBootArgs, ",")...)
 	}
 	req := &pb.ProfilePutRequest{Profile: profile}
 	_, err := f.client.Profiles.ProfilePut(context.TODO(), req)
 	return err
 }
 
-func (f *MatchboxCloud) ensureIgnition(clusterName string, instance *cluster.Instance) error {
+func (f *MatchboxCloud) ensureIgnition(clusterName string, instance *cluster.Instance, options *MatchboxInstanceOptions) error {
+	if options.UseIgnition != "" {
+		return nil
+	}
 	userdata, err := userdata.Generate(instance)
 	if err != nil {
 		glog.Errorf("Generate userdata error: %+v", err)
 		return err
 	}
+	ignitionName := instance.Name
+	if instance.Status.InstanceID != "" {
+		ignitionName = instance.Status.InstanceID
+	}
 
-	glog.Infof("Create instance with userdata:\n%s", string(userdata))
-	req := &pb.IgnitionPutRequest{Name: instance.Name, Config: userdata}
+	req := &pb.IgnitionPutRequest{Name: ignitionName, Config: userdata}
 	_, err = f.client.Ignition.IgnitionPut(context.TODO(), req)
 	return err
 }
@@ -238,6 +313,12 @@ func (f *MatchboxCloud) ensureIgnition(clusterName string, instance *cluster.Ins
 // It adds an entry "delete" into the internal method call record.
 func (f *MatchboxCloud) EnsureInstanceDeleted(clusterName string, instance *cluster.Instance) error {
 	f.addCall("delete")
+	if f.FakeInstances == nil {
+		return f.Err
+	}
+	if _, ok := f.FakeInstances[instance.Name]; ok {
+		delete(f.FakeInstances, instance.Name)
+	}
 	return f.Err
 }
 
@@ -247,6 +328,10 @@ func (f *MatchboxCloud) ListInstances(clusterName string, network *cluster.Netwo
 	f.addCall("list")
 	result := make([]string, 0)
 	instances := make([]*cluster.InstanceStatus, 0)
+	for k, v := range f.FakeInstances {
+		result = append(result, k)
+		instances = append(instances, v.status)
+	}
 	return result, instances, f.Err
 }
 

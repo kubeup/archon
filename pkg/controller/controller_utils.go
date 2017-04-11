@@ -379,7 +379,7 @@ func (r RealInstanceControl) createInstances(nodeName, namespace string, templat
 	newInstance.Status.Phase = cluster.InstancePending
 	_, err = r.KubeClient.Archon().Instances(namespace).Update(newInstance)
 	if err != nil {
-		return fmt.Errorf("unable to save secrets dependency for instance %s", newInstance.Name)
+		return fmt.Errorf("unable to save instance %s: %+v", newInstance.Name, err)
 	}
 	return nil
 }
