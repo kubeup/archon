@@ -179,8 +179,8 @@ type FileSpec struct {
 	Content            string `json:"content,omitempty" yaml:"content,omitempty"`
 	Template           string `json:"template,omitempty" yaml:"template,omitempty"`
 	Owner              string `json:"owner,omitempty" yaml:"owner,omitempty"`
-	UserId             int    `json:"userId,omitempty" yaml:"userId,omitempty"`
-	GroupId            int    `json:"groupId,omitempty" yaml:"groupId,omitempty"`
+	UserID             int    `json:"userID,omitempty" yaml:"userID,omitempty"`
+	GroupID            int    `json:"groupID,omitempty" yaml:"groupID,omitempty"`
 	Filesystem         string `json:"filesystem,omitempty" yaml:"filesystem,omitempty"`
 	Path               string `json:"path,omitempty" yaml:"path,omitempty"`
 	RawFilePermissions string `json:"permissions,omitempty" yaml:"permissions,omitempty" valid:"^0?[0-7]{3,4}$"`
@@ -198,9 +198,10 @@ type InstanceOptions struct {
 }
 
 type InstanceDependency struct {
-	Network Network     `json:"network,omitempty"`
-	Secrets []v1.Secret `json:"secrets,omitempty"`
-	Users   []User      `json:"users,omitempty"`
+	Network          Network          `json:"network,omitempty"`
+	Secrets          []v1.Secret      `json:"secrets,omitempty"`
+	Users            []User           `json:"users,omitempty"`
+	ReservedInstance ReservedInstance `json:"reservedInstance,omitempty"`
 }
 
 type Instance struct {

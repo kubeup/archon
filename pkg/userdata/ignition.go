@@ -35,11 +35,11 @@ func GenerateCoreOSIgnition(instance *cluster.Instance) ([]byte, error) {
 			Filesystem: t.Filesystem,
 			Path:       t.Path,
 		}
-		if t.UserId != 0 {
-			f.User = &ignition.FileUser{t.UserId}
+		if t.UserID != 0 {
+			f.User = &ignition.FileUser{t.UserID}
 		}
-		if t.GroupId != 0 {
-			f.Group = &ignition.FileGroup{t.GroupId}
+		if t.GroupID != 0 {
+			f.Group = &ignition.FileGroup{t.GroupID}
 		}
 		if t.RawFilePermissions != "" {
 			m, err := strconv.ParseUint(t.RawFilePermissions, 0, 32)
@@ -56,7 +56,7 @@ func GenerateCoreOSIgnition(instance *cluster.Instance) ([]byte, error) {
 		} else {
 			f.Contents.Inline = t.Content
 		}
-		if strings.HasPrefix(f.Path, "/coreos/unit/") {
+		if strings.HasPrefix(f.Path, "/coreos/systemd/") {
 			u := ignition.SystemdUnit{}
 			err = yaml.Unmarshal([]byte(f.Contents.Inline), &u)
 			if err != nil {
@@ -66,6 +66,36 @@ func GenerateCoreOSIgnition(instance *cluster.Instance) ([]byte, error) {
 				result.Systemd = &ignition.Systemd{}
 			}
 			result.Systemd.Units = append(result.Systemd.Units, u)
+		} else if strings.HasPrefix(f.Path, "/coreos/disks/") {
+			u := ignition.Disk{}
+			err = yaml.Unmarshal([]byte(f.Contents.Inline), &u)
+			if err != nil {
+				return nil, err
+			}
+			if result.Storage == nil {
+				result.Storage = &ignition.Storage{}
+			}
+			result.Storage.Disks = append(result.Storage.Disks, u)
+		} else if strings.HasPrefix(f.Path, "/coreos/filesystems/") {
+			u := ignition.Filesystem{}
+			err = yaml.Unmarshal([]byte(f.Contents.Inline), &u)
+			if err != nil {
+				return nil, err
+			}
+			if result.Storage == nil {
+				result.Storage = &ignition.Storage{}
+			}
+			result.Storage.Filesystems = append(result.Storage.Filesystems, u)
+		} else if strings.HasPrefix(f.Path, "/coreos/networkd/") {
+			u := ignition.NetworkdUnit{}
+			err = yaml.Unmarshal([]byte(f.Contents.Inline), &u)
+			if err != nil {
+				return nil, err
+			}
+			if result.Networkd == nil {
+				result.Networkd = &ignition.Networkd{}
+			}
+			result.Networkd.Units = append(result.Networkd.Units, u)
 		} else if f.Path == "/coreos/update" {
 			u := ignition.Update{}
 			err = yaml.Unmarshal([]byte(f.Contents.Inline), &u)
