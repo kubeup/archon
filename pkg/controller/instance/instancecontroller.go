@@ -329,6 +329,14 @@ func (s *InstanceController) ensureDependency(key string, instance *cluster.Inst
 		Network: *network,
 		Users:   users,
 	}
+
+	if instance.Spec.ReservedInstanceRef != nil {
+		ri, err := s.kubeClient.Archon().ReservedInstances(instance.Namespace).Get(instance.Spec.ReservedInstanceRef.Name)
+		if err != nil {
+			return fmt.Errorf("Failed to get reserved instance %s: %v", instance.Spec.ReservedInstanceRef.Name, err), nil
+		}
+		deps.ReservedInstance = *ri
+	}
 	return err, deps
 }
 
