@@ -16,6 +16,15 @@ update and scale the cluster using `kubectl` in the same way as managing contain
 
 WARNING: Archon is currently in beta status.
 
+See it in action
+----------------
+
+<p align="center">
+  <a href="https://asciinema.org/a/112942">
+  <img src="https://asciinema.org/a/112942.png" width="885"></image>
+  </a>
+</p>
+
 Features
 --------
 
