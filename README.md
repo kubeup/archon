@@ -3,20 +3,24 @@ Archon
 
 [![CircleCI](https://circleci.com/gh/kubeup/archon/tree/master.svg?style=shield)][circleci]
 
-Archon is an open source tool for cluster creation and daily operations.
+Archon is a Kubernetes controller managing computing resources based on the [operator pattern][operator-pattern].
+Sysadmins could use it to automate their daily work eg. bootstrapping, updating and scaling servers.
 It is primarily designed for Kubernetes clusters but can easily be extended to other
 distributed clusters due to its declarative nature.
 
 Archon is designed following the principles of Kubernetes and it works as
-an extension of Kubernetes using [ThirdPartyResource]. You can define your
-cluster with yaml files then use `kubectl` to create and scale it.
+an extension of Kubernetes using [ThirdPartyResource]. Users create abstract cluster
+definitions with yaml files.  Archon will render the definition resources and create
+computing resources accordingly in the configured cloud provider. Then users could
+update and scale the cluster using `kubectl` in the same way as managing containers.
 
-WARNING: Archon is currently in alpha status.
+WARNING: Archon is currently in beta status.
 
 Features
 --------
 
-Archon itself is an execution engine. It provides following fundamental capabilities:
+Archon itself is a general purpose execution engine. It provides following fundamental
+capabilities:
 
   - Certificates management. Creating CA, signing new certificates with `Secret`.
   - Network management. Create VPC from definition resource and manage its lifecyle.
@@ -33,7 +37,7 @@ a Kubernetes cluster with Archon with following features:
   - Rolling update by creating a new instance group and delete the old one
   - Support various operating systems using [bootkube] or [kubeadm]
   - Scale the cluster with one command
-  - Manage baremetal servers using [Matchbox] and [PXE]
+  - Manage baremetal servers using [matchbox] and [PXE]
 
 Why Archon
 ----------
@@ -64,6 +68,7 @@ support these resources:
   - Network
   - InstanceGroup
   - Instance
+  - ReservedInstance
 
 The `archon-controller` which you should launch beforehand in the cluster will
 create and manage its status based on your definition.
@@ -84,7 +89,7 @@ Supported cloud providers:
 
 Supported baremetal provisioners:
 
-  - [Matchbox]
+  - [matchbox]
 
 Supported operating system:
 
@@ -111,19 +116,19 @@ You could launch Archon locally or install it into your cluster.
 Download the latest release from Github.
 
 ```
-wget https://github.com/kubeup/archon/releases/download/v0.2.0/archon-controller-v0.2.0-linux-amd64.gz
-gunzip archon-controller-v0.2.0-linux-amd64.gz
-chmod +x archon-controller-v0.2.0-linux-amd64
-mv archon-controller-v0.2.0-linux-amd64 /usr/local/bin/archon-controller
+wget https://github.com/kubeup/archon/releases/download/v0.3.0/archon-controller-v0.3.0-linux-amd64.gz
+gunzip archon-controller-v0.3.0-linux-amd64.gz
+chmod +x archon-controller-v0.3.0-linux-amd64
+mv archon-controller-v0.3.0-linux-amd64 /usr/local/bin/archon-controller
 ```
 
 On OSX, just change `linux` to `darwin`:
 
 ```
-wget https://github.com/kubeup/archon/releases/download/v0.2.0/archon-controller-v0.2.0-darwin-amd64.gz
-gunzip archon-controller-v0.2.0-darwin-amd64.gz
-chmod +x archon-controller-v0.2.0-darwin-amd64
-mv archon-controller-v0.2.0-darwin-amd64 /usr/local/bin/archon-controller
+wget https://github.com/kubeup/archon/releases/download/v0.3.0/archon-controller-v0.3.0-darwin-amd64.gz
+gunzip archon-controller-v0.3.0-darwin-amd64.gz
+chmod +x archon-controller-v0.3.0-darwin-amd64
+mv archon-controller-v0.3.0-darwin-amd64 /usr/local/bin/archon-controller
 ```
 
 ### Launch locally
@@ -190,10 +195,11 @@ customize it to match your needs.
   - [Kubernetes cluster with RedHat and kubeadm][redhat-example]
   - [Aliyun Kubernetes cluster][aliyun-example]
   - [Three nodes etcd cluster][etcd-example]
-  - [Baremetal Kubernetes cluster with PXE and Matchbox][matchbox-example]
+  - [Baremetal Kubernetes cluster with PXE and matchbox][matchbox-example]
 
+[operator-pattern]: https://coreos.com/blog/introducing-operators.html
 [ThirdPartyResource]: http://kubernetes.io/docs/user-guide/thirdpartyresources/
-[Matchbox]: https://github.com/coreos/matchbox
+[matchbox]: https://github.com/coreos/matchbox
 [PXE]: https://en.wikipedia.org/wiki/Preboot_Execution_Environment
 [kubeadm]: https://github.com/kubernetes/kubeadm
 [bootkube]: https://github.com/kubernetes-incubator/bootkube
