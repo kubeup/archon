@@ -205,7 +205,7 @@ func (p *aliyunCloud) createVPC(clusterName string, network *cluster.Network, an
 		NicType:         ecs.NicTypeIntranet,
 		IpProtocol:      ecs.IpProtocolAll,
 		Policy:          ecs.PermissionPolicyAccept,
-		PortRange:       "1/65535",
+		PortRange:       "-1/-1",
 		SourceCidrIp:    an.VPCIPRange,
 	})
 	if err != nil {
