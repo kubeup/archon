@@ -300,6 +300,8 @@ spec:
                   secretKeyRef:
                     name: aliyun-creds
                     key: accessKeySecret
+              - name: ALIYUN_NODE_NAME_TYPE
+                value: hostname
               livenessProbe:
                 httpGet:
                   host: 127.0.0.1
