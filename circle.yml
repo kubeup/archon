@@ -50,9 +50,15 @@ deployment:
           gzip archon-controller-linux-amd64
           github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
           --name "archon-controller-$CIRCLE_TAG-linux-amd64.gz" --file archon-controller-linux-amd64.gz
+
           GOOS=darwin go build -o archon-controller-darwin-amd64 kubeup.com/archon/cmd/archon-controller
           gzip archon-controller-darwin-amd64
           github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
           --name "archon-controller-$CIRCLE_TAG-darwin-amd64.gz" --file archon-controller-darwin-amd64.gz
+
+          GOOS=windows GOARCH=386 go build -o archon-controller-win-x86.exe kubeup.com/archon/cmd/archon-controller
+          zip archon-controller-win-x86.zip archon-controller-win-x86.exe
+          github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
+          --name "archon-controller-$CIRCLE_TAG-win-x86.zip" --file archon-controller-win-x86.zip
         fi
       - docker push $DOCKER_IMAGE_NAME
