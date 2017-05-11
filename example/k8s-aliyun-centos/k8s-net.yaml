@@ -1,0 +1,12 @@
+apiVersion: archon.kubeup.com/v1
+kind: Network
+metadata:
+  name: k8s-net
+  annotations:
+    aliyun.archon.kubeup.com/vpc-ip-range: 10.0.0.0/8
+spec:
+  region: cn-hangzhou
+  subnet: 10.99.0.0/24
+  zone: cn-hangzhou-e
+status:
+  phase: Pending

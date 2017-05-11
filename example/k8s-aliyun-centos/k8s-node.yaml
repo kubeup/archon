@@ -1,0 +1,100 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-node
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-node
+  provisionPolicy: DynamicOnly
+  template:
+    metadata:
+      labels:
+        app: k8s-node
+      annotations:
+        initializers: archon.kubeup.com/public-ip
+        aliyun.archon.kubeup.com/use-ssh: "true"
+    spec:
+      networkName: k8s-net
+      instanceType: ecs.n1.tiny
+      os: CentOS
+      image: centos_7_3_64_40G_base_20170322.vhd
+      files:
+      - name: k8s-repo-gpg
+        path: "/etc/pki/rpm-gpg/k8s-repo.gpg"
+        content: |-
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+          Version: GnuPG v1
+
+          mQENBFWKtqgBCADmKQWYQF9YoPxLEQZ5XA6DFVg9ZHG4HIuehsSJETMPQ+W9K5c5
+          Us5assCZBjG/k5i62SmWb09eHtWsbbEgexURBWJ7IxA8kM3kpTo7bx+LqySDsSC3
+          /8JRkiyibVV0dDNv/EzRQsGDxmk5Xl8SbQJ/C2ECSUT2ok225f079m2VJsUGHG+5
+          RpyHHgoMaRNedYP8ksYBPSD6sA3Xqpsh/0cF4sm8QtmsxkBmCCIjBa0B0LybDtdX
+          XIq5kPJsIrC2zvERIPm1ez/9FyGmZKEFnBGeFC45z5U//pHdB1z03dYKGrKdDpID
+          17kNbC5wl24k/IeYyTY9IutMXvuNbVSXaVtRABEBAAG0Okdvb2dsZSBDbG91ZCBQ
+          YWNrYWdlcyBSUE0gU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNvbT6JATgE
+          EwECACIFAlWKtqgCGy8GCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPCcOUw+
+          G6jV+QwH/0wRH+XovIwLGfkg6kYLEvNPvOIYNQWnrT6zZ+XcV47WkJ+i5SR+QpUI
+          udMSWVf4nkv+XVHruxydafRIeocaXY0E8EuIHGBSB2KR3HxG6JbgUiWlCVRNt4Qd
+          6udC6Ep7maKEIpO40M8UHRuKrp4iLGIhPm3ELGO6uc8rks8qOBMH4ozU+3PB9a0b
+          GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
+          7v3J3juKKpgvx5Lqwvwv2ywqn/Wr5d5OBCHEw8KtU/tfxycz/oo6XUIshgEbS/+P
+          6yKDuYhRp6qxrYXjmAszIT25cftb4d4=
+          =/PbX
+          -----END PGP PUBLIC KEY BLOCK-----
+      - name: yum-repos
+        path: "/etc/yum.repos.d/k8s.repo"
+        content: |-
+          [kubernetes]																									
+          name=Kubernetes Repo
+          baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/k8s-repo.gpg
+          gpgcheck=1
+      - name: run-kubeadm
+        path: "/tmp/run-kubeadm"
+        permissions: "0755"
+        template: |
+          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm kubectl kubernetes-cni"
+          cloud-init-per once selinux setenforce 0
+
+          systemctl enable docker && systemctl start docker
+          systemctl enable kubelet && systemctl start kubelet
+
+          KUBE_HYPERKUBE_IMAGE={{ index .Configs "k8s" "hyperkube-img" }} KUBE_REPO_PREFIX={{ index .Configs "k8s" "repo-prefix" }} kubeadm join --token {{ index .Configs "k8s" "token" }} {{ index .Configs "k8s" "master-address" }} 
+      - name: unit-flexv
+        path: "/etc/systemd/system/flexv.service"
+        template: |-
+          name: flexv.service
+          content: |-
+            [Service]
+            ExecStart=/bin/sh -c 'FLEXPATH=/opt/k8s/volume/plugins/aliyun~flexv; sudo mkdir $FLEXPATH -p; docker run -v $FLEXPATH:/opt {{ index .Configs "k8s" "kube-aliyun-img" }} cp /flexv /opt/'
+            Restart=on-failure
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: kubelet-dropin
+        path: "/etc/systemd/system/kubelet.service.d/99-archon-dropin.conf"
+        template: |
+          [Unit]
+          Wants=flexv.service
+          After=flexv.service
+          [Service]
+          Environment="KUBELET_NETWORK_ARGS=--network-plugin=kubenet"
+          Environment="KUBELET_EXTRA_ARGS=--pod-infra-container-image={{ index .Configs "k8s" "pause-img"}} --volume-plugin-dir=/opt/k8s/volume/plugins"
+      - name: kubeadm
+        path: "/config/runcmd/kubeadm"
+        template: |-
+          - /tmp/run-kubeadm |tee /var/log/kubeadm.log
+      configs:
+      - name: k8s
+        data:
+          pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
+          hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.2
+          repo-prefix: registry.aliyuncs.com/archon
+          master-address: YOUR_MASTER_IP_AND_PORT
+          token: YOUR_TOKEN
+      users:
+      - name: centos
+
