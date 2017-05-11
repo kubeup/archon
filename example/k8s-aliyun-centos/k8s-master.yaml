@@ -1,0 +1,241 @@
+apiVersion: archon.kubeup.com/v1
+kind: InstanceGroup
+metadata:
+  name: k8s-master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-master
+  template:
+    metadata:
+      labels:
+        app: k8s-master
+      annotations:
+        aliyun.archon.kubeup.com/use-ssh: "true"
+        initializers: archon.kubeup.com/public-ip
+    spec:
+      networkName: k8s-net
+      instanceType: ecs.n1.tiny
+      os: CentOS
+      image: centos_7_3_64_40G_base_20170322.vhd
+      files:
+      - name: k8s-repo-gpg
+        path: "/etc/pki/rpm-gpg/k8s-repo.gpg"
+        content: |-
+          -----BEGIN PGP PUBLIC KEY BLOCK-----
+          Version: GnuPG v1
+
+          mQENBFWKtqgBCADmKQWYQF9YoPxLEQZ5XA6DFVg9ZHG4HIuehsSJETMPQ+W9K5c5
+          Us5assCZBjG/k5i62SmWb09eHtWsbbEgexURBWJ7IxA8kM3kpTo7bx+LqySDsSC3
+          /8JRkiyibVV0dDNv/EzRQsGDxmk5Xl8SbQJ/C2ECSUT2ok225f079m2VJsUGHG+5
+          RpyHHgoMaRNedYP8ksYBPSD6sA3Xqpsh/0cF4sm8QtmsxkBmCCIjBa0B0LybDtdX
+          XIq5kPJsIrC2zvERIPm1ez/9FyGmZKEFnBGeFC45z5U//pHdB1z03dYKGrKdDpID
+          17kNbC5wl24k/IeYyTY9IutMXvuNbVSXaVtRABEBAAG0Okdvb2dsZSBDbG91ZCBQ
+          YWNrYWdlcyBSUE0gU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNvbT6JATgE
+          EwECACIFAlWKtqgCGy8GCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPCcOUw+
+          G6jV+QwH/0wRH+XovIwLGfkg6kYLEvNPvOIYNQWnrT6zZ+XcV47WkJ+i5SR+QpUI
+          udMSWVf4nkv+XVHruxydafRIeocaXY0E8EuIHGBSB2KR3HxG6JbgUiWlCVRNt4Qd
+          6udC6Ep7maKEIpO40M8UHRuKrp4iLGIhPm3ELGO6uc8rks8qOBMH4ozU+3PB9a0b
+          GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
+          7v3J3juKKpgvx5Lqwvwv2ywqn/Wr5d5OBCHEw8KtU/tfxycz/oo6XUIshgEbS/+P
+          6yKDuYhRp6qxrYXjmAszIT25cftb4d4=
+          =/PbX
+          -----END PGP PUBLIC KEY BLOCK-----
+      - name: yum-repos
+        path: "/etc/yum.repos.d/k8s.repo"
+        content: |-
+          [kubernetes]																									
+          name=Kubernetes Repo
+          baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/k8s-repo.gpg
+          gpgcheck=1
+      - name: run-kubeadm
+        path: "/tmp/run-kubeadm"
+        permissions: "0755"
+        template: |
+          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm kubectl kubernetes-cni"
+          cloud-init-per once selinux setenforce 0
+
+          systemctl enable docker && systemctl start docker
+          systemctl enable kubelet && systemctl start kubelet
+
+          KUBE_HYPERKUBE_IMAGE={{ index .Configs "k8s" "hyperkube-img" }} KUBE_ETCD_IMAGE={{ index .Configs "k8s" "etcd-img" }} KUBE_REPO_PREFIX={{ index .Configs "k8s" "repo-prefix" }} kubeadm init --skip-preflight-checks --config /tmp/kubeadm.conf 
+          # Disable livenessProbe due to k8s issue#43784
+          sed '/livenessProbe/,/timeoutSeconds/d' -i /etc/kubernetes/manifests/kube-apiserver.yaml
+          # Replace controller manager manifest to allow mounting plugin volume
+          cp /tmp/kube-controller-manager.yaml /etc/kubernetes/manifests/
+      - name: kubeadm-config
+        path: "/tmp/kubeadm.conf"
+        template: |
+          apiVersion: kubeadm.k8s.io/v1alpha1
+          kind: MasterConfiguration
+          networking:
+            podSubnet: {{ index .Configs "k8s" "pod-ip-range" }}
+          kubernetesVesion: {{ index .Configs "k8s" "k8s-version" }}
+          token: {{ index .Configs "k8s" "token" }}
+          authorizationMode: AlwaysAllow
+      - name: kubeadm
+        path: "/config/runcmd/kubeadm"
+        template: |-
+          - /tmp/run-kubeadm |tee /var/log/kubeadm.log
+      - name: kubelet-dropin
+        path: "/etc/systemd/system/kubelet.service.d/99-archon-dropin.conf"
+        template: |
+          [Unit]
+          Wants=flexv.service
+          After=flexv.service
+          [Service]
+          Environment="KUBELET_NETWORK_ARGS=--network-plugin=kubenet"
+          Environment="KUBELET_EXTRA_ARGS=--pod-infra-container-image={{ index .Configs "k8s" "pause-img"}} --volume-plugin-dir=/opt/k8s/volume/plugins"
+      - name: unit-flexv
+        path: "/etc/systemd/system/flexv.service"
+        template: |-
+          name: flexv.service
+          content: |-
+            [Service]
+            ExecStart=/bin/sh -c 'FLEXPATH=/opt/k8s/volume/plugins/aliyun~flexv; sudo mkdir $FLEXPATH -p; docker run -v $FLEXPATH:/opt {{ index .Configs "k8s" "kube-aliyun-img" }} cp /flexv /opt/'
+            Restart=on-failure
+            User=root
+            [Install]
+            WantedBy=multi-user.target
+      - name: kube-aliyun.yaml
+        path: "/etc/kubernetes/manifests/kube-aliyun.yaml"
+        permissions: "0664"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: aliyun-controller
+            namespace: kube-system
+          spec:
+            hostNetwork: true
+            containers:
+            - name: aliyun-controller
+              image: {{ index .Configs "k8s" "kube-aliyun-img" }}
+              command:
+              - /aliyun-controller
+              - --kubeconfig=/etc/kubernetes/controller-manager.conf
+              - --leader-elect=true
+              - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
+              env:
+              - name: ALIYUN_ACCESS_KEY
+                value: {{ index .Configs "k8s" "aliyun-access-key" }}
+              - name: ALIYUN_ACCESS_KEY_SECRET
+                value: {{ index .Configs "k8s" "aliyun-access-key-secret" }}
+              - name: ALIYUN_REGION
+                value: {{ .Network.Spec.Region }}
+              - name: ALIYUN_ZONE
+                value: {{ .Network.Spec.Zone }}
+              - name: ALIYUN_VPC
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vpc-id" }}
+              - name: ALIYUN_ROUTER
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/router-id" }}
+              - name: ALIYUN_ROUTE_TABLE
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/route-table-id" }}
+              - name: ALIYUN_VSWITCH
+                value: {{ index .Network.Annotations "aliyun.archon.kubeup.com/vswitch-id" }}
+              volumeMounts:
+              - mountPath: /etc/kubernetes/
+                name: k8s
+                readOnly: true
+            volumes:
+            - hostPath:
+                path: /etc/kubernetes
+              name: k8s
+      - name: kube-controller-manager.yaml
+        path: "/tmp/kube-controller-manager.yaml"
+        permissions: "0664"
+        owner: "root"
+        template: |-
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            creationTimestamp: null
+            labels:
+              component: kube-controller-manager
+              tier: control-plane
+            name: kube-controller-manager
+            namespace: kube-system
+          spec:
+            containers:
+            - command:
+              - /hyperkube
+              - controller-manager
+              - --insecure-experimental-approve-all-kubelet-csrs-for-group=system:bootstrappers
+              - --controllers=*,bootstrapsigner,tokencleaner
+              - --root-ca-file=/etc/kubernetes/pki/ca.crt
+              - --cluster-signing-key-file=/etc/kubernetes/pki/ca.key
+              - --address=127.0.0.1
+              - --leader-elect=true
+              - --use-service-account-credentials=true
+              - --kubeconfig=/etc/kubernetes/controller-manager.conf
+              - --service-account-private-key-file=/etc/kubernetes/pki/sa.key
+              - --cluster-signing-cert-file=/etc/kubernetes/pki/ca.crt
+              - --allocate-node-cidrs=true
+              - --cluster-cidr={{ index .Configs "k8s" "pod-ip-range" }}
+              - --flex-volume-plugin-dir=/opt/k8s/volume/plugins
+              - --configure-cloud-routes=false
+              image: {{ index .Configs "k8s" "hyperkube-img" }}
+              livenessProbe:
+                failureThreshold: 8
+                httpGet:
+                  host: 127.0.0.1
+                  path: /healthz
+                  port: 10252
+                  scheme: HTTP
+                initialDelaySeconds: 15
+                timeoutSeconds: 15
+              name: kube-controller-manager
+              env:
+              - name: ALIYUN_ACCESS_KEY
+                value: {{ index .Configs "k8s" "aliyun-access-key" }}
+              - name: ALIYUN_ACCESS_KEY_SECRET
+                value: {{ index .Configs "k8s" "aliyun-access-key-secret" }}
+              volumeMounts:
+              - mountPath: /etc/kubernetes/
+                name: k8s
+                readOnly: true
+              - mountPath: /etc/ssl/certs
+                name: certs
+              - mountPath: /etc/pki
+                name: pki
+              - mountPath: /var/lock
+                name: var-lock
+              - mountPath: /opt/k8s
+                name: k8s-opt
+                readOnly: true
+            hostNetwork: true
+            volumes:
+            - hostPath:
+                path: /opt/k8s
+              name: k8s-opt
+            - hostPath:
+                path: /etc/kubernetes
+              name: k8s
+            - hostPath:
+                path: /etc/ssl/certs
+              name: certs
+            - hostPath:
+                path: /etc/pki
+              name: pki
+            - hostPath:
+                path: /var/lock
+              name: var-lock
+      configs:
+      - name: k8s
+        data:
+          aliyun-access-key: ALIYUN_ACCESS_KEY
+          aliyun-access-key-secret: ALIYUN_ACCESS_KEY_SECRET
+          pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
+          hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.2
+          kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
+          k8s-vesion: v1.6.2
+          etcd-img: registry.aliyuncs.com/archon/etcd:3.0.17
+          repo-prefix: registry.aliyuncs.com/archon
+          pod-ip-range: 10.244.0.0/16
+          token: YOUR_TOKEN
+      users:
+      - name: centos
