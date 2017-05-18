@@ -54,6 +54,16 @@ func IsInstanceReadyConditionTrue(status InstanceStatus) bool {
 	return condition != nil && condition.Status == api.ConditionTrue
 }
 
+// IsInstanceToBeRemoved returns true if ToBeRemove annotation is there
+func IsInstanceToBeRemoved(instance *Instance) bool {
+	if instance == nil || instance.Annotations == nil {
+		return false
+	}
+
+	_, ok := instance.Annotations[InstanceToBeRemovedAnnotation]
+	return ok
+}
+
 // Extracts the instance ready condition from the given status and returns that.
 // Returns nil if the condition is not present.
 func GetInstanceReadyCondition(status InstanceStatus) *InstanceCondition {

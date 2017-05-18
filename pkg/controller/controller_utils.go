@@ -69,17 +69,24 @@ func (s ActiveInstances) Len() int      { return len(s) }
 func (s ActiveInstances) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s ActiveInstances) Less(i, j int) bool {
-	// 2. InstancePending < InstanceUnknown < InstanceRunning
+	removeMark1 := cluster.IsInstanceToBeRemoved(s[i])
+	removeMark2 := cluster.IsInstanceToBeRemoved(s[j])
+	if removeMark1 != removeMark2 {
+		// The one to be removed is less
+		return removeMark1
+	}
+
+	// InstancePending < InstanceUnknown < InstanceRunning
 	m := map[cluster.InstancePhase]int{cluster.InstancePending: 0, cluster.InstanceUnknown: 1, cluster.InstanceRunning: 2}
 	if m[s[i].Status.Phase] != m[s[j].Status.Phase] {
 		return m[s[i].Status.Phase] < m[s[j].Status.Phase]
 	}
-	// 3. Not ready < ready
+	// Not ready < ready
 	// If only one of the instances is not ready, the not ready one is smaller
 	if cluster.IsInstanceReady(s[i]) != cluster.IsInstanceReady(s[j]) {
 		return !cluster.IsInstanceReady(s[i])
 	}
-	// 6. Empty creation time instances < newer instances < older instances
+	// Empty creation time instances < newer instances < older instances
 	if !s[i].CreationTimestamp.Equal(s[j].CreationTimestamp) {
 		return afterOrZero(s[i].CreationTimestamp, s[j].CreationTimestamp)
 	}
