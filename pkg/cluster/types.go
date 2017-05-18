@@ -256,6 +256,10 @@ const (
 	InstanceOSCoreOS string = "CoreOS"
 	InstanceOSUbuntu string = "Ubuntu"
 	InstanceOSCentOS string = "CentOS"
+
+	// Instance with this annotation will be removed first if InstanceGroup controller
+	// is scaling down an InstanceGroup
+	InstanceToBeRemovedAnnotation string = AnnotationPrefix + "to-be-removed"
 )
 
 type InstanceConditionType string
