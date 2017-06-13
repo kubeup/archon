@@ -232,7 +232,7 @@ func isNotExistError(err error) bool {
 	}
 
 	switch err2.Code() {
-	case "NoSuchEntity", "InvalidNetworkInterfaceID.NotFound":
+	case "NoSuchEntity", "InvalidNetworkInterfaceID.NotFound", "InvalidKeyPair.NotFound":
 		return true
 	}
 

@@ -52,6 +52,9 @@ type EC2 interface {
 	ReleaseAddress(input *ec2.ReleaseAddressInput) (*ec2.ReleaseAddressOutput, error)
 
 	CreateTags(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error)
+
+	DescribeKeyPairs(input *ec2.DescribeKeyPairsInput) (*ec2.DescribeKeyPairsOutput, error)
+	ImportKeyPair(input *ec2.ImportKeyPairInput) (*ec2.ImportKeyPairOutput, error)
 }
 
 type S3 interface {
@@ -199,6 +202,14 @@ func (p *awsSdkEC2) CreateDhcpOptions(input *ec2.CreateDhcpOptionsInput) (*ec2.C
 
 func (p *awsSdkEC2) AssociateDhcpOptions(input *ec2.AssociateDhcpOptionsInput) (*ec2.AssociateDhcpOptionsOutput, error) {
 	return p.ec2.AssociateDhcpOptions(input)
+}
+
+func (p *awsSdkEC2) DescribeKeyPairs(input *ec2.DescribeKeyPairsInput) (*ec2.DescribeKeyPairsOutput, error) {
+	return p.ec2.DescribeKeyPairs(input)
+}
+
+func (p *awsSdkEC2) ImportKeyPair(input *ec2.ImportKeyPairInput) (*ec2.ImportKeyPairOutput, error) {
+	return p.ec2.ImportKeyPair(input)
 }
 
 type awsSdkIAM struct {

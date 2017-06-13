@@ -165,7 +165,50 @@ func (p *awsCloud) EnsureInstance(clusterName string, instance *cluster.Instance
 		return &instance.Status, nil
 	}
 
+	err = p.ensureUsers(clusterName, instance)
+	if err != nil {
+		err = fmt.Errorf("Users can't be ensured: %s", err.Error())
+		return
+	}
+
 	return p.createInstance(clusterName, instance)
+}
+
+func (p *awsCloud) ensureUsers(clusterName string, instance *cluster.Instance) error {
+	users := instance.Dependency.Users
+	if len(users) > 1 {
+		return fmt.Errorf("AWS only allows one keypair to be set on an instance. There's %d here.", len(users))
+	}
+
+	for _, u := range users {
+		if len(u.Spec.SSHAuthorizedKeys) == 0 {
+			return fmt.Errorf("AWS only support SSH keypairs. Unable to ensure user %s", u.Name)
+		}
+
+		keypairs, err := p.ec2.DescribeKeyPairs(&ec2.DescribeKeyPairsInput{
+			KeyNames: []*string{aws.String(u.Name)},
+		})
+
+		if err != nil && !isNotExistError(err) {
+			return fmt.Errorf("Unable to get keypair %s: %v", u.Name, err)
+		}
+
+		if len(keypairs.KeyPairs) == 1 {
+			return nil
+		}
+
+		//data := base64.StdEncoding.EncodeToString([]byte(u.Spec.SSHAuthorizedKeys[0]))
+		_, err = p.ec2.ImportKeyPair(&ec2.ImportKeyPairInput{
+			KeyName:           aws.String(u.Name),
+			PublicKeyMaterial: []byte(u.Spec.SSHAuthorizedKeys[0]),
+		})
+
+		if err != nil {
+			return fmt.Errorf("Unable to import keypair %s: %v", u.Name, err)
+		}
+	}
+
+	return nil
 }
 
 func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance) (status *cluster.InstanceStatus, err error) {
@@ -341,6 +384,11 @@ func (p *awsCloud) createInstance(clusterName string, instance *cluster.Instance
 		params.IamInstanceProfile = &ec2.IamInstanceProfileSpecification{
 			Arn: r.InstanceProfile.Arn,
 		}
+	}
+
+	if len(instance.Dependency.Users) > 0 {
+		u := instance.Dependency.Users[0]
+		params.KeyName = aws.String(u.Name)
 	}
 
 	r, err := p.ec2.RunInstances(params)
