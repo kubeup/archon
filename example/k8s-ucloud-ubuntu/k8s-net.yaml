@@ -1,0 +1,14 @@
+apiVersion: archon.kubeup.com/v1
+kind: Network
+metadata:
+  name: k8s-net
+  annotations:
+    ucloud.archon.kubeup.com/vpc-id:
+    ucloud.archon.kubeup.com/subnet-id:
+    ucloud.archon.kubeup.com/security-group-id:
+spec:
+  region: cn-sh2
+  zone: cn-sh2-02
+  subnet: 10.99.0.0/24
+status:
+  phase: Running

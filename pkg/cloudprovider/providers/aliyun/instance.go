@@ -155,6 +155,8 @@ func (p *aliyunCloud) EnsureInstance(clusterName string, instance *cluster.Insta
 			err2 := p.deleteInstance(vpsID)
 			if err2 != nil {
 				glog.Errorf("Roll back instance creation failed: %v", err2)
+			} else {
+				instance.Status.InstanceID = ""
 			}
 		}
 	}()
@@ -420,9 +422,11 @@ func (p *aliyunCloud) initializeInstance(clusterName string, instance *cluster.I
 
 	defer func() {
 		if err != nil {
-			err2 := p.ecs.StopInstance(vpsID, true)
+			err2 := p.ecs.StopInstance(vpsID, false)
 			if err2 != nil {
 				glog.Errorf("Unable to rollback failed initialization: %v", err2)
+			} else {
+				p.ecs.WaitForInstance(vpsID, ecs.Stopped, 0)
 			}
 		}
 	}()

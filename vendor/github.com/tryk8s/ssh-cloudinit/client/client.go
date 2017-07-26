@@ -58,13 +58,13 @@ func Run(conf *Config) error {
 	}
 
 	if conf.UserData != "" {
-		err = ensureUserData(conn, conf.Stdout, conf.UserData)
+		err = ensureCloudData(conn, conf)
 		if err != nil {
 			return &CloudInitError{fmt.Errorf("Unable to transfer userdata: %v", err)}
 		}
 	}
 
-	err = executeCmds(conn, conf.Stdout, conf.GetCmds())
+	err = executeCmds(conn, conf)
 	if err != nil {
 		fmt.Printf("Error: %s", err)
 		return &CloudInitError{fmt.Errorf("Unable to execute commands: %v", err)}

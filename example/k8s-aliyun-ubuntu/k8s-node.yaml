@@ -47,7 +47,7 @@ spec:
         permissions: "0755"
         template: |
           cloud-init-per once aptaddsource apt-key add /tmp/kubernetes.pgp
-          cloud-init-per once aptinstall /bin/sh -c "apt update && apt install -y docker.io kubelet kubeadm kubectl kubernetes-cni"
+          cloud-init-per once aptinstall /bin/sh -c "apt update && apt install -y docker.io kubelet kubeadm={{ index .Configs "k8s" "components-version" }} kubectl kubernetes-cni"
 
           KUBE_HYPERKUBE_IMAGE={{ index .Configs "k8s" "hyperkube-img" }} KUBE_REPO_PREFIX={{ index .Configs "k8s" "repo-prefix" }} kubeadm join --token {{ index .Configs "k8s" "token" }} {{ index .Configs "k8s" "master-address" }} 
       - name: unit-flexv
@@ -84,6 +84,7 @@ spec:
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.1
           repo-prefix: registry.aliyuncs.com/archon
+          components-version: 1.7.0-00
           master-address: YOUR_MASTER_PRIVATE_IP:6443
           token: YOUR_KUBEADM_TOKEN
       users:

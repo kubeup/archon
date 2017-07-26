@@ -56,7 +56,7 @@ spec:
         path: "/tmp/run-kubeadm"
         permissions: "0755"
         template: |
-          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm kubectl kubernetes-cni"
+          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm={{ index .Configs "k8s" "components-version" }} kubectl kubernetes-cni"
           cloud-init-per once selinux setenforce 0
 
           systemctl enable docker && systemctl start docker
@@ -93,6 +93,7 @@ spec:
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.2
           repo-prefix: registry.aliyuncs.com/archon
+          components-version: 1.7.0-00
           master-address: YOUR_MASTER_IP_AND_PORT
           token: YOUR_TOKEN
       users:
