@@ -85,4 +85,4 @@ kubectl create -f k8s-node.yaml --namespace=ucloud-ubuntu
 ```
 
 
-[installation guide]: https://github.com/kubeup/archon/blob/master/docs/installation_aliyun.md
+[installation guide]: https://github.com/kubeup/archon/blob/master/docs/installation_ucloud.md
