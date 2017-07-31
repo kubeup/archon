@@ -1,0 +1,8 @@
+apiVersion: v1
+data:
+  password: BASE64_ENCODED_PASSWORD
+kind: Secret
+metadata:
+  name: password
+type: kubernetes.io/basic-auth
+

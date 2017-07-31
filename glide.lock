@@ -1549,13 +1549,24 @@ imports:
   - pkg/client/clientset_generated/clientset/typed/metrics/v1alpha1
   - pkg/client/custom_metrics
 - name: k8s.io/minikube
-  version: 3343d65e257756116c3254bd61da9837902f2673
+  version: da8499467e69586085c5704324064ed4f0f436f3
   subpackages:
   - pkg/localkube
   - pkg/minikube/constants
   - pkg/minikube/kubernetes_versions
   - pkg/util
   - pkg/version
+- name: github.com/ucloud/ucloud-sdk-go
+  version: f3b1df597d7019a3b7f67914961825c756b18f2f
+  subpackages:
+  - service/uhost
+  - service/unet
+  - ucloud
+  - ucloud/auth
+  - ucloud/request
+  - ucloud/service
+  - ucloud/uclouderr
+  - ucloud/utils
 testImports:
 - name: github.com/pmezard/go-difflib
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d

@@ -534,7 +534,7 @@ func (r RealInstanceControl) handleProvisionPolicy(instance *cluster.Instance, o
 	case cluster.InstanceGroupProvisionDynamicOnly:
 		return
 	default:
-		err = fmt.Errorf("Unsupoorted provisioPolicy: %v", ig.Spec.ProvisionPolicy)
+		err = fmt.Errorf("Unsupported provisionPolicy: %v", ig.Spec.ProvisionPolicy)
 	}
 
 	return

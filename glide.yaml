@@ -61,6 +61,8 @@ import:
   - nat
 - package: github.com/cloudflare/cfssl/signer/local
   version: db0d0650b6496bfe8061ec56a92edd32d8e75c30
+- package: github.com/ucloud/ucloud-sdk-go
+  repo: https://github.com/ledzep2/ucloud-sdk-go
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

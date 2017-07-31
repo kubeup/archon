@@ -55,7 +55,7 @@ spec:
         path: "/tmp/run-kubeadm"
         permissions: "0755"
         template: |
-          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm kubectl kubernetes-cni"
+          cloud-init-per once yuminstall /bin/sh -c "yum install -y docker kubelet kubeadm={{ index .Configs "k8s" "components-version" }} kubectl kubernetes-cni"
           cloud-init-per once selinux setenforce 0
 
           systemctl enable docker && systemctl start docker
@@ -73,7 +73,7 @@ spec:
           kind: MasterConfiguration
           networking:
             podSubnet: {{ index .Configs "k8s" "pod-ip-range" }}
-          kubernetesVesion: {{ index .Configs "k8s" "k8s-version" }}
+          kubernetesVersion: {{ index .Configs "k8s" "k8s-version" }}
           token: {{ index .Configs "k8s" "token" }}
           authorizationMode: AlwaysAllow
       - name: kubeadm
@@ -232,7 +232,8 @@ spec:
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.2
           kube-aliyun-img: registry.aliyuncs.com/kubeup/kube-aliyun
-          k8s-vesion: v1.6.2
+          k8s-version: v1.6.2
+          components-version: 1.7.0-00
           etcd-img: registry.aliyuncs.com/archon/etcd:3.0.17
           repo-prefix: registry.aliyuncs.com/archon
           pod-ip-range: 10.244.0.0/16
