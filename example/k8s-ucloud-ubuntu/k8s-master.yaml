@@ -52,6 +52,12 @@ spec:
         path: "/etc/apt/sources.list.d/kubernetes.list"
         content: |
           deb https://mirrors.ustc.edu.cn/kubernetes/apt/ kubernetes-xenial main
+      - name: docker-mirror
+        path: "/etc/docker/daemon.json"
+        template: |
+          {
+            "registry-mirrors": ["{{ index .Configs "k8s" "docker-mirror" }}"]
+          }
       - name: run-kubeadm
         path: "/tmp/run-kubeadm"
         permissions: "0755"
@@ -63,8 +69,11 @@ spec:
           cloud-init-per once aptinstall /bin/sh -c "apt update && apt install -y docker.io kubeadm={{ index .Configs "k8s" "components-version" }} kubelet kubectl kubernetes-cni"
 
           KUBE_HYPERKUBE_IMAGE={{ index .Configs "k8s" "hyperkube-img" }} KUBE_ETCD_IMAGE={{ index .Configs "k8s" "etcd-img" }} KUBE_REPO_PREFIX={{ index .Configs "k8s" "repo-prefix" }} kubeadm init --config /tmp/kubeadm.conf 
-          # Disable livenessProbe due to #43784
-          sed '/livenessProbe/,/timeoutSeconds/d' -i /etc/kubernetes/manifests/kube-apiserver.yaml
+          
+          kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f https://github.com/coreos/flannel/raw/v0.8.0/Documentation/kube-flannel-rbac.yml
+          wget -O /tmp/flannel.yml https://github.com/coreos/flannel/raw/v0.8.0/Documentation/kube-flannel.yml
+          sed -i "s,quay\.io/coreos,registry.aliyuncs.com/archon,g" /tmp/flannel.yml
+          kubectl --kubeconfig=/etc/kubernetes/admin.conf apply -f /tmp/flannel.yml
       - name: kubeadm-config
         path: "/tmp/kubeadm.conf"
         template: |
@@ -84,11 +93,14 @@ spec:
         path: "/etc/systemd/system/kubelet.service.d/99-archon-dropin.conf"
         template: |
           [Service]
-          Environment="KUBELET_NETWORK_ARGS=--network-plugin=kubenet"
+          Environment="KUBELET_NETWORK_ARGS=--network-plugin=cni"
           Environment="KUBELET_EXTRA_ARGS=--pod-infra-container-image={{ index .Configs "k8s" "pause-img"}}"
+      users:
+      - name: myuser
       configs:
       - name: k8s
         data:
+          docker-mirror: https://mirror.ccs.tencentyun.com
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.1
           k8s-version: v1.6.1

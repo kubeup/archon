@@ -1,9 +1,9 @@
 apiVersion: archon.kubeup.com/v1
 kind: User
 metadata:
-  name: centos
+  name: myuser
 spec:
-  name: centos
+  name: myuser
   sudo: ALL=(ALL) NOPASSWD:ALL
   shell: /bin/bash
   sshAuthorizedKeys:
