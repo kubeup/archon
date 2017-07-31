@@ -82,7 +82,7 @@ spec:
       configs:
       - name: k8s
         data:
-          docker-mirror: https://mirror.ccs.tencentyun.com
+          docker-mirror: https://docker.mirrors.ustc.edu.cn
           pause-img: registry.aliyuncs.com/archon/pause-amd64:3.0
           hyperkube-img: registry.aliyuncs.com/archon/hyperkube-amd64:v1.6.2
           repo-prefix: registry.aliyuncs.com/archon
