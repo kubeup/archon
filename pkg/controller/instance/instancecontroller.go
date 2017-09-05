@@ -149,9 +149,11 @@ func New(cloud cloudprovider.Interface, kubeClient clientset.Interface, clusterN
 	s.instanceStore.Indexer, s.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
+				options.IncludeUninitialized = true
 				return s.kubeClient.Archon().Instances(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				options.IncludeUninitialized = true
 				return s.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},
@@ -422,7 +424,7 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 
 	var (
 		retry bool
-		obj   pkg_runtime.Object
+		obj   metav1.Object
 	)
 	glog.Infof("Updating instance: %+v", key)
 	err, deps := s.ensureDependency(key, instance)
@@ -437,7 +439,7 @@ func (s *InstanceController) processInstanceUpdate(cachedInstance *cachedInstanc
 			instance, _ = obj.(*cluster.Instance)
 			cachedInstance.state = instance
 		}
-	} else if len(instance.GetInitializers()) > 0 {
+	} else if s.initializerManager.NeedsInitialization(instance) {
 		obj, err, retry = s.initializerManager.Initialize(instance)
 		if obj != nil && err == nil {
 			instance, _ = obj.(*cluster.Instance)

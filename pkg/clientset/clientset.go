@@ -31,6 +31,8 @@ type Interface interface {
 type Clientset struct {
 	kubernetes.Clientset
 	*archon.ArchonClient
+
+	config *restclient.Config
 }
 
 // Archon retrieves the ArchonClient
@@ -49,6 +51,7 @@ func NewForConfig(c *restclient.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	clientset.config = c
 	clientset.Clientset = *cs
 	clientset.ArchonClient, err = archon.NewForConfig(c)
 	if err != nil {

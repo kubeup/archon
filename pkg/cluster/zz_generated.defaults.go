@@ -42,6 +42,7 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 func SetObjectDefaults_Instance(in *Instance) {
 	SetDefaults_Instance(in)
 	SetObjectDefaults_Network(&in.Dependency.Network)
+	SetObjectDefaults_ReservedInstance(&in.Dependency.ReservedInstance)
 }
 
 func SetObjectDefaults_InstanceGroup(in *InstanceGroup) {
@@ -58,9 +59,7 @@ func SetObjectDefaults_InstanceGroupList(in *InstanceGroupList) {
 func SetObjectDefaults_InstanceList(in *InstanceList) {
 	for i := range in.Items {
 		a := &in.Items[i]
-		if a != nil {
-			SetObjectDefaults_Instance(a)
-		}
+		SetObjectDefaults_Instance(a)
 	}
 }
 
@@ -82,8 +81,6 @@ func SetObjectDefaults_ReservedInstance(in *ReservedInstance) {
 func SetObjectDefaults_ReservedInstanceList(in *ReservedInstanceList) {
 	for i := range in.Items {
 		a := &in.Items[i]
-		if a != nil {
-			SetObjectDefaults_ReservedInstance(a)
-		}
+		SetObjectDefaults_ReservedInstance(a)
 	}
 }

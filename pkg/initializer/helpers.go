@@ -9,8 +9,8 @@ func AddInitializer(dst Object, additions ...string) {
 		return
 	}
 
-	s := dst.GetInitializers()
-	dst.SetInitializers(addStrings(s, additions...))
+	s := dst.GetInitializersInAnnotations()
+	dst.SetInitializersInAnnotations(addStrings(s, additions...))
 }
 
 func RemoveInitializer(dst Object, removals ...string) {
@@ -18,14 +18,14 @@ func RemoveInitializer(dst Object, removals ...string) {
 		return
 	}
 
-	s := dst.GetInitializers()
-	dst.SetInitializers(removeStrings(s, removals...))
+	s := dst.GetInitializersInAnnotations()
+	dst.SetInitializersInAnnotations(removeStrings(s, removals...))
 }
 
 // True if it has any one of them
 func HasInitializer(obj Object, names ...string) bool {
 	set := sets.NewString(names...)
-	s := obj.GetInitializers()
+	s := obj.GetInitializersInAnnotations()
 	for _, i := range s {
 		if set.Has(i) {
 			return true

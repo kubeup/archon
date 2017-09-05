@@ -122,9 +122,11 @@ func NewInstanceGroupController(kubeClient clientset.Interface, namespace string
 	rsc.instanceStore.Indexer, rsc.instanceController = cache.NewIndexerInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (pkg_runtime.Object, error) {
+				options.IncludeUninitialized = true
 				return rsc.kubeClient.Archon().Instances(namespace).List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+				options.IncludeUninitialized = true
 				return rsc.kubeClient.Archon().Instances(namespace).Watch(options)
 			},
 		},

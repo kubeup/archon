@@ -18,6 +18,7 @@ import (
 	"github.com/denverdino/aliyungo/ecs"
 	"io"
 	cp "k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/controller"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
 	"os"
@@ -58,6 +59,8 @@ func newAliyunCloud(config io.Reader) (cloudprovider.Interface, error) {
 		ecs: &aliyunECS{ecsClient},
 	}, nil
 }
+
+func (p *aliyunCloud) Initialize(clientBuilder controller.ControllerClientBuilder) {}
 
 func (p *aliyunCloud) ProviderName() string {
 	return ProviderName

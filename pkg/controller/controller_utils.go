@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api/v1/ref"
 	"k8s.io/kubernetes/pkg/api/validation"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cluster"
@@ -142,12 +143,26 @@ func getInstancesFinalizers(template *cluster.InstanceTemplateSpec) []string {
 	return desiredFinalizers
 }
 
+// WIP: not used.
+func getInstancesInitializers(template *cluster.InstanceTemplateSpec) *metav1.Initializers {
+	ret := &metav1.Initializers{}
+	if template.Initializers != nil && len(template.Initializers.Pending) > 0 {
+		ret.Pending = make([]metav1.Initializer, len(template.Initializers.Pending))
+		copy(ret.Pending, template.Initializers.Pending)
+	} else {
+		ret.Result = &metav1.Status{
+			Status: metav1.StatusSuccess,
+		}
+	}
+	return ret
+}
+
 func getInstancesAnnotationSet(template *cluster.InstanceTemplateSpec, object runtime.Object) (labels.Set, error) {
 	desiredAnnotations := make(labels.Set)
 	for k, v := range template.Annotations {
 		desiredAnnotations[k] = v
 	}
-	createdByRef, err := v1.GetReference(api.Scheme, object)
+	createdByRef, err := ref.GetReference(api.Scheme, object)
 	if err != nil {
 		return desiredAnnotations, fmt.Errorf("unable to get controller reference: %v", err)
 	}

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	//"k8s.io/kubernetes/pkg/api"
-	"k8s.io/apimachinery/pkg/runtime"
+	//"k8s.io/apimachinery/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubeup.com/archon/pkg/clientset"
 )
 
@@ -13,13 +14,13 @@ var (
 )
 
 type Object interface {
-	runtime.Object
+	metav1.Object
 
-	GetInitializers() []string
-	SetInitializers([]string)
+	GetInitializersInAnnotations() []string
+	SetInitializersInAnnotations([]string)
 
-	GetFinalizers() []string
-	SetFinalizers([]string)
+	//GetFinalizers() []string
+	//SetFinalizers([]string)
 }
 
 type Initializer interface {
@@ -48,8 +49,16 @@ func NewInitializerManager(list []Initializer, kubeClient clientset.Interface) (
 	}, nil
 }
 
+func (im *InitializerManager) NeedsInitialization(obj Object) bool {
+	if obj != nil && len(obj.GetInitializersInAnnotations()) > 0 {
+		return true
+	}
+
+	return false
+}
+
 func (im *InitializerManager) Initialize(obj Object) (updatedObj Object, err error, retry bool) {
-	tokens := obj.GetInitializers()
+	tokens := obj.GetInitializersInAnnotations()
 	glog.Infof("Initializer manager is initializing %v", tokens)
 	for _, token := range tokens {
 		init, ok := im.initializers[token]

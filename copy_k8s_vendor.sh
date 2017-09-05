@@ -2,7 +2,7 @@
 
 src=vendor/k8s.io/kubernetes/staging/src/k8s.io/
 dst=vendor/k8s.io/
-packages="apimachinery client-go apiserver"
+packages="apimachinery client-go apiserver apiextensions-apiserver kube-aggregator metrics"
 
 for i in $packages; do
   rm -rf $dst$i

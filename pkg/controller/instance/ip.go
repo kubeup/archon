@@ -15,6 +15,7 @@ package instance
 
 import (
 	"github.com/golang/glog"
+	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"kubeup.com/archon/pkg/clientset"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"

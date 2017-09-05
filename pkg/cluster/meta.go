@@ -7,7 +7,7 @@ import (
 const InitializerKey = "initializers"
 
 // Just a substitute when native initializer/finalizer for tpr is not ready
-func (i *Instance) GetInitializers() []string {
+func (i *Instance) GetInitializersInAnnotations() []string {
 	if i.Annotations == nil {
 		return nil
 	}
@@ -18,7 +18,7 @@ func (i *Instance) GetInitializers() []string {
 	return strings.Split(s, ",")
 }
 
-func (i *Instance) SetInitializers(is []string) {
+func (i *Instance) SetInitializersInAnnotations(is []string) {
 	if i.Annotations == nil {
 		if len(is) == 0 {
 			return

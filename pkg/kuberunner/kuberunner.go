@@ -67,7 +67,8 @@ func StartLocalkubeServer(s *localkube.LocalkubeServer) {
 	if err != nil {
 		panic(err)
 	}
-	s.AddServer(etcd)
+	etcd.Start()
+	defer etcd.Stop()
 
 	// setup access to etcd
 	netIP, _ := s.GetHostIP()

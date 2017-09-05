@@ -29,23 +29,26 @@ import:
   - prometheus
 - package: github.com/spf13/cobra
 - package: github.com/spf13/pflag
+  version: master
 - package: gopkg.in/gcfg.v1
 - package: github.com/r2d4/external-storage
   version: master
 - package: k8s.io/heapster
-  version: v1.2.0-beta.1 
+  version: release-1.2
 - package: k8s.io/metrics
   version: fd2415bb9381a6731027b48a8c6b78f28e13f876
 - package: k8s.io/minikube
-  version: k8s-v1.6
+  version: k8s-v1.7
 - package: k8s.io/kubernetes
-  version: v1.6.0-beta.2
+  version: release-1.7
 - package: k8s.io/apiserver
-  version: master
+  #version: c521c8f6b584c2f2aa3db4e8113dcd6766790bf8
+  version: a9bfd91dd998b4ab203bc0bb011d4b5ac15dbaab
 - package: k8s.io/client-go
-  version: master
+  version: release-4.0
 - package: k8s.io/apimachinery
   version: master
+  #version: release-1.7
 - package: github.com/docker/engine-api
   subpackages:
   - types

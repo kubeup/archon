@@ -19,6 +19,7 @@ import (
 	"github.com/golang/glog"
 	"io"
 	cp "k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/controller"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
 )
@@ -103,6 +104,8 @@ func newAWSCloud(config io.Reader, service *awsSDKProvider) (cloudprovider.Inter
 		region: regionName,
 	}, nil
 }
+
+func (p *awsCloud) Initialize(clientBuilder controller.ControllerClientBuilder) {}
 
 func (p *awsCloud) ProviderName() string {
 	return ProviderName

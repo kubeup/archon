@@ -17,12 +17,7 @@ import (
 )
 
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
-	return scheme.AddDefaultingFuncs(
-		SetDefaults_InstanceGroup,
-		SetDefaults_Instance,
-		SetDefaults_Network,
-		SetDefaults_ReservedInstance,
-	)
+	return RegisterDefaults(scheme)
 }
 
 func SetDefaults_InstanceGroup(obj *InstanceGroup) {

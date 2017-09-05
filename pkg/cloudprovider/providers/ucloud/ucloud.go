@@ -21,6 +21,7 @@ import (
 	"github.com/ucloud/ucloud-sdk-go/ucloud/auth"
 	"io"
 	cp "k8s.io/kubernetes/pkg/cloudprovider"
+	"k8s.io/kubernetes/pkg/controller"
 	"kubeup.com/archon/pkg/cloudprovider"
 	"kubeup.com/archon/pkg/cluster"
 	"os"
@@ -82,6 +83,8 @@ func newUCloud(config io.Reader) (cloudprovider.Interface, error) {
 		ucloud: &ucloudWrapper{hostsvc, netsvc},
 	}, nil
 }
+
+func (p *UCloud) Initialize(clientBuilder controller.ControllerClientBuilder) {}
 
 func (p *UCloud) ProviderName() string {
 	return ProviderName
