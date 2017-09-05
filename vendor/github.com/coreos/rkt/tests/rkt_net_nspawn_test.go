@@ -30,6 +30,8 @@ func TestNetPortFwdConnectivity(t *testing.T) {
 	NewNetPortFwdConnectivityTest(
 		defaultSamePortFwdCase,
 		defaultDiffPortFwdCase,
+		defaultSpecificIPFwdCase,
+		defaultSpecificIPFwdFailCase,
 		defaultLoSamePortFwdCase,
 		defaultLoDiffPortFwdCase,
 		bridgeSamePortFwdCase,
@@ -55,6 +57,14 @@ func TestNetOverride(t *testing.T) {
 	NewNetOverrideTest().Execute(t)
 }
 
+func TestNetDefaultIPArg(t *testing.T) {
+	NewNetDefaultIPArgTest().Execute(t)
+}
+
+func TestNetIPConflict(t *testing.T) {
+	NewNetIPConflictTest().Execute(t)
+}
+
 func TestNetCustomPtp(t *testing.T) {
 	// PTP means connection Point-To-Point. That is, connections to other pods/containers should be forbidden
 	NewNetCustomPtpTest(true).Execute(t)
@@ -78,4 +88,20 @@ func TestNetDefaultRestrictedConnectivity(t *testing.T) {
 
 func TestNetDefaultGW(t *testing.T) {
 	NewNetDefaultGWTest().Execute(t)
+}
+
+func TestNetCNIEnv(t *testing.T) {
+	NewNetCNIEnvTest().Execute(t)
+}
+
+func TestNetCNIDNS(t *testing.T) {
+	NewNetCNIDNSTest().Execute(t)
+}
+
+func TestNetCNIDNSArg(t *testing.T) {
+	NewNetCNIDNSArgTest().Execute(t)
+}
+
+func TestNetCNIDNSArgNone(t *testing.T) {
+	NewNetCNIDNSArgNoneTest().Execute(t)
 }

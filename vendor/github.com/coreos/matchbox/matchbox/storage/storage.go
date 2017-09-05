@@ -18,6 +18,8 @@ type Store interface {
 	GroupPut(group *storagepb.Group) error
 	// GroupGet returns a machine Group by id.
 	GroupGet(id string) (*storagepb.Group, error)
+	// GroupDelete deletes a machine Group by id.
+	GroupDelete(id string) error
 	// GroupList lists all machine Groups.
 	GroupList() ([]*storagepb.Group, error)
 
@@ -25,6 +27,8 @@ type Store interface {
 	ProfilePut(profile *storagepb.Profile) error
 	// ProfileGet gets a profile by id.
 	ProfileGet(id string) (*storagepb.Profile, error)
+	// ProfileDelete deletes a profile by id.
+	ProfileDelete(id string) error
 	// ProfileList lists all profiles.
 	ProfileList() ([]*storagepb.Profile, error)
 
@@ -32,10 +36,16 @@ type Store interface {
 	IgnitionPut(name string, config []byte) error
 	// IgnitionGet gets an Ignition template by name.
 	IgnitionGet(name string) (string, error)
+	// IgnitionDelete deletes an Ignition template by name.
+	IgnitionDelete(name string) error
+
+	// GenericPut creates or updates a Generic template.
+	GenericPut(name string, config []byte) error
+	// GenericGet gets a Generic template by name.
+	GenericGet(name string) (string, error)
+	// GenericDelete deletes a Generic template by name.
+	GenericDelete(name string) error
 
 	// CloudGet gets a Cloud-Config template by name.
 	CloudGet(name string) (string, error)
-
-	// GenericGet gets a generic template by name.
-	GenericGet(name string) (string, error)
 }

@@ -37,7 +37,8 @@ import (
 	core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/storage/v1beta1"
+	"k8s.io/client-go/pkg/api/v1/ref"
+	storage_v1 "k8s.io/client-go/pkg/apis/storage/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/kubernetes/pkg/util/goroutinemap"
@@ -165,6 +166,9 @@ func NewProvisionController(
 	gitVersion1dot5, _ := semver.Parse("1.5.0")
 	is1dot4 := gitVersion.LT(gitVersion1dot5)
 
+	// TODO(r2d4): GetReference fails otherwise
+	v1.AddToScheme(api.Scheme)
+
 	controller := &ProvisionController{
 		client:                        client,
 		resyncPeriod:                  resyncPeriod,
@@ -236,7 +240,7 @@ func NewProvisionController(
 	controller.classes = cache.NewStore(cache.DeletionHandlingMetaNamespaceKeyFunc)
 	controller.classReflector = cache.NewReflector(
 		controller.classSource,
-		&v1beta1.StorageClass{},
+		&storage_v1.StorageClass{},
 		controller.classes,
 		resyncPeriod,
 	)
@@ -539,7 +543,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 
 	// Prepare a claimRef to the claim early (to fail before a volume is
 	// provisioned)
-	claimRef, err := v1.GetReference(api.Scheme, claim)
+	claimRef, err := ref.GetReference(api.Scheme, claim)
 	if err != nil {
 		glog.Errorf("Unexpected error getting claim reference to claim %q: %v", claimToClaimKey(claim), err)
 		return nil
@@ -841,7 +845,7 @@ func (ctrl *ProvisionController) scheduleOperation(operationName string, operati
 	}
 }
 
-func (ctrl *ProvisionController) getStorageClass(name string) (*v1beta1.StorageClass, error) {
+func (ctrl *ProvisionController) getStorageClass(name string) (*storage_v1.StorageClass, error) {
 	classObj, found, err := ctrl.classes.GetByKey(name)
 	if err != nil {
 		return nil, fmt.Errorf("Error getting StorageClass %q: %v", name, err)
@@ -853,7 +857,7 @@ func (ctrl *ProvisionController) getStorageClass(name string) (*v1beta1.StorageC
 		//    found, it SHOULD report an error (by sending an event to the claim) and it
 		//    SHOULD retry periodically with step i.
 	}
-	storageClass, ok := classObj.(*v1beta1.StorageClass)
+	storageClass, ok := classObj.(*storage_v1.StorageClass)
 	if !ok {
 		return nil, fmt.Errorf("Cannot convert object to StorageClass: %+v", classObj)
 	}
@@ -882,10 +886,12 @@ func setAnnotation(obj *meta_v1.ObjectMeta, ann string, value string) {
 // Request for `nil` class is interpreted as request for class "",
 // i.e. for a classless PV.
 func getClaimClass(claim *v1.PersistentVolumeClaim) string {
-	// TODO: change to PersistentVolumeClaim.Spec.Class value when this
-	// attribute is introduced.
 	if class, found := claim.Annotations[annClass]; found {
 		return class
+	}
+
+	if claim.Spec.StorageClassName != nil {
+		return *claim.Spec.StorageClassName
 	}
 
 	return ""

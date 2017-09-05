@@ -32,64 +32,108 @@ type ExportTestCase struct {
 	runArgs        string
 	writeArgs      string
 	readArgs       string
+	exportArgs     string
 	expectedResult string
 	unmountOverlay bool
+	multiAppPod    bool
+	NeedsOverlay   bool
+	NeedsUserNS    bool
 }
 
 type exportTest []ExportTestCase
 
-var (
-	noOverlaySimpleTest = ExportTestCase{
+var exportTestCases = map[string]ExportTestCase{
+	"noOverlaySimpleTest": {
 		"--no-overlay --insecure-options=image",
 		"--write-file --file-name=" + testFile + " --content=" + testContent,
 		"--read-file --file-name=" + testFile,
+		"",
 		testContent,
 		false,
-	}
+		false,
+		false,
+		false,
+	},
 
-	userNS = ExportTestCase{
+	"specifiedAppTest": {
+		"--no-overlay --insecure-options=image",
+		"--write-file --file-name=" + testFile + " --content=" + testContent,
+		"--read-file --file-name=" + testFile,
+		"--app=rkt-inspect",
+		testContent,
+		false,
+		false,
+		false,
+		false,
+	},
+
+	"multiAppPodTest": {
+		"--no-overlay --insecure-options=image",
+		"--write-file --file-name=" + testFile + " --content=" + testContent,
+		"--read-file --file-name=" + testFile,
+		"--app=rkt-inspect",
+		testContent,
+		false,
+		true,
+		false,
+		false,
+	},
+
+	"userNS": {
 		"--private-users --no-overlay --insecure-options=image",
 		"--write-file --file-name=" + testFile + " --content=" + testContent,
 		"--read-file --file-name=" + testFile,
+		"",
 		testContent,
 		false,
-	}
+		false,
+		false,
+		true,
+	},
 
-	overlaySimpleTest = ExportTestCase{
+	"overlaySimpleTest": {
 		"--insecure-options=image",
 		"--write-file --file-name=" + testFile + " --content=" + testContent,
 		"--read-file --file-name=" + testFile,
+		"",
 		testContent,
 		false,
-	}
+		false,
+		true,
+		false,
+	},
 
-	overlaySimulateReboot = ExportTestCase{
+	"overlaySimulateReboot": {
 		"--insecure-options=image",
 		"--write-file --file-name=" + testFile + " --content=" + testContent,
 		"--read-file --file-name=" + testFile,
+		"",
 		testContent,
 		true,
-	}
-)
-
-func (ct exportTest) Execute(t *testing.T) {
-	ctx := testutils.NewRktRunCtx()
-	defer ctx.Cleanup()
-
-	for _, testCase := range ct {
-		testCase.Execute(t, ctx)
-	}
+		false,
+		true,
+		false,
+	},
 }
 
 func (ct ExportTestCase) Execute(t *testing.T, ctx *testutils.RktRunCtx) {
-	tmpDir := createTempDirOrPanic("rkt-TestExport-tmp-")
+	tmpDir := mustTempDir("rkt-TestExport-tmp-")
 	defer os.RemoveAll(tmpDir)
 
 	tmpTestAci := filepath.Join(tmpDir, "test.aci")
 
 	// Prepare the image with modifications
-	const runInspect = "%s %s %s %s --exec=/inspect -- %s"
-	prepareCmd := fmt.Sprintf(runInspect, ctx.Cmd(), "prepare", ct.runArgs, getInspectImagePath(), ct.writeArgs)
+	var additionalRunArgs string
+	if ct.multiAppPod {
+		tmpAdditionalAci := patchTestACI("other.aci", "--name=other")
+		defer os.Remove(tmpAdditionalAci)
+		const otherArgs = "--write-file --file-name=test.txt --content=NotTheRightContent"
+		additionalRunArgs = fmt.Sprintf("%s --exec=/inspect -- %s", tmpAdditionalAci, otherArgs)
+	} else {
+		additionalRunArgs = ""
+	}
+	const runInspect = "%s %s %s %s --exec=/inspect -- %s --- %s"
+	prepareCmd := fmt.Sprintf(runInspect, ctx.Cmd(), "prepare", ct.runArgs, getInspectImagePath(), ct.writeArgs, additionalRunArgs)
 	t.Logf("Preparing 'inspect --write-file'")
 	uuid := runRktAndGetUUID(t, prepareCmd)
 
@@ -103,13 +147,13 @@ func (ct ExportTestCase) Execute(t *testing.T, ctx *testutils.RktRunCtx) {
 	}
 
 	// Export the image
-	exportCmd := fmt.Sprintf("%s export %s %s", ctx.Cmd(), uuid, tmpTestAci)
+	exportCmd := fmt.Sprintf("%s export %s %s %s", ctx.Cmd(), ct.exportArgs, uuid, tmpTestAci)
 	t.Logf("Running 'export'")
 	child = spawnOrFail(t, exportCmd)
 	waitOrFail(t, child, 0)
 
 	// Run the newly created ACI and check the output
-	readCmd := fmt.Sprintf(runInspect, ctx.Cmd(), "run", ct.runArgs, tmpTestAci, ct.readArgs)
+	readCmd := fmt.Sprintf(runInspect, ctx.Cmd(), "run", ct.runArgs, tmpTestAci, ct.readArgs, "")
 	t.Logf("Running 'inspect --read-file'")
 	child = spawnOrFail(t, readCmd)
 	if ct.expectedResult != "" {
@@ -122,8 +166,4 @@ func (ct ExportTestCase) Execute(t *testing.T, ctx *testutils.RktRunCtx) {
 	// run garbage collector on pods and images
 	runGC(t, ctx)
 	runImageGC(t, ctx)
-}
-
-func NewTestExport(cases ...ExportTestCase) testutils.Test {
-	return exportTest(cases)
 }

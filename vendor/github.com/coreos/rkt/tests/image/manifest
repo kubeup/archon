@@ -1,11 +1,11 @@
 {
     "acKind": "ImageManifest",
-    "acVersion": "0.7.4",
+    "acVersion": "0.8.10",
     "name": "coreos.com/rkt-inspect",
     "labels": [
         {
             "name": "version",
-            "value": "1.11.0"
+            "value": "1.25.0"
         },
         {
             "name": "arch",
@@ -70,6 +70,10 @@
         {
             "name": "coreos.com/rkt/stage1/gc",
             "value": "/ex/gc"
+        },
+        {
+            "name": "appc.io/executor/supports-systemd-notify",
+            "value": "false"
         }
     ]
 }

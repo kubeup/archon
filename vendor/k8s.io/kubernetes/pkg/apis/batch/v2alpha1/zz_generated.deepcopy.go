@@ -128,8 +128,11 @@ func DeepCopy_v2alpha1_CronJobStatus(in interface{}, out interface{}, c *convers
 		}
 		if in.LastScheduleTime != nil {
 			in, out := &in.LastScheduleTime, &out.LastScheduleTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		return nil
 	}
@@ -162,8 +165,10 @@ func DeepCopy_v2alpha1_JobTemplateSpec(in interface{}, out interface{}, c *conve
 		} else {
 			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
-		if err := batch_v1.DeepCopy_v1_JobSpec(&in.Spec, &out.Spec, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Spec); err != nil {
 			return err
+		} else {
+			out.Spec = *newVal.(*batch_v1.JobSpec)
 		}
 		return nil
 	}

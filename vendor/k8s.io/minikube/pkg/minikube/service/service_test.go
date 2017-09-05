@@ -29,7 +29,7 @@ import (
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/kubernetes/typed/core/v1/fake"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/minikube/pkg/minikube/constants"
+	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/tests"
 )
 
@@ -225,7 +225,7 @@ func TestGetServiceListFromServicesByLabel(t *testing.T) {
 }
 
 func TestPrintURLsForService(t *testing.T) {
-	defaultTemplate := template.Must(template.New("svc-template").Parse("{{.IP}}:{{.Port}}"))
+	defaultTemplate := template.Must(template.New("svc-template").Parse("http://{{.IP}}:{{.Port}}"))
 	client := &MockCoreClient{
 		servicesMap: serviceNamespaces,
 	}
@@ -242,7 +242,7 @@ func TestPrintURLsForService(t *testing.T) {
 			serviceName:    "mock-dashboard",
 			namespace:      "default",
 			tmpl:           defaultTemplate,
-			expectedOutput: []string{"127.0.0.1:1111", "127.0.0.1:2222"},
+			expectedOutput: []string{"http://127.0.0.1:1111", "http://127.0.0.1:2222"},
 		},
 		{
 			description:    "empty slice for no node ports",
@@ -268,7 +268,7 @@ func TestPrintURLsForService(t *testing.T) {
 				t.Errorf("Expected error but got none")
 			}
 			if !reflect.DeepEqual(urls, test.expectedOutput) {
-				t.Errorf("Expected %+v \n\n Actual: %+v \n\n")
+				t.Errorf("\nExpected %v \nActual: %v \n\n", test.expectedOutput, urls)
 			}
 		})
 	}
@@ -277,13 +277,13 @@ func TestPrintURLsForService(t *testing.T) {
 func TestGetServiceURLs(t *testing.T) {
 	defaultAPI := &tests.MockAPI{
 		Hosts: map[string]*host.Host{
-			constants.MachineName: {
-				Name:   constants.MachineName,
+			config.GetMachineName(): {
+				Name:   config.GetMachineName(),
 				Driver: &tests.MockDriver{},
 			},
 		},
 	}
-	defaultTemplate := template.Must(template.New("svc-template").Parse("{{.IP}}:{{.Port}}"))
+	defaultTemplate := template.Must(template.New("svc-template").Parse("http://{{.IP}}:{{.Port}}"))
 
 	var tests = []struct {
 		description string
@@ -307,7 +307,7 @@ func TestGetServiceURLs(t *testing.T) {
 				{
 					Namespace: "default",
 					Name:      "mock-dashboard",
-					URLs:      []string{"127.0.0.1:1111", "127.0.0.1:2222"},
+					URLs:      []string{"http://127.0.0.1:1111", "http://127.0.0.1:2222"},
 				},
 				{
 					Namespace: "default",
@@ -335,7 +335,7 @@ func TestGetServiceURLs(t *testing.T) {
 				t.Errorf("Test should have failed, but didn't")
 			}
 			if !reflect.DeepEqual(urls, test.expected) {
-				t.Errorf("URLs did not match, expected %+v \n\n got %+v", test.expected, urls)
+				t.Errorf("URLs did not match, expected %v \n\n got %v", test.expected, urls)
 			}
 		})
 	}
@@ -344,13 +344,13 @@ func TestGetServiceURLs(t *testing.T) {
 func TestGetServiceURLsForService(t *testing.T) {
 	defaultAPI := &tests.MockAPI{
 		Hosts: map[string]*host.Host{
-			constants.MachineName: {
-				Name:   constants.MachineName,
+			config.GetMachineName(): {
+				Name:   config.GetMachineName(),
 				Driver: &tests.MockDriver{},
 			},
 		},
 	}
-	defaultTemplate := template.Must(template.New("svc-template").Parse("{{.IP}}:{{.Port}}"))
+	defaultTemplate := template.Must(template.New("svc-template").Parse("http://{{.IP}}:{{.Port}}"))
 
 	var tests = []struct {
 		description string
@@ -372,7 +372,7 @@ func TestGetServiceURLsForService(t *testing.T) {
 			namespace:   "default",
 			service:     "mock-dashboard",
 			api:         defaultAPI,
-			expected:    []string{"127.0.0.1:1111", "127.0.0.1:2222"},
+			expected:    []string{"http://127.0.0.1:1111", "http://127.0.0.1:2222"},
 		},
 		{
 			description: "correctly return empty serviceURLs",

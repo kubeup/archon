@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -31,11 +33,13 @@ import (
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/host"
+	"github.com/docker/machine/libmachine/mcnerror"
 	"github.com/docker/machine/libmachine/state"
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
 
 	"k8s.io/minikube/pkg/minikube/assets"
+	cfg "k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
 	"k8s.io/minikube/pkg/minikube/sshutil"
 	"k8s.io/minikube/pkg/util"
@@ -56,16 +60,16 @@ func init() {
 
 // StartHost starts a host VM.
 func StartHost(api libmachine.API, config MachineConfig) (*host.Host, error) {
-	exists, err := api.Exists(constants.MachineName)
+	exists, err := api.Exists(cfg.GetMachineName())
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error checking if host exists: %s", constants.MachineName)
+		return nil, errors.Wrapf(err, "Error checking if host exists: %s", cfg.GetMachineName())
 	}
 	if !exists {
 		return createHost(api, config)
 	}
 
 	glog.Infoln("Machine exists!")
-	h, err := api.Load(constants.MachineName)
+	h, err := api.Load(cfg.GetMachineName())
 	if err != nil {
 		return nil, errors.Wrap(err, "Error loading existing host. Please try running [minikube delete], then run [minikube start] again.")
 	}
@@ -85,56 +89,58 @@ func StartHost(api libmachine.API, config MachineConfig) (*host.Host, error) {
 		}
 	}
 
-	if err := h.ConfigureAuth(); err != nil {
-		return nil, &util.RetriableError{Err: errors.Wrap(err, "Error configuring auth on host")}
+	if h.Driver.DriverName() != "none" {
+		if err := h.ConfigureAuth(); err != nil {
+			return nil, &util.RetriableError{Err: errors.Wrap(err, "Error configuring auth on host")}
+		}
 	}
 	return h, nil
 }
 
 // StopHost stops the host VM.
 func StopHost(api libmachine.API) error {
-	host, err := api.Load(constants.MachineName)
+	host, err := api.Load(cfg.GetMachineName())
 	if err != nil {
-		return errors.Wrapf(err, "Error loading host: %s", constants.MachineName)
+		return errors.Wrapf(err, "Error loading host: %s", cfg.GetMachineName())
 	}
 	if err := host.Stop(); err != nil {
-		return errors.Wrapf(err, "Error stopping host: %s", constants.MachineName)
+		alreadyInStateError, ok := err.(mcnerror.ErrHostAlreadyInState)
+		if ok && alreadyInStateError.State == state.Stopped {
+			return nil
+		}
+		return errors.Wrapf(err, "Error stopping host: %s", cfg.GetMachineName())
 	}
 	return nil
 }
 
 // DeleteHost deletes the host VM.
 func DeleteHost(api libmachine.API) error {
-	host, err := api.Load(constants.MachineName)
+	host, err := api.Load(cfg.GetMachineName())
 	if err != nil {
-		return errors.Wrapf(err, "Error deleting host: %s", constants.MachineName)
+		return errors.Wrapf(err, "Error deleting host: %s", cfg.GetMachineName())
 	}
 	m := util.MultiError{}
 	m.Collect(host.Driver.Remove())
-	m.Collect(api.Remove(constants.MachineName))
+	m.Collect(api.Remove(cfg.GetMachineName()))
 	return m.ToError()
 }
 
 // GetHostStatus gets the status of the host VM.
 func GetHostStatus(api libmachine.API) (string, error) {
-	dne := "Does Not Exist"
-	exists, err := api.Exists(constants.MachineName)
+	exists, err := api.Exists(cfg.GetMachineName())
 	if err != nil {
-		return "", errors.Wrapf(err, "Error checking that api exists for: %s", constants.MachineName)
+		return "", errors.Wrapf(err, "Error checking that api exists for: %s", cfg.GetMachineName())
 	}
 	if !exists {
-		return dne, nil
+		return state.None.String(), nil
 	}
 
-	host, err := api.Load(constants.MachineName)
+	host, err := api.Load(cfg.GetMachineName())
 	if err != nil {
-		return "", errors.Wrapf(err, "Error loading api for: %s", constants.MachineName)
+		return "", errors.Wrapf(err, "Error loading api for: %s", cfg.GetMachineName())
 	}
 
 	s, err := host.Driver.GetState()
-	if s.String() == "" {
-		return dne, nil
-	}
 	if err != nil {
 		return "", errors.Wrap(err, "Error getting host state")
 	}
@@ -147,7 +153,7 @@ func GetLocalkubeStatus(api libmachine.API) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s, err := h.RunSSHCommand(localkubeStatusCommand)
+	s, err := RunCommand(h, localkubeStatusCommand, false)
 	if err != nil {
 		return "", err
 	}
@@ -161,18 +167,37 @@ func GetLocalkubeStatus(api libmachine.API) (string, error) {
 	}
 }
 
-type sshAble interface {
-	RunSSHCommand(string) (string, error)
+// GetHostDriverIP gets the ip address of the current minikube cluster
+func GetHostDriverIP(api libmachine.API) (net.IP, error) {
+	host, err := CheckIfApiExistsAndLoad(api)
+	if err != nil {
+		return nil, err
+	}
+
+	ipStr, err := host.Driver.GetIP()
+	if err != nil {
+		return nil, errors.Wrap(err, "Error getting IP")
+	}
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return nil, errors.Wrap(err, "Error parsing IP")
+	}
+	return ip, nil
 }
 
 // StartCluster starts a k8s cluster on the specified Host.
-func StartCluster(h sshAble, kubernetesConfig KubernetesConfig) error {
+func StartCluster(api libmachine.API, kubernetesConfig KubernetesConfig) error {
+	h, err := CheckIfApiExistsAndLoad(api)
+	if err != nil {
+		return errors.Wrap(err, "Error checking that api exists and loading it")
+	}
+
 	startCommand, err := GetStartCommand(kubernetesConfig)
 	if err != nil {
 		return errors.Wrapf(err, "Error generating start command: %s", err)
 	}
 	glog.Infoln(startCommand)
-	output, err := h.RunSSHCommand(startCommand)
+	output, err := RunCommand(h, startCommand, true)
 	glog.Infoln(output)
 	if err != nil {
 		return errors.Wrapf(err, "Error running ssh command: %s", startCommand)
@@ -180,7 +205,7 @@ func StartCluster(h sshAble, kubernetesConfig KubernetesConfig) error {
 	return nil
 }
 
-func UpdateCluster(h sshAble, d drivers.Driver, config KubernetesConfig) error {
+func UpdateCluster(d drivers.Driver, config KubernetesConfig) error {
 	copyableFiles := []assets.CopyableFile{}
 	var localkubeFile assets.CopyableFile
 	var err error
@@ -212,6 +237,16 @@ func UpdateCluster(h sshAble, d drivers.Driver, config KubernetesConfig) error {
 		}
 	}
 
+	if d.DriverName() == "none" {
+		// transfer files to correct place on filesystem
+		for _, f := range copyableFiles {
+			if err := assets.CopyFileLocal(f); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	// transfer files to vm via SSH
 	client, err := sshutil.NewSSHClient(d)
 	if err != nil {
@@ -232,7 +267,7 @@ func localkubeURIWasSpecified(config KubernetesConfig) bool {
 }
 
 // SetupCerts gets the generated credentials required to talk to the APIServer.
-func SetupCerts(d drivers.Driver, apiServerName string) error {
+func SetupCerts(d drivers.Driver, apiServerName string, clusterDnsDomain string) error {
 	localPath := constants.GetMinipath()
 	ipStr, err := d.GetIP()
 	if err != nil {
@@ -245,7 +280,7 @@ func SetupCerts(d drivers.Driver, apiServerName string) error {
 	caKey := filepath.Join(localPath, "ca.key")
 	publicPath := filepath.Join(localPath, "apiserver.crt")
 	privatePath := filepath.Join(localPath, "apiserver.key")
-	if err := GenerateCerts(caCert, caKey, publicPath, privatePath, ip, apiServerName); err != nil {
+	if err := GenerateCerts(caCert, caKey, publicPath, privatePath, ip, apiServerName, clusterDnsDomain); err != nil {
 		return errors.Wrap(err, "Error generating certs")
 	}
 
@@ -262,6 +297,16 @@ func SetupCerts(d drivers.Driver, apiServerName string) error {
 			return err
 		}
 		copyableFiles = append(copyableFiles, certFile)
+	}
+
+	if d.DriverName() == "none" {
+		// transfer files to correct place on filesystem
+		for _, f := range copyableFiles {
+			if err := assets.CopyFileLocal(f); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 
 	// transfer files to vm via SSH
@@ -284,12 +329,13 @@ func engineOptions(config MachineConfig) *engine.Options {
 		Env:              config.DockerEnv,
 		InsecureRegistry: config.InsecureRegistry,
 		RegistryMirror:   config.RegistryMirror,
+		ArbitraryFlags:   config.DockerOpt,
 	}
 	return &o
 }
 
 func createVirtualboxHost(config MachineConfig) drivers.Driver {
-	d := virtualbox.NewDriver(constants.MachineName, constants.GetMinipath())
+	d := virtualbox.NewDriver(cfg.GetMachineName(), constants.GetMinipath())
 	d.Boot2DockerURL = config.Downloader.GetISOFileURI(config.MinikubeISO)
 	d.Memory = config.Memory
 	d.CPU = config.CPUs
@@ -301,8 +347,10 @@ func createVirtualboxHost(config MachineConfig) drivers.Driver {
 func createHost(api libmachine.API, config MachineConfig) (*host.Host, error) {
 	var driver interface{}
 
-	if err := config.Downloader.CacheMinikubeISOFromURL(config.MinikubeISO); err != nil {
-		return nil, errors.Wrap(err, "Error attempting to cache minikube ISO from URL")
+	if config.VMDriver != "none" {
+		if err := config.Downloader.CacheMinikubeISOFromURL(config.MinikubeISO); err != nil {
+			return nil, errors.Wrap(err, "Error attempting to cache minikube ISO from URL")
+		}
 	}
 
 	switch config.VMDriver {
@@ -316,6 +364,8 @@ func createHost(api libmachine.API, config MachineConfig) (*host.Host, error) {
 		driver = createXhyveHost(config)
 	case "hyperv":
 		driver = createHypervHost(config)
+	case "none":
+		driver = createNoneHost(config)
 	default:
 		glog.Exitf("Unsupported driver: %s\n", config.VMDriver)
 	}
@@ -369,47 +419,118 @@ func GetHostDockerEnv(api libmachine.API) (map[string]string, error) {
 }
 
 // GetHostLogs gets the localkube logs of the host VM.
-func GetHostLogs(api libmachine.API) (string, error) {
+// If follow is specified, it will tail the logs
+func GetHostLogs(api libmachine.API, follow bool) (string, error) {
 	h, err := CheckIfApiExistsAndLoad(api)
 	if err != nil {
 		return "", errors.Wrap(err, "Error checking that api exists and loading it")
 	}
-	s, err := h.RunSSHCommand(logsCommand)
+	logsCommand, err := GetLogsCommand(follow)
 	if err != nil {
+		return "", errors.Wrap(err, "Error getting logs command")
+	}
+	if follow {
+		c, err := h.CreateSSHClient()
+		if err != nil {
+			return "", errors.Wrap(err, "Error creating ssh client")
+		}
+		err = c.Shell(logsCommand)
+		if err != nil {
+			return "", errors.Wrap(err, "error ssh shell")
+		}
 		return "", err
+	}
+	s, err := RunCommand(h, logsCommand, false)
+
+	if err != nil {
+		return s, err
 	}
 	return s, nil
 }
 
-// Mount9pHost runs the mount command from the 9p client on the VM to the 9p server on the host
-func Mount9pHost(api libmachine.API) error {
+// MountHost runs the mount command from the 9p client on the VM to the 9p server on the host
+func MountHost(api libmachine.API, path string, ip net.IP, port string, uid, gid int) error {
 	host, err := CheckIfApiExistsAndLoad(api)
 	if err != nil {
 		return errors.Wrap(err, "Error checking that api exists and loading it")
 	}
-	ip, err := getVMHostIP(host)
-	if err != nil {
-		return errors.Wrap(err, "Error getting the host IP address to use from within the VM")
+	if ip == nil {
+		ip, err = GetVMHostIP(host)
+		if err != nil {
+			return errors.Wrap(err, "Error getting the host IP address to use from within the VM")
+		}
 	}
-	_, err = host.RunSSHCommand(GetMount9pCommand(ip))
+	host.RunSSHCommand(GetMountCleanupCommand(path))
+	mountCmd, err := GetMountCommand(ip, path, port, uid, gid)
+	if err != nil {
+		return errors.Wrap(err, "Error getting mount command")
+	}
+	_, err = host.RunSSHCommand(mountCmd)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// GetVMHostIP gets the ip address to be used for mapping host -> VM and VM -> host
+func GetVMHostIP(host *host.Host) (net.IP, error) {
+	switch host.DriverName {
+	case "kvm":
+		return net.ParseIP("192.168.42.1"), nil
+	case "hyperv":
+		re := regexp.MustCompile(`"VSwitch": "(.*?)",`)
+		// TODO(aprindle) Change this to deserialize the driver instead
+		hypervVirtualSwitch := re.FindStringSubmatch(string(host.RawDriver))[1]
+		ip, err := getIPForInterface(fmt.Sprintf("vEthernet (%s)", hypervVirtualSwitch))
+		if err != nil {
+			return []byte{}, errors.Wrap(err, "Error getting VM/Host IP address")
+		}
+		return ip, nil
+	case "virtualbox":
+		out, err := exec.Command(detectVBoxManageCmd(), "showvminfo", "minikube", "--machinereadable").Output()
+		if err != nil {
+			return []byte{}, errors.Wrap(err, "Error running vboxmanage command")
+		}
+		re := regexp.MustCompile(`hostonlyadapter2="(.*?)"`)
+		iface := re.FindStringSubmatch(string(out))[1]
+		ip, err := getIPForInterface(iface)
+		if err != nil {
+			return []byte{}, errors.Wrap(err, "Error getting VM/Host IP address")
+		}
+		return ip, nil
+	case "xhyve":
+		return net.ParseIP("192.168.64.1"), nil
+	default:
+		return []byte{}, errors.New("Error, attempted to get host ip address for unsupported driver")
+	}
+}
+
+// Based on code from http://stackoverflow.com/questions/23529663/how-to-get-all-addresses-and-masks-from-local-interfaces-in-go
+func getIPForInterface(name string) (net.IP, error) {
+	i, _ := net.InterfaceByName(name)
+	addrs, _ := i.Addrs()
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok {
+			if ip := ipnet.IP.To4(); ip != nil {
+				return ip, nil
+			}
+		}
+	}
+	return nil, errors.Errorf("Error finding IPV4 address for %s", name)
+}
+
 func CheckIfApiExistsAndLoad(api libmachine.API) (*host.Host, error) {
-	exists, err := api.Exists(constants.MachineName)
+	exists, err := api.Exists(cfg.GetMachineName())
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error checking that api exists for: %s", constants.MachineName)
+		return nil, errors.Wrapf(err, "Error checking that api exists for: %s", cfg.GetMachineName())
 	}
 	if !exists {
-		return nil, errors.Errorf("Machine does not exist for api.Exists(%s)", constants.MachineName)
+		return nil, errors.Errorf("Machine does not exist for api.Exists(%s)", cfg.GetMachineName())
 	}
 
-	host, err := api.Load(constants.MachineName)
+	host, err := api.Load(cfg.GetMachineName())
 	if err != nil {
-		return nil, errors.Wrapf(err, "Error loading api for: %s", constants.MachineName)
+		return nil, errors.Wrapf(err, "Error loading api for: %s", cfg.GetMachineName())
 	}
 	return host, nil
 }
@@ -426,14 +547,14 @@ func CreateSSHShell(api libmachine.API, args []string) error {
 	}
 
 	if currentState != state.Running {
-		return errors.Errorf("Error: Cannot run ssh command: Host %q is not running", constants.MachineName)
+		return errors.Errorf("Error: Cannot run ssh command: Host %q is not running", cfg.GetMachineName())
 	}
 
 	client, err := host.CreateSSHClient()
 	if err != nil {
 		return errors.Wrap(err, "Error creating ssh client")
 	}
-	return client.Shell(strings.Join(args, " "))
+	return client.Shell(args...)
 }
 
 // EnsureMinikubeRunningOrExit checks that minikube has a status available and that
@@ -445,7 +566,28 @@ func EnsureMinikubeRunningOrExit(api libmachine.API, exitStatus int) {
 		os.Exit(1)
 	}
 	if s != state.Running.String() {
-		fmt.Fprintln(os.Stdout, "minikube is not currently running so the service cannot be accessed")
+		fmt.Fprintln(os.Stderr, "minikube is not currently running so the service cannot be accessed")
 		os.Exit(exitStatus)
 	}
+}
+
+// RunCommand executes commands for both the local and driver implementations
+func RunCommand(h *host.Host, command string, sudo bool) (string, error) {
+	if h.Driver.DriverName() == "none" {
+		cmd := exec.Command("/bin/bash", "-c", command)
+		if sudo {
+			cmd = exec.Command("sudo", "/bin/bash", "-c", command)
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			return "", errors.Wrap(err, string(out))
+		}
+		return string(out), err
+	}
+	out, err := h.RunSSHCommand(command)
+	if err != nil {
+		return "", errors.Wrap(err, string(out))
+	}
+	return string(out), err
+
 }

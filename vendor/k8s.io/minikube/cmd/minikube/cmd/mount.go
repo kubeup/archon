@@ -18,27 +18,69 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"sync"
 
+	"strings"
+
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
+	cmdUtil "k8s.io/minikube/cmd/util"
 	"k8s.io/minikube/pkg/minikube/cluster"
-	"k8s.io/minikube/pkg/minikube/constants"
+	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/machine"
-	"k8s.io/minikube/third_party/go9p/p/srv/examples/ufs"
+	"k8s.io/minikube/third_party/go9p/ufs"
 )
+
+var mountIP string
+var isKill bool
+var uid int
+var gid int
 
 // mountCmd represents the mount command
 var mountCmd = &cobra.Command{
 	Use:   "mount [flags] MOUNT_DIRECTORY(ex:\"/home\")",
-	Short: "Mounts the specified directory into minikube.",
+	Short: "Mounts the specified directory into minikube",
 	Long:  `Mounts the specified directory into minikube.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if isKill {
+			if err := cmdUtil.KillMountProcess(); err != nil {
+				fmt.Println("Errors occurred deleting mount process: ", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
 		if len(args) != 1 {
-			errText := `Please specify a driver name and a directory to be mounted:
-\tminikube mount MOUNT_DIRECTORY(ex:"/home")
+			errText := `Please specify the directory to be mounted: 
+	minikube mount HOST_MOUNT_DIRECTORY:VM_MOUNT_DIRECTORY(ex:"/host-home:/vm-home")
 `
+			fmt.Fprintln(os.Stderr, errText)
+			os.Exit(1)
+		}
+		mountString := args[0]
+		idx := strings.LastIndex(mountString, ":")
+		if idx == -1 { // no ":" was present
+			errText := `Mount directory must be in the form: 
+\tHOST_MOUNT_DIRECTORY:VM_MOUNT_DIRECTORY`
+			fmt.Fprintln(os.Stderr, errText)
+			os.Exit(1)
+		}
+		hostPath := mountString[:idx]
+		vmPath := mountString[idx+1:]
+		if _, err := os.Stat(hostPath); err != nil {
+			if os.IsNotExist(err) {
+				errText := fmt.Sprintf("Cannot find directory %s for mount", hostPath)
+				fmt.Fprintln(os.Stderr, errText)
+			} else {
+				errText := fmt.Sprintf("Error accessing directory %s for mount", hostPath)
+				fmt.Fprintln(os.Stderr, errText)
+			}
+			os.Exit(1)
+		}
+		if len(vmPath) == 0 || !strings.HasPrefix(vmPath, "/") {
+			errText := fmt.Sprintf("The :VM_MOUNT_DIRECTORY must be an absolute path")
 			fmt.Fprintln(os.Stderr, errText)
 			os.Exit(1)
 		}
@@ -46,23 +88,49 @@ var mountCmd = &cobra.Command{
 		if glog.V(1) {
 			debugVal = 1 // ufs.StartServer takes int debug param
 		}
-		mountDir := args[0]
-		api, err := machine.NewAPIClient(clientType)
+		api, err := machine.NewAPIClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting client: %s\n", err)
 			os.Exit(1)
 		}
 		defer api.Close()
-
-		fmt.Printf("Mounting %s into /mount-9p on the minikubeVM\n", mountDir)
+		host, err := api.Load(config.GetMachineName())
+		if err != nil {
+			glog.Errorln("Error loading api: ", err)
+			os.Exit(1)
+		}
+		if host.Driver.DriverName() == "none" {
+			fmt.Println(`'none' driver does not support 'minikube mount' command`)
+			os.Exit(0)
+		}
+		var ip net.IP
+		if mountIP == "" {
+			ip, err = cluster.GetVMHostIP(host)
+			if err != nil {
+				glog.Errorln("Error getting the host IP address to use from within the VM: ", err)
+				os.Exit(1)
+			}
+		} else {
+			ip = net.ParseIP(mountIP)
+			if ip == nil {
+				glog.Errorln("error parsing the input ip address for mount")
+				os.Exit(1)
+			}
+		}
+		fmt.Printf("Mounting %s into %s on the minikube VM\n", hostPath, vmPath)
 		fmt.Println("This daemon process needs to stay alive for the mount to still be accessible...")
+		port, err := cmdUtil.GetPort()
+		if err != nil {
+			glog.Errorln("Error finding port for mount: ", err)
+			os.Exit(1)
+		}
 		var wg sync.WaitGroup
 		wg.Add(1)
 		go func() {
-			ufs.StartServer(constants.DefaultUfsAddress, debugVal, mountDir)
+			ufs.StartServer(net.JoinHostPort(ip.String(), port), debugVal, hostPath)
 			wg.Done()
 		}()
-		err = cluster.Mount9pHost(api)
+		err = cluster.MountHost(api, vmPath, ip, port, uid, gid)
 		if err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
@@ -72,5 +140,9 @@ var mountCmd = &cobra.Command{
 }
 
 func init() {
+	mountCmd.Flags().StringVar(&mountIP, "ip", "", "Specify the ip that the mount should be setup on")
+	mountCmd.Flags().BoolVar(&isKill, "kill", false, "Kill the mount process spawned by minikube start")
+	mountCmd.Flags().IntVar(&uid, "uid", 1001, "Default user id used for the mount")
+	mountCmd.Flags().IntVar(&gid, "gid", 1001, "Default group id used for the mount")
 	RootCmd.AddCommand(mountCmd)
 }

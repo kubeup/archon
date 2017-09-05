@@ -1,0 +1,36 @@
+#!/bin/bash -e
+# USAGE: ./release-files DEST
+
+DEST=$1
+
+if [ -z "${DEST}" ]; then
+  echo "Usage: ${0} DEST"
+  exit 255
+fi
+
+SCRIPTS=$DEST/scripts
+CONTRIB=$DEST/contrib
+
+cp CHANGES.md $DEST
+cp LICENSE $DEST
+cp README.md $DEST
+
+# scripts
+mkdir -p $SCRIPTS/tls
+cp scripts/get-coreos $SCRIPTS
+cp scripts/tls/README.md $SCRIPTS/tls
+cp scripts/tls/cert-gen $SCRIPTS/tls
+cp scripts/tls/openssl.conf $SCRIPTS/tls
+
+# systemd
+mkdir -p $CONTRIB/systemd
+cp -r contrib/systemd/* $CONTRIB/systemd
+
+# examples
+mkdir -p $DEST/examples
+cp -r examples/{cloud,groups,ignition,profiles,README.md} $DEST/examples
+
+# docs
+mkdir -p $DEST/docs
+cp -r Documentation $DEST/docs
+

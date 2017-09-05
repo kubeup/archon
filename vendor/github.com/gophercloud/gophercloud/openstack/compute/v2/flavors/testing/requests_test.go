@@ -33,18 +33,29 @@ func TestListFlavors(t *testing.T) {
 							{
 								"id": "1",
 								"name": "m1.tiny",
+								"vcpus": 1,
 								"disk": 1,
 								"ram": 512,
-								"vcpus": 1,
-								"swap":""
+								"swap":"",
+								"is_public": true
 							},
 							{
 								"id": "2",
-								"name": "m2.small",
-								"disk": 10,
-								"ram": 1024,
+								"name": "m1.small",
+								"vcpus": 1,
+								"disk": 20,
+								"ram": 2048,
+								"swap": 1000,
+								"is_public": true
+							},
+							{
+								"id": "3",
+								"name": "m1.medium",
 								"vcpus": 2,
-								"swap": 1000
+								"disk": 40,
+								"ram": 4096,
+								"swap": 1000,
+								"is_public": false
 							}
 						],
 						"flavors_links": [
@@ -63,6 +74,7 @@ func TestListFlavors(t *testing.T) {
 	})
 
 	pages := 0
+	// Get public and private flavors
 	err := flavors.ListDetail(fake.ServiceClient(), nil).EachPage(func(page pagination.Page) (bool, error) {
 		pages++
 
@@ -72,8 +84,9 @@ func TestListFlavors(t *testing.T) {
 		}
 
 		expected := []flavors.Flavor{
-			{ID: "1", Name: "m1.tiny", Disk: 1, RAM: 512, VCPUs: 1, Swap: 0},
-			{ID: "2", Name: "m2.small", Disk: 10, RAM: 1024, VCPUs: 2, Swap: 1000},
+			{ID: "1", Name: "m1.tiny", VCPUs: 1, Disk: 1, RAM: 512, Swap: 0, IsPublic: true},
+			{ID: "2", Name: "m1.small", VCPUs: 1, Disk: 20, RAM: 2048, Swap: 1000, IsPublic: true},
+			{ID: "3", Name: "m1.medium", VCPUs: 2, Disk: 40, RAM: 4096, Swap: 1000, IsPublic: false},
 		}
 
 		if !reflect.DeepEqual(expected, actual) {
@@ -117,6 +130,58 @@ func TestGetFlavor(t *testing.T) {
 	actual, err := flavors.Get(fake.ServiceClient(), "12345").Extract()
 	if err != nil {
 		t.Fatalf("Unable to get flavor: %v", err)
+	}
+
+	expected := &flavors.Flavor{
+		ID:         "1",
+		Name:       "m1.tiny",
+		Disk:       1,
+		RAM:        512,
+		VCPUs:      1,
+		RxTxFactor: 1,
+		Swap:       0,
+	}
+	if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Expected %#v, but was %#v", expected, actual)
+	}
+}
+
+func TestCreateFlavor(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	th.Mux.HandleFunc("/flavors", func(w http.ResponseWriter, r *http.Request) {
+		th.TestMethod(t, r, "POST")
+		th.TestHeader(t, r, "X-Auth-Token", fake.TokenID)
+
+		w.Header().Add("Content-Type", "application/json")
+		fmt.Fprintf(w, `
+			{
+				"flavor": {
+					"id": "1",
+					"name": "m1.tiny",
+					"disk": 1,
+					"ram": 512,
+					"vcpus": 1,
+					"rxtx_factor": 1,
+					"swap": ""
+				}
+			}
+		`)
+	})
+
+	disk := 1
+	opts := &flavors.CreateOpts{
+		ID:         "1",
+		Name:       "m1.tiny",
+		Disk:       &disk,
+		RAM:        512,
+		VCPUs:      1,
+		RxTxFactor: 1.0,
+	}
+	actual, err := flavors.Create(fake.ServiceClient(), opts).Extract()
+	if err != nil {
+		t.Fatalf("Unable to create flavor: %v", err)
 	}
 
 	expected := &flavors.Flavor{

@@ -30,9 +30,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/appc/spec/schema/types"
+	"github.com/coreos/rkt/common"
+	"github.com/coreos/rkt/pkg/aci/acitest"
 	"github.com/coreos/rkt/tests/testutils"
 	taas "github.com/coreos/rkt/tests/testutils/aci-server"
+
+	"github.com/appc/spec/schema"
+	"github.com/appc/spec/schema/types"
 )
 
 // TestFetchFromFile tests that 'rkt fetch/run/prepare' for a file will always
@@ -48,15 +52,15 @@ func TestFetchFromFile(t *testing.T) {
 		args  string
 		image string
 	}{
-		{"--insecure-options=image fetch", imagePath},
-		{"--insecure-options=image fetch --store-only", imagePath},
-		{"--insecure-options=image fetch --no-store", imagePath},
-		{"--insecure-options=image run --mds-register=false", imagePath},
-		{"--insecure-options=image run --mds-register=false --store-only", imagePath},
-		{"--insecure-options=image run --mds-register=false --no-store", imagePath},
-		{"--insecure-options=image prepare", imagePath},
-		{"--insecure-options=image prepare --store-only", imagePath},
-		{"--insecure-options=image prepare --no-store", imagePath},
+		{"--insecure-options=image --debug fetch", imagePath},
+		{"--insecure-options=image --debug fetch --store-only", imagePath},
+		{"--insecure-options=image --debug fetch --no-store", imagePath},
+		{"--insecure-options=image --debug run --mds-register=false", imagePath},
+		{"--insecure-options=image --debug run --mds-register=false --store-only", imagePath},
+		{"--insecure-options=image --debug run --mds-register=false --no-store", imagePath},
+		{"--insecure-options=image --debug prepare", imagePath},
+		{"--insecure-options=image --debug prepare --store-only", imagePath},
+		{"--insecure-options=image --debug prepare --no-store", imagePath},
 	}
 
 	for _, tt := range tests {
@@ -77,16 +81,16 @@ func testFetchFromFile(t *testing.T, arg string, image string) {
 	if err := expectWithOutput(child, fetchFromFileMsg); err != nil {
 		t.Fatalf("%q should be found: %v", fetchFromFileMsg, err)
 	}
-	child.Wait()
+	waitOrFail(t, child, 0)
 
 	// 1. Run cmd again, should get $fetchFromFileMsg.
 	runRktAndCheckOutput(t, cmd, fetchFromFileMsg, false)
 }
 
-// TestFetch tests that 'rkt fetch/run/prepare' for any type (image name string
+// TestFetchAny tests that 'rkt fetch/run/prepare' for any type (image name string
 // or URL) except file:// URL will work with the default, store only
 // (--store-only) and remote only (--no-store) behaviors.
-func TestFetch(t *testing.T) {
+func TestFetchAny(t *testing.T) {
 	image := "rkt-inspect-implicit-fetch.aci"
 	imagePath := patchTestACI(image, "--exec=/inspect")
 
@@ -98,26 +102,26 @@ func TestFetch(t *testing.T) {
 		imageArgs string
 		finalURL  string
 	}{
-		{"--insecure-options=image fetch", "coreos.com/etcd:v2.1.2", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
-		{"--insecure-options=image fetch", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
-		{"--insecure-options=image fetch", "docker://busybox", "", "docker://busybox"},
-		{"--insecure-options=image fetch", "docker://busybox:latest", "", "docker://busybox:latest"},
-		{"--insecure-options=image run --mds-register=false", "coreos.com/etcd:v2.1.2", "--exec /etcdctl", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
-		{"--insecure-options=image run --mds-register=false", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "--exec /etcdctl", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
-		{"--insecure-options=image run --mds-register=false", "docker://busybox", "", "docker://busybox"},
-		{"--insecure-options=image run --mds-register=false", "docker://busybox:latest", "", "docker://busybox:latest"},
-		{"--insecure-options=image prepare", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
-		{"--insecure-options=image prepare", "coreos.com/etcd:v2.1.2", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug fetch", "coreos.com/etcd:v2.1.2", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug fetch", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug fetch", "docker://busybox", "", "docker://busybox"},
+		{"--insecure-options=image --debug fetch", "docker://busybox:latest", "", "docker://busybox:latest"},
+		{"--insecure-options=image --debug run --mds-register=false", "coreos.com/etcd:v2.1.2", "--exec /etcdctl", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug run --mds-register=false", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "--exec /etcdctl", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug run --mds-register=false", "docker://busybox", "", "docker://busybox"},
+		{"--insecure-options=image --debug run --mds-register=false", "docker://busybox:latest", "", "docker://busybox:latest"},
+		{"--insecure-options=image --debug prepare", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
+		{"--insecure-options=image --debug prepare", "coreos.com/etcd:v2.1.2", "", "https://github.com/coreos/etcd/releases/download/v2.1.2/etcd-v2.1.2-linux-amd64.aci"},
 		// test --insecure-options=tls to make sure
 		// https://github.com/coreos/rkt/issues/1829 is not an issue anymore
-		{"--insecure-options=image,tls prepare", "docker://busybox", "", "docker://busybox"},
-		{"--insecure-options=image prepare", "docker://busybox:latest", "", "docker://busybox:latest"},
+		{"--insecure-options=image,tls --debug prepare", "docker://busybox", "", "docker://busybox"},
+		{"--insecure-options=image --debug prepare", "docker://busybox:latest", "", "docker://busybox:latest"},
 	}
 
 	for _, tt := range tests {
-		testFetchDefault(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
-		testFetchStoreOnly(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
-		testFetchNoStore(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
+		testFetchNew(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
+		testFetchNever(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
+		testFetchUpdate(t, tt.args, tt.image, tt.imageArgs, tt.finalURL)
 	}
 }
 
@@ -146,7 +150,7 @@ func TestFetchFullHash(t *testing.T) {
 	}
 }
 
-func testFetchDefault(t *testing.T, arg string, image string, imageArgs string, finalURL string) {
+func testFetchNew(t *testing.T, arg string, image string, imageArgs string, finalURL string) {
 	remoteFetchMsgTpl := `remote fetching from URL %q`
 	storeMsgTpl := `using image from local store for .* %s`
 	if finalURL == "" {
@@ -158,17 +162,13 @@ func testFetchDefault(t *testing.T, arg string, image string, imageArgs string, 
 	ctx := testutils.NewRktRunCtx()
 	defer ctx.Cleanup()
 
-	cmd := fmt.Sprintf("%s %s %s %s", ctx.Cmd(), arg, image, imageArgs)
+	cmd := fmt.Sprintf("%s --pull-policy=new %s %s %s", ctx.Cmd(), arg, image, imageArgs)
 
 	// 1. Run cmd with the image not available in the store, should get $remoteFetchMsg.
-	child := spawnOrFail(t, cmd)
-	if err := expectWithOutput(child, remoteFetchMsg); err != nil {
-		t.Fatalf("%q should be found: %v", remoteFetchMsg, err)
-	}
-	err := child.Wait()
-	status := getExitStatus(err)
+	err := runRktAndCheckRegexOutput(t, cmd, remoteFetchMsg)
+	status, _ := common.GetExitStatus(err)
 	if status != 0 {
-		t.Logf("rkt terminated with unexpected status %d, expected %d\nOutput:\n%s", status, 0, child.Collect())
+		t.Logf("%v", err)
 		t.Skip("remote fetching failed, probably a network failure. Skipping...")
 	}
 
@@ -176,7 +176,7 @@ func testFetchDefault(t *testing.T, arg string, image string, imageArgs string, 
 	runRktAndCheckRegexOutput(t, cmd, storeMsg)
 }
 
-func testFetchStoreOnly(t *testing.T, args string, image string, imageArgs string, finalURL string) {
+func testFetchNever(t *testing.T, args string, image string, imageArgs string, finalURL string) {
 	cannotFetchMsgTpl := `unable to fetch.* image from .* %q`
 	storeMsgTpl := `using image from local store for .* %s`
 	cannotFetchMsg := fmt.Sprintf(cannotFetchMsgTpl, image)
@@ -185,7 +185,7 @@ func testFetchStoreOnly(t *testing.T, args string, image string, imageArgs strin
 	ctx := testutils.NewRktRunCtx()
 	defer ctx.Cleanup()
 
-	cmd := fmt.Sprintf("%s --store-only %s %s %s", ctx.Cmd(), args, image, imageArgs)
+	cmd := fmt.Sprintf("%s --pull-policy=never %s %s %s", ctx.Cmd(), args, image, imageArgs)
 
 	// 1. Run cmd with the image not available in the store should get $cannotFetchMsg.
 	runRktAndCheckRegexOutput(t, cmd, cannotFetchMsg)
@@ -198,7 +198,7 @@ func testFetchStoreOnly(t *testing.T, args string, image string, imageArgs strin
 	runRktAndCheckRegexOutput(t, cmd, storeMsg)
 }
 
-func testFetchNoStore(t *testing.T, args string, image string, imageArgs string, finalURL string) {
+func testFetchUpdate(t *testing.T, args string, image string, imageArgs string, finalURL string) {
 	remoteFetchMsgTpl := `remote fetching from URL %q`
 	remoteFetchMsg := fmt.Sprintf(remoteFetchMsgTpl, finalURL)
 
@@ -209,18 +209,72 @@ func testFetchNoStore(t *testing.T, args string, image string, imageArgs string,
 		t.Skip(fmt.Sprintf("%v, probably a network failure. Skipping...", err))
 	}
 
-	cmd := fmt.Sprintf("%s --no-store %s %s %s", ctx.Cmd(), args, image, imageArgs)
+	cmd := fmt.Sprintf("%s --pull-policy=update %s %s %s", ctx.Cmd(), args, image, imageArgs)
 
 	// 1. Run cmd with the image available in the store, should get $remoteFetchMsg.
-	child := spawnOrFail(t, cmd)
-	if err := expectWithOutput(child, remoteFetchMsg); err != nil {
+	err := runRktAndCheckRegexOutput(t, cmd, remoteFetchMsg)
+	status, _ := common.GetExitStatus(err)
+	if status != 0 {
+		t.Logf("%v", err)
+		t.Skip("remote fetching failed, probably a network failure. Skipping...")
+	}
+
+	if err != nil {
 		t.Fatalf("%q should be found: %v", remoteFetchMsg, err)
 	}
-	err := child.Wait()
-	status := getExitStatus(err)
-	if status != 0 {
-		t.Logf("rkt terminated with unexpected status %d, expected %d\nOutput:\n%s", status, 0, child.Collect())
-		t.Skip("remote fetching failed, probably a network failure. Skipping...")
+}
+
+func TestFetchNoStoreCacheControl(t *testing.T) {
+	imageName := "rkt-inspect-fetch-nostore-cachecontrol"
+	imageFileName := fmt.Sprintf("%s.aci", imageName)
+	// no spaces between words, because of an actool limitation
+	successMsg := "deferredSignatureDownloadWasSuccessful"
+
+	args := []string{
+		fmt.Sprintf("--exec=/inspect --print-msg='%s'", successMsg),
+		fmt.Sprintf("--name=%s", imageName),
+	}
+	image := patchTestACI(imageFileName, args...)
+	defer os.Remove(image)
+
+	asc := runSignImage(t, image, 1)
+	defer os.Remove(asc)
+	ascBase := filepath.Base(asc)
+
+	setup := taas.GetDefaultServerSetup()
+	setup.Server = taas.ServerQuay
+	server := runServer(t, setup)
+	defer server.Close()
+	fileSet := make(map[string]string, 2)
+	fileSet[imageFileName] = image
+	fileSet[ascBase] = asc
+	if err := server.UpdateFileSet(fileSet); err != nil {
+		t.Fatalf("Failed to populate a file list in test aci server: %v", err)
+	}
+
+	ctx := testutils.NewRktRunCtx()
+	defer ctx.Cleanup()
+
+	runRktTrust(t, ctx, "", 1)
+
+	tests := []struct {
+		imageArg string
+		imageURL string
+	}{
+		{"https://127.0.0.1/" + imageFileName, "https://127.0.0.1/" + imageFileName},
+		{"localhost/" + imageName, "https://127.0.0.1:443/localhost/" + imageFileName},
+	}
+
+	for _, tt := range tests {
+		cmd := fmt.Sprintf("%s --no-store --debug --insecure-options=tls,image fetch %s", ctx.Cmd(), tt.imageArg)
+		expectedMessage := fmt.Sprintf("fetching image from %s", tt.imageURL)
+		runRktAndCheckRegexOutput(t, cmd, expectedMessage)
+
+		cmd = fmt.Sprintf("%s --no-store --debug --insecure-options=tls,image fetch %s", ctx.Cmd(), tt.imageArg)
+		expectedMessage = fmt.Sprintf("image for %s isn't expired, not fetching.", tt.imageURL)
+		runRktAndCheckRegexOutput(t, cmd, expectedMessage)
+
+		ctx.Reset()
 	}
 }
 
@@ -261,7 +315,7 @@ func TestResumedFetch(t *testing.T) {
 	ctx := testutils.NewRktRunCtx()
 	defer ctx.Cleanup()
 
-	cmd := fmt.Sprintf("%s --no-store --insecure-options=image fetch %s", ctx.Cmd(), server.URL)
+	cmd := fmt.Sprintf("%s --no-store --insecure-options=image fetch %s", ctx.Cmd(), server.URL+"/image.aci")
 	child := spawnOrFail(t, cmd)
 	<-kill
 	err := child.Close()
@@ -302,7 +356,7 @@ func TestResumedFetchInvalidCache(t *testing.T) {
 	// Fetch the first half of the image, and kill rkt once it reaches halfway.
 	server := httptest.NewServer(testServerHandler(t, shouldInterrupt, imagePath, kill, reportkill))
 	defer server.Close()
-	cmd := fmt.Sprintf("%s --no-store --insecure-options=image fetch %s", ctx.Cmd(), server.URL)
+	cmd := fmt.Sprintf("%s --no-store --insecure-options=image fetch %s", ctx.Cmd(), server.URL+"/image.aci")
 	child := spawnOrFail(t, cmd)
 	<-kill
 	err := child.Close()
@@ -484,11 +538,22 @@ func TestDeferredSignatureDownload(t *testing.T) {
 }
 
 func TestDifferentDiscoveryLabels(t *testing.T) {
-	manifestTemplate := `{"acKind":"ImageManifest","acVersion":"0.7.4","name":"IMG_NAME","labels":[{"name":"version","value":"1.2.0"},{"name":"arch","value":"amd64"},{"name":"os","value":"linux"}]}`
+	const imageName = "localhost/rkt-test-different-discovery-labels-image"
+
+	manifest, err := acitest.ImageManifestString(&schema.ImageManifest{
+		Name: imageName, Labels: types.Labels{
+			{"version", "1.2.0"},
+			{"arch", "amd64"},
+			{"os", "linux"},
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+
 	emptyImage := getEmptyImagePath()
-	imageName := "localhost/rkt-test-different-discovery-labels-image"
-	manifest := strings.Replace(manifestTemplate, "IMG_NAME", imageName, -1)
-	tmpDir := createTempDirOrPanic("rkt-TestDifferentDiscoveryLabels-")
+	tmpDir := mustTempDir("rkt-TestDifferentDiscoveryLabels-")
 	defer os.RemoveAll(tmpDir)
 
 	tmpManifest, err := ioutil.TempFile(tmpDir, "manifest")
@@ -500,8 +565,8 @@ func TestDifferentDiscoveryLabels(t *testing.T) {
 	}
 	defer os.Remove(tmpManifest.Name())
 
-	image := patchACI(emptyImage, "rkt-test-different-discovery-labels-image.aci", "--manifest", tmpManifest.Name())
 	imageFileName := fmt.Sprintf("%s.aci", filepath.Base(imageName))
+	image := patchACI(emptyImage, imageFileName, "--manifest", tmpManifest.Name())
 	defer os.Remove(image)
 
 	asc := runSignImage(t, image, 1)
@@ -544,7 +609,7 @@ func testDifferentDiscoveryNameLabels(t *testing.T, imageName string, expectedMe
 	// and always get the same ACI
 	runCmd := fmt.Sprintf("%s --debug --insecure-options=tls fetch %s", ctx.Cmd(), imageName)
 	child := spawnOrFail(t, runCmd)
-	defer waitOrFail(t, child, 1)
+	defer waitOrFail(t, child, 254)
 
 	if err := expectWithOutput(child, expectedMessage); err != nil {
 		t.Fatalf("Could not find expected msg %q, output follows:\n%v", expectedMessage, err)

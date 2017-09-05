@@ -42,6 +42,9 @@ again.`,
 		Run: runWrapper(runFetch),
 	}
 	flagFullHash bool
+	// We can't have different defaults for a given flag variable shared across
+	// subcommands, so we can't use pullPolicyUpdate here
+	flagPullPolicyDefaultUpdate string
 )
 
 func init() {
@@ -52,8 +55,11 @@ func init() {
 
 	cmdFetch.Flags().Var((*appAsc)(&rktApps), "signature", "local signature file to use in validating the preceding image")
 	cmdFetch.Flags().BoolVar(&flagStoreOnly, "store-only", false, "use only available images in the store (do not discover or download from remote URLs)")
+	cmdFetch.Flags().MarkDeprecated("store-only", "please use --pull-policy=never")
 	cmdFetch.Flags().BoolVar(&flagNoStore, "no-store", false, "fetch images ignoring the local store")
+	cmdFetch.Flags().MarkDeprecated("no-store", "please use --pull-policy=update")
 	cmdFetch.Flags().BoolVar(&flagFullHash, "full", false, "print the full image hash after fetching")
+	cmdFetch.Flags().StringVar(&flagPullPolicyDefaultUpdate, "pull-policy", image.PullPolicyUpdate, "when to pull an image")
 
 	cmdRkt.AddCommand(cmdFetch)
 
@@ -66,36 +72,46 @@ func init() {
 func runFetch(cmd *cobra.Command, args []string) (exit int) {
 	if err := parseApps(&rktApps, args, cmd.Flags(), false); err != nil {
 		stderr.PrintE("unable to parse arguments", err)
-		return 1
+		return 254
 	}
 
 	if rktApps.Count() < 1 {
 		stderr.Print("must provide at least one image")
-		return 1
+		return 254
 	}
+
+	// flagPullPolicy defaults to new regardless of subcommand, so we use a
+	// different variable for the flag on fetch and then set it here
+	flagPullPolicy = flagPullPolicyDefaultUpdate
 
 	if flagStoreOnly && flagNoStore {
 		stderr.Print("both --store-only and --no-store specified")
-		return 1
+		return 254
+	}
+	if flagStoreOnly {
+		flagPullPolicy = image.PullPolicyNever
+	}
+	if flagNoStore {
+		flagPullPolicy = image.PullPolicyUpdate
 	}
 
 	s, err := imagestore.NewStore(storeDir())
 	if err != nil {
 		stderr.PrintE("cannot open store", err)
-		return 1
+		return 254
 	}
 
 	ts, err := treestore.NewStore(treeStoreDir(), s)
 	if err != nil {
 		stderr.PrintE("cannot open treestore", err)
-		return 1
+		return 254
 	}
 
 	ks := getKeystore()
 	config, err := getConfig()
 	if err != nil {
 		stderr.PrintE("cannot get configuration", err)
-		return 1
+		return 254
 	}
 	ft := &image.Fetcher{
 		S:                  s,
@@ -107,16 +123,17 @@ func runFetch(cmd *cobra.Command, args []string) (exit int) {
 		Debug:              globalFlags.Debug,
 		TrustKeysFromHTTPS: globalFlags.TrustKeysFromHTTPS,
 
-		StoreOnly: flagStoreOnly,
-		NoStore:   flagNoStore,
-		WithDeps:  true,
+		PullPolicy: flagPullPolicy,
+		WithDeps:   true,
 	}
 
+	err = ft.FetchImages(&rktApps)
+	if err != nil {
+		stderr.Error(err)
+		return 254
+	}
 	err = rktApps.Walk(func(app *apps.App) error {
-		hash, err := ft.FetchImage(app.Image, app.Asc, app.ImType)
-		if err != nil {
-			return err
-		}
+		hash := app.ImageID.String()
 		if !flagFullHash {
 			hash = types.ShortHash(hash)
 		}
@@ -125,7 +142,7 @@ func runFetch(cmd *cobra.Command, args []string) (exit int) {
 	})
 	if err != nil {
 		stderr.Error(err)
-		return 1
+		return 254
 	}
 
 	return

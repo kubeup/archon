@@ -26,8 +26,8 @@ source "$ROOT/${KUBE_CONFIG_FILE:-"config-default.sh"}"
 source "$KUBE_ROOT/cluster/common.sh"
 
 export LIBVIRT_DEFAULT_URI=qemu:///system
-export SERVICE_ACCOUNT_LOOKUP=${SERVICE_ACCOUNT_LOOKUP:-false}
-export ADMISSION_CONTROL=${ADMISSION_CONTROL:-NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds}
+export SERVICE_ACCOUNT_LOOKUP=${SERVICE_ACCOUNT_LOOKUP:-true}
+export ADMISSION_CONTROL=${ADMISSION_CONTROL:-Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,ResourceQuota}
 readonly POOL=kubernetes
 readonly POOL_PATH=/var/lib/libvirt/images/kubernetes
 
@@ -188,6 +188,7 @@ function initialize-pool {
       render-template "$ROOT/kubedns-svc.yaml" > "$POOL_PATH/kubernetes/addons/kubedns-svc.yaml"
       render-template "$ROOT/kubedns-controller.yaml"  > "$POOL_PATH/kubernetes/addons/kubedns-controller.yaml"
       render-template "$ROOT/kubedns-sa.yaml"  > "$POOL_PATH/kubernetes/addons/kubedns-sa.yaml"
+      render-template "$ROOT/kubedns-cm.yaml"  > "$POOL_PATH/kubernetes/addons/kubedns-cm.yaml"
   fi
 
   virsh pool-refresh $POOL
@@ -214,7 +215,7 @@ function wait-cluster-readiness {
 
   local timeout=120
   while [[ $timeout -ne 0 ]]; do
-    nb_ready_nodes=$(kubectl get nodes -o go-template="{{range.items}}{{range.status.conditions}}{{.type}}{{end}}:{{end}}" --api-version=v1 2>/dev/null | tr ':' '\n' | grep -c Ready || true)
+    nb_ready_nodes=$(kubectl get nodes -o go-template="{{range.items}}{{range.status.conditions}}{{.type}}{{end}}:{{end}}" 2>/dev/null | tr ':' '\n' | grep -c Ready || true)
     echo "Nb ready nodes: $nb_ready_nodes / $NUM_NODES"
     if [[ "$nb_ready_nodes" -eq "$NUM_NODES" ]]; then
       return 0

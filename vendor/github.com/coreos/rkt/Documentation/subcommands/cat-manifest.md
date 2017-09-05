@@ -5,7 +5,7 @@ For debugging or inspection you may want to extract the PodManifest to stdout.
 ```
 # rkt cat-manifest UUID
 {
-  "acVersion":"0.7.0",
+  "acVersion":"0.8.10",
   "acKind":"PodManifest"
 ...
 ```
@@ -18,4 +18,7 @@ For debugging or inspection you may want to extract the PodManifest to stdout.
 
 ## Global options
 
-See the table with [global options in general commands documentation](../commands.md#global-options).
+See the table with [global options in general commands documentation][global-options].
+
+
+[global-options]: ../commands.md#global-options

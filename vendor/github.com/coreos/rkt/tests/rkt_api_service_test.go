@@ -21,10 +21,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -40,34 +38,26 @@ import (
 )
 
 func startAPIService(t *testing.T, ctx *testutils.RktRunCtx) *gexpect.ExpectSubprocess {
-	noUidGid := false
-	gid, err := common.LookupGid(common.RktGroup)
+	noRktGid := false
+	rktGid, err := common.LookupGid(common.RktGroup)
 	if err != nil {
 		t.Logf("no %q group, will run api service with root, ONLY DO THIS FOR TESTING!", common.RktGroup)
-		noUidGid = true
+		noRktGid = true
 	} else {
 		if err := ctx.SetupDataDir(); err != nil {
 			t.Fatalf("failed to setup data directory: %v", err)
 		}
 	}
 
-	u, err := user.Lookup("nobody")
-	if err != nil {
-		t.Logf(`no "nobody" user, will run api service with root, ONLY DO THIS FOR TESTING!`)
-		noUidGid = true
-	}
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		t.Fatalf(`failed to parse "nobody" UID: %v`, err)
-	}
+	uid, _ := ctx.GetUidGidRktBinOwnerNotRoot()
 
 	t.Logf("Running rkt api service")
 	apisvcCmd := fmt.Sprintf("%s api-service", ctx.Cmd())
 
-	if noUidGid {
+	if noRktGid {
 		return startRktAndCheckOutput(t, apisvcCmd, "API service running")
 	}
-	return startRktAsUidGidAndCheckOutput(t, apisvcCmd, "API service running", false, uid, gid)
+	return startRktAsUidGidAndCheckOutput(t, apisvcCmd, "API service running", false, uid, rktGid)
 }
 
 func stopAPIService(t *testing.T, svc *gexpect.ExpectSubprocess) {
@@ -103,7 +93,7 @@ func checkPodState(t *testing.T, rawState string, apiState v1alpha.PodState) {
 		if apiState == v1alpha.PodState_POD_STATE_EXITED {
 			return
 		}
-	case "garbage":
+	case "garbage", "exited garbage":
 		if apiState == v1alpha.PodState_POD_STATE_GARBAGE {
 			return
 		}
@@ -397,8 +387,8 @@ func NewAPIServiceListInspectPodsTest() testutils.Test {
 						},
 					},
 				},
-				"non-existed-network",
-				1,
+				"non-existent-network",
+				254,
 			},
 		}
 
@@ -617,6 +607,7 @@ func NewAPIServiceCgroupTest() testutils.Test {
 		}
 
 		// ListPods(detail=true). Filter according to the cgroup.
+		t.Logf("Calling ListPods with cgroup filter %v", cgroups)
 		resp, err = c.ListPods(context.Background(), &v1alpha.ListPodsRequest{
 			Detail:  true,
 			Filters: []*v1alpha.PodFilter{{Cgroups: cgroups}},
@@ -633,6 +624,7 @@ func NewAPIServiceCgroupTest() testutils.Test {
 			checkPodDetails(t, ctx, p)
 		}
 
+		t.Logf("Calling ListPods with subcgroup filter %v", subcgroups)
 		resp, err = c.ListPods(context.Background(), &v1alpha.ListPodsRequest{
 			Detail:  true,
 			Filters: []*v1alpha.PodFilter{{PodSubCgroups: subcgroups}},

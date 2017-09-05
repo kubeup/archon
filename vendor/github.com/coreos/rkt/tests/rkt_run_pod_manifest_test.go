@@ -18,11 +18,8 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"path"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/appc/spec/schema"
@@ -33,29 +30,11 @@ import (
 	"github.com/coreos/rkt/common/cgroup"
 )
 
-const baseAppName = "rkt-inspect"
-
 func intP(i int) *int {
 	return &i
 }
 func stringP(s string) *string {
 	return &s
-}
-
-func verifyHostFile(t *testing.T, tmpdir, filename string, i int, expectedResult string) {
-	filePath := path.Join(tmpdir, filename)
-	defer os.Remove(filePath)
-
-	// Verify the file is written to host.
-	if strings.Contains(expectedResult, "host:") {
-		data, err := ioutil.ReadFile(filePath)
-		if err != nil {
-			t.Fatalf("%d: Cannot read the host file: %v", i, err)
-		}
-		if string(data) != expectedResult {
-			t.Fatalf("%d: Expecting %q in the host file, but saw %q", i, expectedResult, data)
-		}
-	}
 }
 
 func mustNewIsolator(body string) (i types.Isolator) {
@@ -66,18 +45,13 @@ func mustNewIsolator(body string) (i types.Isolator) {
 	return
 }
 
-type imagePatch struct {
-	name    string
-	patches []string
-}
-
 // Test running pod manifests that contains just one app.
 // TODO(yifan): Figure out a way to test port mapping on single host.
 func TestPodManifest(t *testing.T) {
 	ctx := testutils.NewRktRunCtx()
 	defer ctx.Cleanup()
 
-	tmpdir := createTempDirOrPanic("rkt-tests.")
+	tmpdir := mustTempDir("rkt-tests.")
 	defer os.RemoveAll(tmpdir)
 
 	boolFalse, boolTrue := false, true
@@ -200,7 +174,11 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "empty:foo"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
@@ -237,7 +215,11 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "empty:foo"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
@@ -274,7 +256,11 @@ func TestPodManifest(t *testing.T) {
 								{"FILE", "/dir1"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
@@ -310,7 +296,11 @@ func TestPodManifest(t *testing.T) {
 								{"FILE", "/dir1"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
@@ -348,13 +338,26 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "host:foo"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -379,14 +382,27 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "host:foo"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -411,16 +427,29 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", true},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: true,
+								},
 							},
 						},
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -442,17 +471,30 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", true},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: true,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -476,16 +518,29 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, &boolTrue, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  &boolTrue,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -509,17 +564,30 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir1", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir1",
+									ReadOnly: false,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, &boolTrue, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  &boolTrue,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -542,13 +610,26 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "host:bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir2", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir2",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -574,14 +655,27 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "host:bar"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir1", "/dir2", false},
+								{
+									Name:     "dir1",
+									Path:     "/dir2",
+									ReadOnly: false,
+								},
 							},
 						},
 						ReadOnlyRootFS: true,
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -604,7 +698,16 @@ func TestPodManifest(t *testing.T) {
 					{Name: baseAppName},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -630,7 +733,16 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -640,7 +752,7 @@ func TestPodManifest(t *testing.T) {
 		{
 			// Simple read after write with volume mounted, no apps in pod manifest.
 			// This should succeed even the mount point in image manifest is readOnly,
-			// because it is overriden by the volume's readOnly.
+			// because it is overridden by the volume's readOnly.
 			[]imagePatch{
 				{
 					"rkt-test-run-pod-manifest-vol-ro-no-app.aci",
@@ -655,7 +767,16 @@ func TestPodManifest(t *testing.T) {
 					{Name: baseAppName},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, &boolFalse, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  &boolFalse,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -679,10 +800,19 @@ func TestPodManifest(t *testing.T) {
 					{Name: baseAppName},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, &boolTrue, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  &boolTrue,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -706,10 +836,19 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir1", "host", tmpdir, &boolTrue, nil, nil, nil},
+					{
+						Name:      "dir1",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  &boolTrue,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
-			1,
+			254,
 			`Cannot write to file "/dir1/file": open /dir1/file: read-only file system`,
 			"",
 		},
@@ -795,7 +934,11 @@ func TestPodManifest(t *testing.T) {
 								{"FILE", "/dir/file"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir", "/dir", false},
+								{
+									Name:     "dir",
+									Path:     "/dir",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
@@ -810,13 +953,26 @@ func TestPodManifest(t *testing.T) {
 								{"CONTENT", "host:foo"},
 							},
 							MountPoints: []types.MountPoint{
-								{"dir", "/dir", false},
+								{
+									Name:     "dir",
+									Path:     "/dir",
+									ReadOnly: false,
+								},
 							},
 						},
 					},
 				},
 				Volumes: []types.Volume{
-					{"dir", "host", tmpdir, nil, nil, nil, nil},
+					{
+						Name:      "dir",
+						Kind:      "host",
+						Source:    tmpdir,
+						ReadOnly:  nil,
+						Recursive: nil,
+						Mode:      nil,
+						UID:       nil,
+						GID:       nil,
+					},
 				},
 			},
 			0,
@@ -958,7 +1114,7 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 			},
-			1,
+			254,
 			`"user2" user not found`,
 			"",
 		},
@@ -979,7 +1135,7 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 			},
-			1,
+			254,
 			`"group2" group not found`,
 			"",
 		},
@@ -1021,7 +1177,7 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 			},
-			1,
+			254,
 			`no such file or directory`,
 			"",
 		},
@@ -1042,16 +1198,22 @@ func TestPodManifest(t *testing.T) {
 					},
 				},
 			},
-			1,
+			254,
 			`no such file or directory`,
 			"",
 		},
 	}
 
 	for i, tt := range tests {
-		if tt.cgroup != "" && !cgroup.IsIsolatorSupported(tt.cgroup) {
-			t.Logf("Skip test #%v: cgroup %s not supported", i, tt.cgroup)
-			continue
+		if tt.cgroup != "" {
+			ok, err := cgroup.IsIsolatorSupported(tt.cgroup)
+			if err != nil {
+				t.Fatalf("Error checking memory isolator support: %v", err)
+			}
+			if !ok {
+				t.Logf("Skip test #%v: cgroup %s not supported", i, tt.cgroup)
+				continue
+			}
 		}
 
 		var hashesToRemove []string
@@ -1118,4 +1280,25 @@ func TestPodManifest(t *testing.T) {
 			removeFromCas(t, ctx, h)
 		}
 	}
+}
+
+func TestPodManifestWithEmptyApps(t *testing.T) {
+	ctx := testutils.NewRktRunCtx()
+	defer ctx.Cleanup()
+
+	tmpdir := mustTempDir("rkt-tests.")
+	defer os.RemoveAll(tmpdir)
+
+	manifest := &schema.PodManifest{
+		Apps:      []schema.RuntimeApp{},
+		ACKind:    schema.PodManifestKind,
+		ACVersion: schema.AppContainerVersion,
+	}
+
+	manifestFile := generatePodManifestFile(t, manifest)
+	defer os.Remove(manifestFile)
+
+	runCmd := fmt.Sprintf("%s run --mds-register=false --pod-manifest=%s", ctx.Cmd(), manifestFile)
+	runEmptyAppsMsg := "pod must contain at least one application"
+	runRktAndCheckOutput(t, runCmd, runEmptyAppsMsg, true)
 }

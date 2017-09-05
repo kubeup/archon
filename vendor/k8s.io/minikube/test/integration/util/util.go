@@ -33,7 +33,7 @@ import (
 	commonutil "k8s.io/minikube/pkg/util"
 )
 
-const kubectlBinary = "kubectl-v1.6.0-alpha.1"
+const kubectlBinary = "kubectl"
 
 type MinikubeRunner struct {
 	T          *testing.T
@@ -69,6 +69,17 @@ func (m *MinikubeRunner) RunCommand(command string, checkError bool) string {
 		}
 	}
 	return string(stdout)
+}
+
+func (m *MinikubeRunner) RunDaemon(command string) *exec.Cmd {
+	commandArr := strings.Split(command, " ")
+	path, _ := filepath.Abs(m.BinaryPath)
+	cmd := exec.Command(path, commandArr...)
+	err := cmd.Start()
+	if err != nil {
+		m.T.Fatalf("Error running command: %s %s", command, err)
+	}
+	return cmd
 }
 
 func (m *MinikubeRunner) SSH(command string) (string, error) {
@@ -191,10 +202,8 @@ func (k *KubectlRunner) DeleteNamespace(namespace string) error {
 	return err
 }
 
-func (k *KubectlRunner) GetPod(name, namespace string) *api.Pod {
+func (k *KubectlRunner) GetPod(name, namespace string) (*api.Pod, error) {
 	p := &api.Pod{}
-	if err := k.RunCommandParseOutput([]string{"get", "pod", name, "--namespace=" + namespace}, p); err != nil {
-		k.T.Fatalf("Error checking pod status: %s", err)
-	}
-	return p
+	err := k.RunCommandParseOutput([]string{"get", "pod", name, "--namespace=" + namespace}, p)
+	return p, err
 }

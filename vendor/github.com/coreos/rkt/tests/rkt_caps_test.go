@@ -32,6 +32,7 @@ var appCapsTests = []struct {
 	capRetainSet string // only use value if != "x"
 	capRemoveSet string // only use value if != "x"
 	expected     string // caps bounding set as printed by gocapability
+	useOldFlag   bool   // use --cap-retain or --cap-remove instead of --caps-*; backwards compatibility testing
 
 	// set during the test
 	imageFile string
@@ -64,6 +65,13 @@ var appCapsTests = []struct {
 		capRetainSet: "CAP_NET_ADMIN",
 		capRemoveSet: "x",
 		expected:     "net_admin",
+	},
+	{
+		testName:     "image-only-one-cap-old",
+		capRetainSet: "CAP_NET_ADMIN",
+		capRemoveSet: "x",
+		expected:     "net_admin",
+		useOldFlag:   true,
 	},
 	{
 		testName:     "image-only-one-cap-from-default",
@@ -150,6 +158,15 @@ var appCapsTests = []struct {
 		testName:     "image-remove-one-from-default",
 		capRetainSet: "x",
 		capRemoveSet: "CAP_CHOWN",
+		expected: strings.Join([]string{
+			"dac_override, fowner, fsetid, kill, setgid, setuid, setpcap, net_bind_service, net_raw, sys_chroot, mknod, audit_write, setfcap",
+		}, ", "),
+	},
+	{
+		testName:     "image-remove-one-from-default-old",
+		capRetainSet: "x",
+		capRemoveSet: "CAP_CHOWN",
+		useOldFlag:   true,
 		expected: strings.Join([]string{
 			"dac_override, fowner, fsetid, kill, setgid, setuid, setpcap, net_bind_service, net_raw, sys_chroot, mknod, audit_write, setfcap",
 		}, ", "),
@@ -347,10 +364,18 @@ func TestCapsSeveralAppWithFlags(t *testing.T) {
 	for _, tt := range appCapsTests {
 		rktArgs += " " + tt.imageFile
 		if tt.capRetainSet != "x" {
-			rktArgs += " --cap-retain=" + tt.capRetainSet
+			capFlag := " --caps-retain"
+			if tt.useOldFlag {
+				capFlag = " --cap-retain"
+			}
+			rktArgs += fmt.Sprintf("%s=%s", capFlag, tt.capRetainSet)
 		}
 		if tt.capRemoveSet != "x" {
-			rktArgs += " --cap-remove=" + tt.capRemoveSet
+			capFlag := " --caps-remove"
+			if tt.useOldFlag {
+				capFlag = " --cap-remove"
+			}
+			rktArgs += fmt.Sprintf("%s=%s", capFlag, tt.capRemoveSet)
 		}
 	}
 	cmd := fmt.Sprintf("%s --insecure-options=image run %s", ctx.Cmd(), rktArgs)
@@ -472,6 +497,106 @@ func TestCapsOverride(t *testing.T) {
 		waitOrFail(t, child, 0)
 
 		ctx.RunGC()
+	}
+}
+
+// Tests that --insecure-options=capabilities allows everything
+func TestCapsInsecureOption(t *testing.T) {
+	ctx := testutils.NewRktRunCtx()
+	defer ctx.Cleanup()
+
+	imageFile := patchTestACI("insecure-options-caps.aci", "--exec=/inspect --print-caps-pid=0")
+	defer os.Remove(imageFile)
+
+	defaultCaps := strings.Join([]string{
+		"chown",
+		"dac_override",
+		"fowner",
+		"fsetid",
+		"kill",
+		"setgid",
+		"setuid",
+		"setpcap",
+		"net_bind_service",
+		"net_raw",
+		"sys_chroot",
+		"mknod",
+		"audit_write",
+		"setfcap",
+	}, ", ")
+
+	// All capabilities defined in Linux, in the same order as their definition:
+	// https://github.com/torvalds/linux/blob/v4.7/include/uapi/linux/capability.h#L90
+	allCaps := strings.Join([]string{
+		"chown",
+		"dac_override",
+		"dac_read_search",
+		"fowner",
+		"fsetid",
+		"kill",
+		"setgid",
+		"setuid",
+		"setpcap",
+		"linux_immutable",
+		"net_bind_service",
+		"net_broadcast",
+		"net_admin",
+		"net_raw",
+		"ipc_lock",
+		"ipc_owner",
+		"sys_module",
+		"sys_rawio",
+		"sys_chroot",
+		"sys_ptrace",
+		"sys_pacct",
+		"sys_admin",
+		"sys_boot",
+		"sys_nice",
+		"sys_resource",
+		"sys_time",
+		"sys_tty_config",
+		"mknod",
+		"lease",
+		"audit_write",
+		"audit_control",
+		"setfcap",
+		"mac_override",
+		"mac_admin",
+		"syslog",
+		"wake_alarm",
+		"block_suspend",
+		// do not check "audit_read" to support tests in older kernels
+		// "audit_read", // since Linux 3.16
+	}, ", ")
+
+	// Without --insecure-options=capabilities
+	expectedDefault := fmt.Sprintf("Capability set: bounding: %s", defaultCaps)
+	for _, insecureOption := range []string{"image", "image,ondisk,paths", "all-fetch"} {
+		// run
+		t.Logf("run: check caps with --insecure-options=%s\n", insecureOption)
+		cmd := fmt.Sprintf(`%s --debug --insecure-options=%s run %s`, ctx.Cmd(), insecureOption, imageFile)
+		runRktAndCheckOutput(t, cmd, expectedDefault, false)
+		// run-prepared
+		t.Logf("run-prepared: check caps with --insecure-options=%s\n", insecureOption)
+		cmd = fmt.Sprintf(`%s --insecure-options=%s prepare %s`, ctx.Cmd(), insecureOption, imageFile)
+		uuid := runRktAndGetUUID(t, cmd)
+		cmd = fmt.Sprintf("%s --insecure-options=%s --debug run-prepared %s", ctx.Cmd(), insecureOption, uuid)
+		runRktAndCheckOutput(t, cmd, expectedDefault, false)
+	}
+
+	// With --insecure-options=capabilities
+	expectedAll := fmt.Sprintf("Capability set: bounding: %s", allCaps)
+	for _, insecureOption := range []string{"image,capabilities", "image,ondisk,paths,capabilities", "all-fetch,capabilities", "all"} {
+		// run
+		t.Logf("run: check caps with --insecure-options=%s\n", insecureOption)
+		cmd := fmt.Sprintf(`%s --debug --insecure-options=%s run %s`, ctx.Cmd(), insecureOption, imageFile)
+		runRktAndCheckOutput(t, cmd, expectedAll, false)
+		// run-prepared
+		t.Logf("run-prepared: check caps with --insecure-options=%s\n", insecureOption)
+		cmd = fmt.Sprintf(`%s --insecure-options=%s prepare %s`, ctx.Cmd(), insecureOption, imageFile)
+		uuid := runRktAndGetUUID(t, cmd)
+		cmd = fmt.Sprintf("%s --insecure-options=%s --debug run-prepared %s", ctx.Cmd(), insecureOption, uuid)
+		runRktAndCheckOutput(t, cmd, expectedAll, false)
 	}
 }
 

@@ -18,7 +18,13 @@ limitations under the License.
 
 package constants
 
+import (
+	"k8s.io/client-go/util/homedir"
+)
+
 var SupportedVMDrivers = [...]string{
 	"virtualbox",
 	"hyperv",
 }
+
+var DefaultMountDir = homedir.HomeDir()

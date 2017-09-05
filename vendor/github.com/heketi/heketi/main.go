@@ -1,34 +1,29 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package main
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
 	"github.com/heketi/heketi/apps"
 	"github.com/heketi/heketi/apps/glusterfs"
 	"github.com/heketi/heketi/middleware"
+	"github.com/spf13/cobra"
+	"github.com/urfave/negroni"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"k8s.io/kubernetes/pkg/client/restclient"
 )
 
 type Config struct {
@@ -43,13 +38,30 @@ var (
 	showVersion    bool
 )
 
-func init() {
-	flag.StringVar(&configfile, "config", "", "Configuration file")
-	flag.BoolVar(&showVersion, "version", false, "Show version")
+var RootCmd = &cobra.Command{
+	Use:     "heketi",
+	Short:   "Heketi is a restful volume management server",
+	Long:    "Heketi is a restful volume management server",
+	Example: "heketi --config=/config/file/path/",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Heketi %v\n", HEKETI_VERSION)
+		if !showVersion {
+			// Check configuration file was given
+			if configfile == "" {
+				fmt.Fprintln(os.Stderr, "Please provide configuration file")
+				os.Exit(1)
+			}
+		} else {
+			// Quit here if all we needed to do was show version
+			os.Exit(0)
+		}
+	},
 }
 
-func printVersion() {
-	fmt.Printf("Heketi %v\n", HEKETI_VERSION)
+func init() {
+	RootCmd.Flags().StringVar(&configfile, "config", "", "Configuration file")
+	RootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Show version")
+	RootCmd.SilenceUsage = true
 }
 
 func setWithEnvVariables(options *Config) {
@@ -75,18 +87,14 @@ func setWithEnvVariables(options *Config) {
 }
 
 func main() {
-	flag.Parse()
-	printVersion()
-
-	// Quit here if all we needed to do was show version
-	if showVersion {
-		return
+	if err := RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
 	}
 
-	// Check configuration file was given
+	// Quit here if all we needed to do was show usage/help
 	if configfile == "" {
-		fmt.Fprintln(os.Stderr, "Please provide configuration file")
-		os.Exit(1)
+		return
 	}
 
 	// Read configuration
@@ -110,6 +118,11 @@ func main() {
 
 	// Substitue values using any set environment variables
 	setWithEnvVariables(&options)
+
+	// Use negroni to add middleware.  Here we add two
+	// middlewares: Recovery and Logger, which come with
+	// Negroni
+	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger())
 
 	// Go to the beginning of the file when we pass it
 	// to the application
@@ -142,11 +155,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Use negroni to add middleware.  Here we add two
-	// middlewares: Recovery and Logger, which come with
-	// Negroni
-	n := negroni.New(negroni.NewRecovery(), negroni.NewLogger())
-
 	// Load authorization JWT middleware
 	if options.AuthEnabled {
 		jwtauth := middleware.NewJwtAuth(&options.JwtConfig)
@@ -162,6 +170,13 @@ func main() {
 		n.UseFunc(app.Auth)
 
 		fmt.Println("Authorization loaded")
+	}
+
+	// Check if running in a Kubernetes environment
+	_, err = restclient.InClusterConfig()
+	if err == nil {
+		// Load middleware to backup database
+		n.UseFunc(glusterfsApp.BackupToKubernetesSecret)
 	}
 
 	// Add all endpoints after the middleware was added

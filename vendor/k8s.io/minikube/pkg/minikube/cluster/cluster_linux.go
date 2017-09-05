@@ -17,14 +17,14 @@ limitations under the License.
 package cluster
 
 import (
-	"errors"
 	"fmt"
-	"net"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/docker/machine/libmachine/drivers"
-	"github.com/docker/machine/libmachine/host"
+	cfg "k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
+	"k8s.io/minikube/pkg/minikube/machine/drivers/none"
 )
 
 type kvmDriver struct {
@@ -45,7 +45,7 @@ type kvmDriver struct {
 func createKVMHost(config MachineConfig) *kvmDriver {
 	return &kvmDriver{
 		BaseDriver: &drivers.BaseDriver{
-			MachineName: constants.MachineName,
+			MachineName: cfg.GetMachineName(),
 			StorePath:   constants.GetMinipath(),
 		},
 		Memory:         config.Memory,
@@ -54,20 +54,26 @@ func createKVMHost(config MachineConfig) *kvmDriver {
 		PrivateNetwork: "docker-machines",
 		Boot2DockerURL: config.Downloader.GetISOFileURI(config.MinikubeISO),
 		DiskSize:       config.DiskSize,
-		DiskPath:       filepath.Join(constants.GetMinipath(), "machines", constants.MachineName, fmt.Sprintf("%s.img", constants.MachineName)),
-		ISO:            filepath.Join(constants.GetMinipath(), "machines", constants.MachineName, "boot2docker.iso"),
+		DiskPath:       filepath.Join(constants.GetMinipath(), "machines", cfg.GetMachineName(), fmt.Sprintf("%s.img", cfg.GetMachineName())),
+		ISO:            filepath.Join(constants.GetMinipath(), "machines", cfg.GetMachineName(), "boot2docker.iso"),
 		CacheMode:      "default",
 		IOMode:         "threads",
 	}
 }
 
-func getVMHostIP(host *host.Host) (net.IP, error) {
-	switch host.DriverName {
-	case "virtualbox":
-		return net.ParseIP("10.0.2.2"), nil
-	case "kvm":
-		return net.ParseIP("192.168.42.1"), nil
-	default:
-		return []byte{}, errors.New("Error, attempted to get host ip address for unsupported driver")
+func detectVBoxManageCmd() string {
+	cmd := "VBoxManage"
+	if path, err := exec.LookPath(cmd); err == nil {
+		return path
+	}
+	return cmd
+}
+
+func createNoneHost(config MachineConfig) *none.Driver {
+	return &none.Driver{
+		BaseDriver: &drivers.BaseDriver{
+			MachineName: cfg.GetMachineName(),
+			StorePath:   constants.GetMinipath(),
+		},
 	}
 }

@@ -22,7 +22,9 @@ import (
 	"time"
 
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/helper"
 	"k8s.io/kubernetes/pkg/api/v1"
+	v1helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,41 +46,6 @@ const (
 	retries               = 5
 )
 
-func computeTaintDifference(left []v1.Taint, right []v1.Taint) []v1.Taint {
-	result := []v1.Taint{}
-	for i := range left {
-		found := false
-		for j := range right {
-			if left[i] == right[j] {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, left[i])
-		}
-	}
-	return result
-}
-
-// copy of 'computeTaintDifference' - long live lack of generics...
-func computeTolerationDifference(left []v1.Toleration, right []v1.Toleration) []v1.Toleration {
-	result := []v1.Toleration{}
-	for i := range left {
-		found := false
-		for j := range right {
-			if left[i] == right[j] {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, left[i])
-		}
-	}
-	return result
-}
-
 // Needed to make workqueue work
 type updateItemInterface interface{}
 
@@ -94,7 +61,7 @@ type podUpdateItem struct {
 	newTolerations []v1.Toleration
 }
 
-// NoExecuteTaint manager listens to Taint/Toleration changes and is resposible for removing Pods
+// NoExecuteTaintManager listens to Taint/Toleration changes and is responsible for removing Pods
 // from Nodes tainted with NoExecute Taints.
 type NoExecuteTaintManager struct {
 	client   clientset.Interface
@@ -161,30 +128,24 @@ func getPodsAssignedToNode(c clientset.Interface, nodeName string) ([]v1.Pod, er
 	return pods.Items, nil
 }
 
-// Returns minimal toleration time from the given slice, or -1 if it's infinite.
+// getMinTolerationTime returns minimal toleration time from the given slice, or -1 if it's infinite.
 func getMinTolerationTime(tolerations []v1.Toleration) time.Duration {
 	minTolerationTime := int64(-1)
 	if len(tolerations) == 0 {
 		return 0
 	}
-	if tolerations[0].TolerationSeconds != nil {
-		tolerationSeconds := *(tolerations[0].TolerationSeconds)
-		if tolerationSeconds <= 0 {
-			return 0
-		} else {
-			minTolerationTime = tolerationSeconds
-		}
-	}
+
 	for i := range tolerations {
 		if tolerations[i].TolerationSeconds != nil {
 			tolerationSeconds := *(tolerations[i].TolerationSeconds)
 			if tolerationSeconds <= 0 {
 				return 0
-			} else if tolerationSeconds < minTolerationTime {
+			} else if tolerationSeconds < minTolerationTime || minTolerationTime == -1 {
 				minTolerationTime = tolerationSeconds
 			}
 		}
 	}
+
 	return time.Duration(minTolerationTime) * time.Second
 }
 
@@ -289,7 +250,7 @@ func (tc *NoExecuteTaintManager) PodUpdated(oldPod *v1.Pod, newPod *v1.Pod) {
 		newTolerations = newPod.Spec.Tolerations
 	}
 
-	if oldPod != nil && newPod != nil && api.Semantic.DeepEqual(oldTolerations, newTolerations) && oldPod.Spec.NodeName == newPod.Spec.NodeName {
+	if oldPod != nil && newPod != nil && helper.Semantic.DeepEqual(oldTolerations, newTolerations) && oldPod.Spec.NodeName == newPod.Spec.NodeName {
 		return
 	}
 	updateItem := &podUpdateItem{
@@ -315,7 +276,7 @@ func (tc *NoExecuteTaintManager) NodeUpdated(oldNode *v1.Node, newNode *v1.Node)
 	}
 	newTaints = getNoExecuteTaints(newTaints)
 
-	if oldNode != nil && newNode != nil && api.Semantic.DeepEqual(oldTaints, newTaints) {
+	if oldNode != nil && newNode != nil && helper.Semantic.DeepEqual(oldTaints, newTaints) {
 		return
 	}
 	updateItem := &nodeUpdateItem{
@@ -343,7 +304,7 @@ func (tc *NoExecuteTaintManager) processPodOnNode(
 	if len(taints) == 0 {
 		tc.cancelWorkWithEvent(podNamespacedName)
 	}
-	allTolerated, usedTolerations := v1.GetMatchingTolerations(taints, tolerations)
+	allTolerated, usedTolerations := v1helper.GetMatchingTolerations(taints, tolerations)
 	if !allTolerated {
 		glog.V(2).Infof("Not all taints are tolerated after update for Pod %v on %v", podNamespacedName.String(), nodeName)
 		// We're canceling scheduled work (if any), as we're going to delete the Pod right away.

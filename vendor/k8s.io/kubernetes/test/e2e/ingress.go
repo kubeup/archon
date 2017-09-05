@@ -87,7 +87,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 				return
 			}
 			By("Deleting ingress")
-			jig.DeleteIngress()
+			jig.TryDeleteIngress()
 
 			By("Cleaning up cloud resources")
 			framework.CleanupGCEIngressController(gceController)
@@ -144,7 +144,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 	})
 
 	// Time: borderline 5m, slow by design
-	framework.KubeDescribe("Nginx", func() {
+	framework.KubeDescribe("[Slow] Nginx", func() {
 		var nginxController *framework.NginxIngressController
 
 		BeforeEach(func() {
@@ -177,7 +177,7 @@ var _ = framework.KubeDescribe("Loadbalancing: L7", func() {
 				return
 			}
 			By("Deleting ingress")
-			jig.DeleteIngress()
+			jig.TryDeleteIngress()
 		})
 
 		It("should conform to Ingress spec", func() {

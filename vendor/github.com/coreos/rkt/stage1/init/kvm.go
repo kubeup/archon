@@ -21,13 +21,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/appc/spec/schema"
-	"github.com/appc/spec/schema/types"
 	"github.com/coreos/go-systemd/util"
 	"github.com/coreos/rkt/common"
 	"github.com/coreos/rkt/networking"
+	"github.com/coreos/rkt/pkg/mountinfo"
 	stage1commontypes "github.com/coreos/rkt/stage1/common/types"
 	stage1initcommon "github.com/coreos/rkt/stage1/init/common"
 	"github.com/coreos/rkt/stage1/init/kvm"
@@ -35,6 +36,9 @@ import (
 )
 
 const journalDir = "/var/log/journal"
+
+// Supported hypervisors
+var hypervisors = [...]string{"lkvm", "qemu"}
 
 // KvmNetworkingToSystemd generates systemd unit files for a pod according to network configuration
 func KvmNetworkingToSystemd(p *stage1commontypes.Pod, n *networking.Networking) error {
@@ -49,28 +53,20 @@ func KvmNetworkingToSystemd(p *stage1commontypes.Pod, n *networking.Networking) 
 	return nil
 }
 
-func mountSharedVolumes(root string, p *stage1commontypes.Pod, ra *schema.RuntimeApp) error {
-	app := ra.App
+func mountSharedVolumes(p *stage1commontypes.Pod, ra *schema.RuntimeApp) error {
 	appName := ra.Name
-	volumes := p.Manifest.Volumes
-	vols := make(map[types.ACName]types.Volume)
-	for _, v := range volumes {
-		vols[v.Name] = v
-	}
 
-	sharedVolPath := common.SharedVolumesPath(root)
-	if err := os.MkdirAll(sharedVolPath, stage1initcommon.SharedVolPerm); err != nil {
-		return errwrap.Wrap(errors.New("could not create shared volumes directory"), err)
-	}
-	if err := os.Chmod(sharedVolPath, stage1initcommon.SharedVolPerm); err != nil {
-		return errwrap.Wrap(fmt.Errorf("could not change permissions of %q", sharedVolPath), err)
+	sharedVolPath, err := common.CreateSharedVolumesPath(p.Root)
+	if err != nil {
+		return err
 	}
 
 	imageManifest := p.Images[appName.String()]
-	mounts := stage1initcommon.GenerateMounts(ra, vols, imageManifest)
+	mounts, err := stage1initcommon.GenerateMounts(ra, p.Manifest.Volumes, stage1initcommon.ConvertedFromDocker(imageManifest))
+	if err != nil {
+		return err
+	}
 	for _, m := range mounts {
-		vol := vols[m.Volume]
-
 		absRoot, err := filepath.Abs(p.Root) // Absolute path to the pod's rootfs.
 		if err != nil {
 			return errwrap.Wrap(errors.New("could not get pod's root absolute path"), err)
@@ -81,44 +77,65 @@ func mountSharedVolumes(root string, p *stage1commontypes.Pod, ra *schema.Runtim
 			return fmt.Errorf(`could not evaluate absolute path for application rootfs in app: %v`, appName)
 		}
 
-		mntPath, err := stage1initcommon.EvaluateSymlinksInsideApp(absAppRootfs, m.Path)
+		mntPath, err := stage1initcommon.EvaluateSymlinksInsideApp(absAppRootfs, m.Mount.Path)
 		if err != nil {
-			return errwrap.Wrap(fmt.Errorf("could not evaluate path %v", m.Path), err)
+			return errwrap.Wrap(fmt.Errorf("could not evaluate path %v", m.Mount.Path), err)
 		}
 		absDestination := filepath.Join(absAppRootfs, mntPath)
-		shPath := filepath.Join(sharedVolPath, vol.Name.String())
-		if err := stage1initcommon.PrepareMountpoints(shPath, absDestination, &vol, m.DockerImplicit); err != nil {
+		shPath := filepath.Join(sharedVolPath, m.Volume.Name.String())
+		if err := stage1initcommon.PrepareMountpoints(shPath, absDestination, &m.Volume, m.DockerImplicit); err != nil {
 			return err
 		}
 
-		readOnly := stage1initcommon.IsMountReadOnly(vol, app.MountPoints)
-		var source string
-		switch vol.Kind {
-		case "host":
-			source = vol.Source
-		case "empty":
-			source = filepath.Join(common.SharedVolumesPath(root), vol.Name.String())
-		default:
-			return fmt.Errorf(`invalid volume kind %q. Must be one of "host" or "empty"`, vol.Kind)
-		}
+		source := m.Source(p.Root)
 		if cleanedSource, err := filepath.EvalSymlinks(source); err != nil {
 			return errwrap.Wrap(fmt.Errorf("could not resolve symlink for source: %v", source), err)
 		} else if err := ensureDestinationExists(cleanedSource, absDestination); err != nil {
 			return errwrap.Wrap(fmt.Errorf("could not create destination mount point: %v", absDestination), err)
-		} else if err := doBindMount(cleanedSource, absDestination, readOnly); err != nil {
-			return errwrap.Wrap(fmt.Errorf("could not bind mount path %v (s: %v, d: %v)", m.Path, source, absDestination), err)
+		} else if err := doBindMount(cleanedSource, absDestination, m.ReadOnly, m.Volume.Recursive); err != nil {
+			return errwrap.Wrap(fmt.Errorf("could not bind mount path %v (s: %v, d: %v)", m.Mount.Path, source, absDestination), err)
 		}
 	}
 	return nil
 }
 
-func doBindMount(source, destination string, readOnly bool) error {
-	if err := syscall.Mount(source, destination, "bind", syscall.MS_BIND, ""); err != nil {
-		return err
+func doBindMount(source, destination string, readOnly bool, recursive *bool) error {
+	var flags uintptr = syscall.MS_BIND
+
+	// Enable recursive by default and remove it if explicitly requested
+	recursiveBool := recursive == nil || *recursive == true
+	if recursiveBool {
+		flags |= syscall.MS_REC
 	}
+
+	if err := syscall.Mount(source, destination, "bind", flags, ""); err != nil {
+		return errwrap.Wrap(fmt.Errorf("error mounting %s", destination), err)
+	}
+
+	// Linux can't bind-mount with readonly in a single operation, so remount +ro
 	if readOnly {
-		return syscall.Mount(source, destination, "bind", syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_BIND, "")
+		if err := syscall.Mount("", destination, "none", syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_BIND, ""); err != nil {
+			return errwrap.Wrap(fmt.Errorf("error remounting read-only %s", destination), err)
+		}
 	}
+
+	if readOnly && recursiveBool {
+		// Sub-mounts are still read-write, so find them and remount them read-only
+
+		mnts, err := mountinfo.ParseMounts(0)
+		if err != nil {
+			return errwrap.Wrap(fmt.Errorf("error getting mounts under %q from mountinfo", source), err)
+		}
+		mnts = mnts.Filter(mountinfo.HasPrefix(source + "/"))
+
+		for _, mnt := range mnts {
+			innerAbsPath := destination + strings.Replace(mnt.MountPoint, source, "", -1)
+			if err := syscall.Mount("", innerAbsPath, "none", syscall.MS_REMOUNT|syscall.MS_RDONLY|syscall.MS_BIND, ""); err != nil {
+				return errwrap.Wrap(fmt.Errorf("error remounting child mount %s read-only", innerAbsPath), err)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -129,16 +146,16 @@ func ensureDestinationExists(source, destination string) error {
 	}
 
 	targetPathParent, _ := filepath.Split(destination)
-	if err := os.MkdirAll(targetPathParent, stage1initcommon.SharedVolPerm); err != nil {
+	if err := os.MkdirAll(targetPathParent, common.SharedVolumePerm); err != nil {
 		return errwrap.Wrap(fmt.Errorf("could not create parent directory: %v", targetPathParent), err)
 	}
 
 	if fileInfo.IsDir() {
-		if err := os.Mkdir(destination, stage1initcommon.SharedVolPerm); !os.IsExist(err) {
+		if err := os.Mkdir(destination, common.SharedVolumePerm); !os.IsExist(err) {
 			return err
 		}
 	} else {
-		if file, err := os.OpenFile(destination, os.O_CREATE, stage1initcommon.SharedVolPerm); err != nil {
+		if file, err := os.OpenFile(destination, os.O_CREATE, common.SharedVolumePerm); err != nil {
 			return err
 		} else {
 			file.Close()
@@ -147,24 +164,33 @@ func ensureDestinationExists(source, destination string) error {
 	return nil
 }
 
-func prepareMountsForApp(s1Root string, p *stage1commontypes.Pod, ra *schema.RuntimeApp) error {
+func prepareMountsForApp(p *stage1commontypes.Pod, ra *schema.RuntimeApp) error {
 	// bind mount all shared volumes (we don't use mechanism for bind-mounting given by nspawn)
-	if err := mountSharedVolumes(s1Root, p, ra); err != nil {
+	if err := mountSharedVolumes(p, ra); err != nil {
 		return errwrap.Wrap(errors.New("failed to prepare mount point"), err)
 	}
 
 	return nil
 }
 
-func KvmPrepareMounts(s1Root string, p *stage1commontypes.Pod) error {
+func KvmPrepareMounts(p *stage1commontypes.Pod) error {
 	for i := range p.Manifest.Apps {
 		ra := &p.Manifest.Apps[i]
-		if err := prepareMountsForApp(s1Root, p, ra); err != nil {
+		if err := prepareMountsForApp(p, ra); err != nil {
 			return errwrap.Wrap(fmt.Errorf("failed prepare mounts for app %q", ra.Name), err)
 		}
 	}
 
 	return nil
+}
+
+func KvmCheckHypervisor(s1Root string) (string, error) {
+	for _, hv := range hypervisors {
+		if _, err := os.Stat(filepath.Join(s1Root, hv)); err == nil {
+			return hv, nil
+		}
+	}
+	return "", fmt.Errorf("unrecognized hypervisor")
 }
 
 func linkJournal(s1Root, machineID string) error {

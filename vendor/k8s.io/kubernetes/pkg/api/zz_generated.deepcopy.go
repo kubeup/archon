@@ -65,7 +65,6 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ContainerStateTerminated, InType: reflect.TypeOf(&ContainerStateTerminated{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ContainerStateWaiting, InType: reflect.TypeOf(&ContainerStateWaiting{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ContainerStatus, InType: reflect.TypeOf(&ContainerStatus{})},
-		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ConversionError, InType: reflect.TypeOf(&ConversionError{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_DaemonEndpoint, InType: reflect.TypeOf(&DaemonEndpoint{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_DeleteOptions, InType: reflect.TypeOf(&DeleteOptions{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_DownwardAPIProjection, InType: reflect.TypeOf(&DownwardAPIProjection{})},
@@ -93,6 +92,7 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_HTTPGetAction, InType: reflect.TypeOf(&HTTPGetAction{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_HTTPHeader, InType: reflect.TypeOf(&HTTPHeader{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_Handler, InType: reflect.TypeOf(&Handler{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_HostAlias, InType: reflect.TypeOf(&HostAlias{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_HostPathVolumeSource, InType: reflect.TypeOf(&HostPathVolumeSource{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ISCSIVolumeSource, InType: reflect.TypeOf(&ISCSIVolumeSource{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_KeyToPath, InType: reflect.TypeOf(&KeyToPath{})},
@@ -106,6 +106,7 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_LoadBalancerIngress, InType: reflect.TypeOf(&LoadBalancerIngress{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_LoadBalancerStatus, InType: reflect.TypeOf(&LoadBalancerStatus{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_LocalObjectReference, InType: reflect.TypeOf(&LocalObjectReference{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_LocalVolumeSource, InType: reflect.TypeOf(&LocalVolumeSource{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_NFSVolumeSource, InType: reflect.TypeOf(&NFSVolumeSource{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_Namespace, InType: reflect.TypeOf(&Namespace{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_NamespaceList, InType: reflect.TypeOf(&NamespaceList{})},
@@ -196,6 +197,8 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ServiceProxyOptions, InType: reflect.TypeOf(&ServiceProxyOptions{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ServiceSpec, InType: reflect.TypeOf(&ServiceSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_ServiceStatus, InType: reflect.TypeOf(&ServiceStatus{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_StorageOSPersistentVolumeSource, InType: reflect.TypeOf(&StorageOSPersistentVolumeSource{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_StorageOSVolumeSource, InType: reflect.TypeOf(&StorageOSVolumeSource{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_Sysctl, InType: reflect.TypeOf(&Sysctl{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_TCPSocketAction, InType: reflect.TypeOf(&TCPSocketAction{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_api_Taint, InType: reflect.TypeOf(&Taint{})},
@@ -293,6 +296,11 @@ func DeepCopy_api_AzureDiskVolumeSource(in interface{}, out interface{}, c *conv
 		if in.ReadOnly != nil {
 			in, out := &in.ReadOnly, &out.ReadOnly
 			*out = new(bool)
+			**out = **in
+		}
+		if in.Kind != nil {
+			in, out := &in.Kind, &out.Kind
+			*out = new(AzureDataDiskKind)
 			**out = **in
 		}
 		return nil
@@ -667,7 +675,11 @@ func DeepCopy_api_ContainerStateRunning(in interface{}, out interface{}, c *conv
 		in := in.(*ContainerStateRunning)
 		out := out.(*ContainerStateRunning)
 		*out = *in
-		out.StartedAt = in.StartedAt.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.StartedAt); err != nil {
+			return err
+		} else {
+			out.StartedAt = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -677,8 +689,16 @@ func DeepCopy_api_ContainerStateTerminated(in interface{}, out interface{}, c *c
 		in := in.(*ContainerStateTerminated)
 		out := out.(*ContainerStateTerminated)
 		*out = *in
-		out.StartedAt = in.StartedAt.DeepCopy()
-		out.FinishedAt = in.FinishedAt.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.StartedAt); err != nil {
+			return err
+		} else {
+			out.StartedAt = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.FinishedAt); err != nil {
+			return err
+		} else {
+			out.FinishedAt = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -702,31 +722,6 @@ func DeepCopy_api_ContainerStatus(in interface{}, out interface{}, c *conversion
 		}
 		if err := DeepCopy_api_ContainerState(&in.LastTerminationState, &out.LastTerminationState, c); err != nil {
 			return err
-		}
-		return nil
-	}
-}
-
-func DeepCopy_api_ConversionError(in interface{}, out interface{}, c *conversion.Cloner) error {
-	{
-		in := in.(*ConversionError)
-		out := out.(*ConversionError)
-		*out = *in
-		// in.In is kind 'Interface'
-		if in.In != nil {
-			if newVal, err := c.DeepCopy(&in.In); err != nil {
-				return err
-			} else {
-				out.In = *newVal.(*interface{})
-			}
-		}
-		// in.Out is kind 'Interface'
-		if in.Out != nil {
-			if newVal, err := c.DeepCopy(&in.Out); err != nil {
-				return err
-			} else {
-				out.Out = *newVal.(*interface{})
-			}
 		}
 		return nil
 	}
@@ -844,6 +839,7 @@ func DeepCopy_api_EmptyDirVolumeSource(in interface{}, out interface{}, c *conve
 		in := in.(*EmptyDirVolumeSource)
 		out := out.(*EmptyDirVolumeSource)
 		*out = *in
+		out.SizeLimit = in.SizeLimit.DeepCopy()
 		return nil
 	}
 }
@@ -1033,8 +1029,16 @@ func DeepCopy_api_Event(in interface{}, out interface{}, c *conversion.Cloner) e
 		} else {
 			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
-		out.FirstTimestamp = in.FirstTimestamp.DeepCopy()
-		out.LastTimestamp = in.LastTimestamp.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.FirstTimestamp); err != nil {
+			return err
+		} else {
+			out.FirstTimestamp = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTimestamp); err != nil {
+			return err
+		} else {
+			out.LastTimestamp = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -1207,6 +1211,20 @@ func DeepCopy_api_Handler(in interface{}, out interface{}, c *conversion.Cloner)
 	}
 }
 
+func DeepCopy_api_HostAlias(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*HostAlias)
+		out := out.(*HostAlias)
+		*out = *in
+		if in.Hostnames != nil {
+			in, out := &in.Hostnames, &out.Hostnames
+			*out = make([]string, len(*in))
+			copy(*out, *in)
+		}
+		return nil
+	}
+}
+
 func DeepCopy_api_HostPathVolumeSource(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*HostPathVolumeSource)
@@ -1225,6 +1243,11 @@ func DeepCopy_api_ISCSIVolumeSource(in interface{}, out interface{}, c *conversi
 			in, out := &in.Portals, &out.Portals
 			*out = make([]string, len(*in))
 			copy(*out, *in)
+		}
+		if in.SecretRef != nil {
+			in, out := &in.SecretRef, &out.SecretRef
+			*out = new(LocalObjectReference)
+			**out = **in
 		}
 		return nil
 	}
@@ -1446,6 +1469,15 @@ func DeepCopy_api_LocalObjectReference(in interface{}, out interface{}, c *conve
 	}
 }
 
+func DeepCopy_api_LocalVolumeSource(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*LocalVolumeSource)
+		out := out.(*LocalVolumeSource)
+		*out = *in
+		return nil
+	}
+}
+
 func DeepCopy_api_NFSVolumeSource(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*NFSVolumeSource)
@@ -1572,8 +1604,16 @@ func DeepCopy_api_NodeCondition(in interface{}, out interface{}, c *conversion.C
 		in := in.(*NodeCondition)
 		out := out.(*NodeCondition)
 		*out = *in
-		out.LastHeartbeatTime = in.LastHeartbeatTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastHeartbeatTime); err != nil {
+			return err
+		} else {
+			out.LastHeartbeatTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -1777,11 +1817,18 @@ func DeepCopy_api_ObjectMeta(in interface{}, out interface{}, c *conversion.Clon
 		in := in.(*ObjectMeta)
 		out := out.(*ObjectMeta)
 		*out = *in
-		out.CreationTimestamp = in.CreationTimestamp.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.CreationTimestamp); err != nil {
+			return err
+		} else {
+			out.CreationTimestamp = *newVal.(*v1.Time)
+		}
 		if in.DeletionTimestamp != nil {
 			in, out := &in.DeletionTimestamp, &out.DeletionTimestamp
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		if in.DeletionGracePeriodSeconds != nil {
 			in, out := &in.DeletionGracePeriodSeconds, &out.DeletionGracePeriodSeconds
@@ -1811,6 +1858,14 @@ func DeepCopy_api_ObjectMeta(in interface{}, out interface{}, c *conversion.Clon
 				} else {
 					(*out)[i] = *newVal.(*v1.OwnerReference)
 				}
+			}
+		}
+		if in.Initializers != nil {
+			in, out := &in.Initializers, &out.Initializers
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Initializers)
 			}
 		}
 		if in.Finalizers != nil {
@@ -2078,6 +2133,18 @@ func DeepCopy_api_PersistentVolumeSource(in interface{}, out interface{}, c *con
 				return err
 			}
 		}
+		if in.Local != nil {
+			in, out := &in.Local, &out.Local
+			*out = new(LocalVolumeSource)
+			**out = **in
+		}
+		if in.StorageOS != nil {
+			in, out := &in.StorageOS, &out.StorageOS
+			*out = new(StorageOSPersistentVolumeSource)
+			if err := DeepCopy_api_StorageOSPersistentVolumeSource(*in, *out, c); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 }
@@ -2239,8 +2306,16 @@ func DeepCopy_api_PodCondition(in interface{}, out interface{}, c *conversion.Cl
 		in := in.(*PodCondition)
 		out := out.(*PodCondition)
 		*out = *in
-		out.LastProbeTime = in.LastProbeTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastProbeTime); err != nil {
+			return err
+		} else {
+			out.LastProbeTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -2289,8 +2364,11 @@ func DeepCopy_api_PodLogOptions(in interface{}, out interface{}, c *conversion.C
 		}
 		if in.SinceTime != nil {
 			in, out := &in.SinceTime, &out.SinceTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		if in.TailLines != nil {
 			in, out := &in.TailLines, &out.TailLines
@@ -2462,6 +2540,15 @@ func DeepCopy_api_PodSpec(in interface{}, out interface{}, c *conversion.Cloner)
 				}
 			}
 		}
+		if in.HostAliases != nil {
+			in, out := &in.HostAliases, &out.HostAliases
+			*out = make([]HostAlias, len(*in))
+			for i := range *in {
+				if err := DeepCopy_api_HostAlias(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	}
 }
@@ -2482,8 +2569,11 @@ func DeepCopy_api_PodStatus(in interface{}, out interface{}, c *conversion.Clone
 		}
 		if in.StartTime != nil {
 			in, out := &in.StartTime, &out.StartTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		if in.InitContainerStatuses != nil {
 			in, out := &in.InitContainerStatuses, &out.InitContainerStatuses
@@ -2607,7 +2697,11 @@ func DeepCopy_api_PreferAvoidPodsEntry(in interface{}, out interface{}, c *conve
 		if err := DeepCopy_api_PodSignature(&in.PodSignature, &out.PodSignature, c); err != nil {
 			return err
 		}
-		out.EvictionTime = in.EvictionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.EvictionTime); err != nil {
+			return err
+		} else {
+			out.EvictionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -2731,7 +2825,11 @@ func DeepCopy_api_ReplicationControllerCondition(in interface{}, out interface{}
 		in := in.(*ReplicationControllerCondition)
 		out := out.(*ReplicationControllerCondition)
 		*out = *in
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -3251,6 +3349,34 @@ func DeepCopy_api_ServiceStatus(in interface{}, out interface{}, c *conversion.C
 	}
 }
 
+func DeepCopy_api_StorageOSPersistentVolumeSource(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*StorageOSPersistentVolumeSource)
+		out := out.(*StorageOSPersistentVolumeSource)
+		*out = *in
+		if in.SecretRef != nil {
+			in, out := &in.SecretRef, &out.SecretRef
+			*out = new(ObjectReference)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_api_StorageOSVolumeSource(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*StorageOSVolumeSource)
+		out := out.(*StorageOSVolumeSource)
+		*out = *in
+		if in.SecretRef != nil {
+			in, out := &in.SecretRef, &out.SecretRef
+			*out = new(LocalObjectReference)
+			**out = **in
+		}
+		return nil
+	}
+}
+
 func DeepCopy_api_Sysctl(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*Sysctl)
@@ -3274,7 +3400,11 @@ func DeepCopy_api_Taint(in interface{}, out interface{}, c *conversion.Cloner) e
 		in := in.(*Taint)
 		out := out.(*Taint)
 		*out = *in
-		out.TimeAdded = in.TimeAdded.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.TimeAdded); err != nil {
+			return err
+		} else {
+			out.TimeAdded = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -3357,7 +3487,9 @@ func DeepCopy_api_VolumeSource(in interface{}, out interface{}, c *conversion.Cl
 		if in.EmptyDir != nil {
 			in, out := &in.EmptyDir, &out.EmptyDir
 			*out = new(EmptyDirVolumeSource)
-			**out = **in
+			if err := DeepCopy_api_EmptyDirVolumeSource(*in, *out, c); err != nil {
+				return err
+			}
 		}
 		if in.GCEPersistentDisk != nil {
 			in, out := &in.GCEPersistentDisk, &out.GCEPersistentDisk
@@ -3498,6 +3630,13 @@ func DeepCopy_api_VolumeSource(in interface{}, out interface{}, c *conversion.Cl
 			in, out := &in.ScaleIO, &out.ScaleIO
 			*out = new(ScaleIOVolumeSource)
 			if err := DeepCopy_api_ScaleIOVolumeSource(*in, *out, c); err != nil {
+				return err
+			}
+		}
+		if in.StorageOS != nil {
+			in, out := &in.StorageOS, &out.StorageOS
+			*out = new(StorageOSVolumeSource)
+			if err := DeepCopy_api_StorageOSVolumeSource(*in, *out, c); err != nil {
 				return err
 			}
 		}

@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/machine/libmachine/state"
 	"k8s.io/kubernetes/pkg/api"
 	commonutil "k8s.io/minikube/pkg/util"
-
 	"k8s.io/minikube/test/integration/util"
 )
 
@@ -47,7 +47,10 @@ func TestPersistence(t *testing.T) {
 	}
 
 	checkPod := func() error {
-		p := kubectlRunner.GetPod(podName, podNamespace)
+		p, err := kubectlRunner.GetPod(podName, podNamespace)
+		if err != nil {
+			return &commonutil.RetriableError{Err: err}
+		}
 		if kubectlRunner.IsPodReady(p) {
 			return nil
 		}
@@ -81,11 +84,19 @@ func TestPersistence(t *testing.T) {
 	}
 
 	// Now restart minikube and make sure the pod is still there.
-	minikubeRunner.RunCommand("stop", true)
-	minikubeRunner.CheckStatus("Stopped")
+	// minikubeRunner.RunCommand("stop", true)
+	// minikubeRunner.CheckStatus("Stopped")
+	checkStop := func() error {
+		minikubeRunner.RunCommand("stop", true)
+		return minikubeRunner.CheckStatusNoFail(state.Stopped.String())
+	}
 
-	minikubeRunner.RunCommand("start", true)
-	minikubeRunner.CheckStatus("Running")
+	if err := commonutil.RetryAfter(6, checkStop, 5*time.Second); err != nil {
+		t.Fatalf("timed out while checking stopped status: %s", err)
+	}
+
+	minikubeRunner.Start()
+	minikubeRunner.CheckStatus(state.Running.String())
 
 	if err := commonutil.RetryAfter(5, checkPod, 3*time.Second); err != nil {
 		t.Fatalf("Error checking the status of pod %s. Err: %s", podName, err)

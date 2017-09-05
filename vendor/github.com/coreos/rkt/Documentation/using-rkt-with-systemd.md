@@ -37,7 +37,7 @@ $ systemctl status run-29486.service
                └─29539 /usr/lib/systemd/systemd-journald
 ```
 
-Since every pod is registered with `machined` with a machine name of the form `rkt-$UUID`, the systemd tools can inspect pod logs, or stop and restart pod "machines". Use the `machinectl` tool to print the list of rkt pods:
+Since every pod is registered with [`machined`][machined] with a machine name of the form `rkt-$UUID`, the systemd tools can inspect pod logs, or stop and restart pod "machines". Use the `machinectl` tool to print the list of rkt pods:
 
 ```
 $ machinectl list
@@ -65,7 +65,91 @@ MACHINE CLASS SERVICE
 0 machines listed.
 ```
 
+Note that journald integration is only supported if systemd is compiled with `xz` compression enabled. To inspect this, use `systemctl`:
+
+```
+$ systemctl --version
+systemd v231
+[...] +XZ [...]
+```
+
+If the output contains `-XZ`, journal entries will not be available.
+
 ## Managing pods as systemd services
+
+### Notifications
+
+systemd inside stage1 can notify systemd on the host that it is ready, to make sure that stage1 systemd send the notification at the right time you can use the [sd_notify][sd_notify] mechanism.
+To make use of this feature, you need to set the annotation `appc.io/executor/supports-systemd-notify` to true in the image manifest whenever the app supports sd\_notify (see example manifest below).
+If you build your image with [`acbuild`][acbuild] you can use the command: `acbuild annotation add appc.io/executor/supports-systemd-notify true`.
+
+```
+{
+	"acKind": "ImageManifest",
+	"acVersion": "0.8.4",
+	"name": "coreos.com/etcd",
+	...
+	"app": {
+		"exec": [
+			"/etcd"
+		],
+		...
+	},
+	"annotations": [
+	    "name": "appc.io/executor/supports-systemd-notify",
+	    "value": "true"
+	]
+}
+```
+
+This feature is always available when using the "coreos" stage1 flavor.
+If you use the "host" stage1 flavor (e.g. Fedora RPM or Debian deb package), you will need systemd >= v231.
+To verify how it works, run in a terminal the command: `sudo systemd-run --unit=test --service-type=notify rkt run --insecure-options=image /path/to/your/app/image`, then periodically check the status with `systemctl status test`.
+
+If the pod uses a stage1 image with systemd v231 (or greater), then the pod will be seen active form the host when systemd inside stage1 will reach default target.
+Instead, before it was marked as active as soon as it started.
+In this way it is possible to easily set up dependencies between pods and host services.
+Moreover, using [`SdNotify()`][sdnotify-go] in the application it is possible to make the pod marked as ready when all the apps or a particular one is ready.
+For more information check [systemd services unit][systemd-unit] documentation.
+Below there is a simple example of an app using the systemd notification mechanism via [go-systemd][go-systemd] binding library.
+
+```go
+package main
+
+import (
+		"log"
+		"net"
+		"net/http"
+
+		"github.com/coreos/go-systemd/daemon"
+)
+
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("request from %v\n", r.RemoteAddr)
+		w.Write([]byte("hello\n"))
+	})
+	ln, err := net.Listen("tcp", ":5000")
+	if err != nil {
+		log.Fatalf("Listen failed: %s", err)
+	}
+	sent, err := daemon.SdNotify(true, "READY=1")
+	if err != nil {
+		log.Fatalf("Notification failed: %s", err)
+	}
+	if !sent {
+		log.Fatalf("Notification not supported: %s", err)
+	}
+	log.Fatal(http.Serve(ln, nil))
+}
+```
+
+You can run an app that supports `sd\_notify()` with this command:
+
+```
+# systemd-run --slice=machine --service-type=notify rkt run coreos.com/etcd:v2.2.5
+Running as unit run-29486.service.
+```
 
 ### Simple Unit File
 
@@ -142,6 +226,46 @@ In most cases, the parameters `Environment=` and `ExecStartPre=` can simply be u
 
 ```
 ExecStart=/bin/sh -c "foo ; exec rkt run ..."
+```
+
+### Resource restrictions (CPU, IO, Memory)
+
+`rkt` inherits resource limits configured in the systemd service unit file. The systemd documentation explains various [execution environment][systemd.exec], and [resource control][systemd.resource-control] settings to restrict the CPU, IO, and memory resources.
+
+For example to restrict the CPU time quota, configure the corresponding [CPUQuota][systemd-cpuquota] setting:
+
+```
+[Service]
+ExecStart=/usr/bin/rkt run s-urbaniak.github.io/images/stress:0.0.1
+CPUQuota=30%
+```
+
+```
+$ ps -p <PID> -o %cpu%
+CPU
+30.0
+```
+
+Moreover to pin the rkt pod to certain CPUs, configure the corresponding [CPUAffinity][systemd-cpuaffinity] setting:
+
+```
+[Service]
+ExecStart=/usr/bin/rkt run s-urbaniak.github.io/images/stress:0.0.1
+CPUAffinity=0,3
+```
+
+```
+$ top
+Tasks: 235 total,   1 running, 234 sleeping,   0 stopped,   0 zombie
+%Cpu0  : 100.0/0.0   100[||||||||||||||||||||||||||||||||||||||||||||||
+%Cpu1  :   6.0/0.7     7[|||                                           
+%Cpu2  :   0.7/0.0     1[                                              
+%Cpu3  : 100.0/0.0   100[||||||||||||||||||||||||||||||||||||||||||||||
+GiB Mem : 25.7/19.484   [                                              
+GiB Swap:  0.0/8.000    [                                              
+
+  PID USER      PR  NI    VIRT    RES  %CPU %MEM     TIME+ S COMMAND   
+11684 root      20   0    3.6m   1.1m 200.0  0.0   8:58.63 S stress    
 ```
 
 ### Socket-activated service
@@ -284,7 +408,6 @@ Now, a new connection to localhost port 6371 will start your container with redi
 $ curl http://localhost:6371/
 ```
 
-
 ## Other tools for managing pods
 
 Let us assume the service from the simple example unit file, above, is started on the host.
@@ -385,11 +508,21 @@ $ systemd-cgls --all
 ```
 
 
+[acbuild]: https://github.com/containers/build
 [aci-socketActivated]: https://github.com/appc/spec/blob/master/spec/aci.md#image-manifest-schema
+[go-systemd]: https://github.com/coreos/go-systemd
+[machined]: https://wiki.freedesktop.org/www/Software/systemd/machined/
 [systemd]: http://www.freedesktop.org/wiki/Software/systemd/
+[systemd.exec]: https://www.freedesktop.org/software/systemd/man/systemd.exec.html
+[systemd.resource-control]: https://www.freedesktop.org/software/systemd/man/systemd.resource-control.html
+[systemd-cpuquota]: https://www.freedesktop.org/software/systemd/man/systemd.resource-control.html#CPUQuota=
+[systemd-cpuaffinity]: https://www.freedesktop.org/software/systemd/man/systemd.exec.html#CPUAffinity=
 [systemd-isolators]: https://github.com/appc/spec/blob/master/spec/ace.md#isolators
 [systemd-killmode-mixed]: http://www.freedesktop.org/software/systemd/man/systemd.kill.html#KillMode=
 [systemd-machined]: http://www.freedesktop.org/software/systemd/man/systemd-machined.service.html
 [systemd-run]: http://www.freedesktop.org/software/systemd/man/systemd-run.html
 [systemd-socket-activated]: http://www.freedesktop.org/software/systemd/man/sd_listen_fds.html
 [systemd-socket-proxyd]: https://www.freedesktop.org/software/systemd/man/systemd-socket-proxyd.html
+[systemd-unit]: https://www.freedesktop.org/software/systemd/man/systemd.unit.html
+[sd_notify]: https://www.freedesktop.org/software/systemd/man/sd_notify.html
+[sdnotify-go]: https://github.com/coreos/go-systemd/blob/master/daemon/sdnotify.go

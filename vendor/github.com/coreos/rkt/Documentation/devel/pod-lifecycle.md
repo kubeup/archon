@@ -2,12 +2,12 @@
 
 Throughout this document `$var` is used to refer to the directory `/var/lib/rkt/pods`, and `$uuid` refers to a pod's UUID e.g. "076292e6-54c4-4cc8-9fa7-679c5f7dcfd3".
 
-Due to rkt's [architecture](https://github.com/coreos/rkt/blob/master/Documentation/devel/architecture.md) - and specifically its lack of any management daemon process - a combination of advisory file locking and atomic directory renames (via rename(2)) is used to represent and transition the basic pod states.
+Due to rkt's [architecture][rkt-arch] - and specifically its lack of any management daemon process - a combination of advisory file locking and atomic directory renames (via [`rename(2)`][man-rename]) is used to represent and transition the basic pod states.
 
 At times where a state must be reliably coupled to an executing process, that process is executed with an open file descriptor possessing an exclusive advisory lock on the respective pod's directory.
 Should that process exit for any reason, its open file descriptors will automatically be closed by the kernel, implicitly unlocking the pod's directory.
 By attempting to acquire a shared non-blocking advisory lock on a pod directory we're able to poll for these process-bound states, additionally by employing a blocking acquisition mode we may reliably synchronize indirectly with the exit of such processes, effectively providing us with a wake-up event the moment such a state transitions.
-For more information on advisory locks see the flock(2) man page.
+For more information on advisory locks see the [`flock(2)`][man-flock] man page.
 
 At this time there are four distinct phases of a pod's life which involve process-bound states:
 
@@ -36,6 +36,26 @@ To prevent the period between first creating a pod's directory and acquiring its
 | Run             | "$var/run/$uuid"            | running                 | exited                   |
 | ExitedGarbage   | "$var/exited-garbage/$uuid" | exited+deleting         | exited+gc-marked         |
 | Garbage         | "$var/garbage/$uuid"        | prepare-failed+deleting | prepare-failed+gc-marked |
+
+## App
+
+The `rkt app` experimental family of subcommands allow mutating operations on a running pod: namely, adding, starting, stopping, and removing applications.
+To be able to use these subcommands the environment variable `RKT_EXPERIMENT_APP=true` must be set.
+The `rkt app sandbox` subcommand transitions to the Run phase as described above, whereas the remaining subcommands mutate the pod while staying in the Run phase.
+To synchronize operations inside the Run phase an additional advisory lock `$var/run/$uuid/pod.lck` is being introduced.
+Locking on the `$var/run/$uuid/pod` manifest won't work because changes on it need to be atomic, realized by overwriting the original manifest.
+If this file is locked, the pod is undergoing a mutation. Note that only `rkt add/rm` operations are synchronized.
+To retain consistency for all other operations (i.e. `rkt list`) that need to read the `$var/run/$uuid/pod` manifest all mutating operations are atomic.
+
+The `app add/start/stop/rm` subcommands all run within the Run phase where the exclusive advisory lock on the `$var/run/$uuid` directory is held by the systemd-nspawn process.
+The following table gives an overview of the states when a lock on `$var/run/$uuid/pod.lck` is being held:
+
+| Phase  | Locked exclusively | Unlocked |
+|--------|--------------------|----------|
+| Add    | adding             | added    |
+| Start  | -                  | -        |
+| Stop   | -                  | -        |
+| Remove | removing           | removed  |
 
 These phases, their function, and how they proceed through their respective states is explained in more detail below.
 
@@ -137,3 +157,8 @@ Another example would be two `rkt gc` commands finding the same exited pods and 
 They can't both perform the transitions, one will lose the race at each pod.
 This needs to be considered in the error handling of the transition callers as perfectly normal.
 Simply ignoring ENOENT errors propagated from the loser's rename calls can suffice.
+
+
+[man-flock]: http://man7.org/linux/man-pages/man2/flock.2.html
+[man-rename]: http://man7.org/linux/man-pages/man2/rename.2.html
+[rkt-arch]: ../devel/architecture.md

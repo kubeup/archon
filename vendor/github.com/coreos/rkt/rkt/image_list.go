@@ -19,8 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
-	rktflag "github.com/coreos/rkt/rkt/flag"
+	rktlib "github.com/coreos/rkt/lib"
+	rktflag "github.com/coreos/rkt/pkg/flag"
 	"github.com/coreos/rkt/store/imagestore"
 	"github.com/dustin/go-humanize"
 
@@ -30,18 +32,15 @@ import (
 )
 
 const (
-	defaultTimeLayout = "2006-01-02 15:04:05.999 -0700 MST"
-
-	id              = "id"
-	name            = "name"
-	importTime      = "import time"
-	lastUsed        = "last used"
-	size            = "size"
-	latest          = "latest"
-	insecureOptions = "insecure options"
-	aciURL          = "ACI URL"
-	signatureURL    = "signature URL"
+	id         = "id"
+	name       = "name"
+	importTime = "import time"
+	lastUsed   = "last used"
+	size       = "size"
+	latest     = "latest"
 )
+
+const defaultTimeLayout = "2006-01-02 15:04:05.999 -0700 MST"
 
 // Convenience methods for formatting fields
 func l(s string) string {
@@ -54,29 +53,23 @@ func u(s string) string {
 var (
 	// map of valid fields and related header name
 	ImagesFieldHeaderMap = map[string]string{
-		l(id):              u(id),
-		l(name):            u(name),
-		l(importTime):      u(importTime),
-		l(lastUsed):        u(lastUsed),
-		l(latest):          u(latest),
-		l(size):            u(size),
-		l(insecureOptions): u(insecureOptions),
-		l(aciURL):          u(aciURL),
-		l(signatureURL):    u(signatureURL),
+		l(id):         u(id),
+		l(name):       u(name),
+		l(importTime): u(importTime),
+		l(lastUsed):   u(lastUsed),
+		l(latest):     u(latest),
+		l(size):       u(size),
 	}
 
 	// map of valid sort fields containing the mapping between the provided field name
 	// and the related aciinfo's field name.
 	ImagesFieldAciInfoMap = map[string]string{
-		l(id):              "blobkey",
-		l(name):            l(name),
-		l(importTime):      l(importTime),
-		l(lastUsed):        l(lastUsed),
-		l(latest):          l(latest),
-		l(size):            l(size),
-		l(insecureOptions): u(insecureOptions),
-		l(aciURL):          u(aciURL),
-		l(signatureURL):    u(signatureURL),
+		l(id):         "blobkey",
+		l(name):       l(name),
+		l(importTime): l(importTime),
+		l(lastUsed):   l(lastUsed),
+		l(latest):     l(latest),
+		l(size):       l(size),
 	}
 
 	ImagesSortableFields = map[string]struct{}{
@@ -86,6 +79,101 @@ var (
 		l(size):       {},
 	}
 )
+
+type printableImage struct {
+	rktlib.ImageListEntry
+
+	format outputFormat
+	full   bool
+}
+
+func (pi *printableImage) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pi.ImageListEntry)
+}
+
+type outputFormat int
+
+const (
+	outputFormatTabbed = iota
+	outputFormatJSON
+	outputFormatPrettyJSON
+)
+
+func (pi *printableImage) imageSize() string {
+	if pi.format != outputFormatTabbed || pi.full {
+		return fmt.Sprintf("%d", pi.Size)
+	}
+	return humanize.IBytes(uint64(pi.Size))
+}
+
+func (pi *printableImage) importTime() string {
+	t := time.Unix(0, pi.ImportTime)
+	if pi.format != outputFormatTabbed || pi.full {
+		return t.Format(defaultTimeLayout)
+	}
+	return humanize.Time(t)
+}
+
+func (pi *printableImage) lastUsedTime() string {
+	t := time.Unix(0, pi.LastUsedTime)
+	if pi.format != outputFormatTabbed || pi.full {
+		return t.Format(defaultTimeLayout)
+	}
+	return humanize.Time(t)
+}
+
+func (pi *printableImage) attributes(fields *rktflag.OptionList) []string {
+	if fields == nil {
+		return []string{pi.ID, pi.Name, pi.imageSize(), pi.importTime(), pi.lastUsedTime()}
+	}
+	optionMapping := map[string]string{
+		l(id):         pi.ID,
+		l(name):       pi.Name,
+		l(size):       pi.imageSize(),
+		l(importTime): pi.importTime(),
+		l(lastUsed):   pi.lastUsedTime(),
+	}
+	attrs := []string{}
+	for _, f := range fields.Options {
+		if a, ok := optionMapping[f]; ok {
+			attrs = append(attrs, a)
+		}
+	}
+	return attrs
+}
+
+func (pi *printableImage) printableString(fields *rktflag.OptionList) string {
+	return strings.Join(pi.attributes(fields), "\t")
+}
+
+func (e *outputFormat) Set(s string) error {
+	switch s {
+	case "":
+		*e = outputFormatTabbed
+	case "json":
+		*e = outputFormatJSON
+	case "json-pretty":
+		*e = outputFormatPrettyJSON
+	default:
+		return fmt.Errorf("Invalid format option: %s", s)
+	}
+	return nil
+}
+
+func (s *outputFormat) String() string {
+	switch int(*s) {
+	case outputFormatJSON:
+		return "json"
+	case outputFormatPrettyJSON:
+		return "json-pretty"
+	default:
+		return ""
+	}
+}
+
+func (s *outputFormat) Type() string {
+	return "outputFormat"
+}
 
 type ImagesSortAsc bool
 
@@ -122,12 +210,13 @@ var (
 	flagImagesFields     *rktflag.OptionList
 	flagImagesSortFields *rktflag.OptionList
 	flagImagesSortAsc    ImagesSortAsc
+	flagImageFormat      outputFormat
 )
 
 func init() {
 	sortFields := []string{l(name), l(importTime), l(lastUsed), l(size)}
 
-	fields := []string{l(id), l(name), l(aciURL), l(signatureURL), l(insecureOptions), l(size), l(importTime), l(lastUsed)}
+	fields := []string{l(id), l(name), l(size), l(importTime), l(lastUsed)}
 
 	// Set defaults
 	var err error
@@ -149,6 +238,7 @@ func init() {
 	cmdImageList.Flags().Var(&flagImagesSortAsc, "order", `choose the sorting order if at least one sort field is provided (--sort). Accepted values: "asc", "desc"`)
 	cmdImageList.Flags().BoolVar(&flagNoLegend, "no-legend", false, "suppress a legend with the list")
 	cmdImageList.Flags().BoolVar(&flagFullOutput, "full", false, "use long output format")
+	cmdImageList.Flags().Var(&flagImageFormat, "format", fmt.Sprintf("choose the output format, allowed format includes 'json', 'json-pretty'. If empty, then the result is printed as key value pairs"))
 }
 
 func runImages(cmd *cobra.Command, args []string) int {
@@ -156,24 +246,16 @@ func runImages(cmd *cobra.Command, args []string) int {
 	tabBuffer := new(bytes.Buffer)
 	tabOut := getTabOutWithWriter(tabBuffer)
 
-	if !flagNoLegend {
-		var headerFields []string
-		for _, f := range flagImagesFields.Options {
-			headerFields = append(headerFields, ImagesFieldHeaderMap[f])
-		}
-		fmt.Fprintf(tabOut, "%s\n", strings.Join(headerFields, "\t"))
-	}
-
 	s, err := imagestore.NewStore(storeDir())
 	if err != nil {
 		stderr.PrintE("cannot open store", err)
-		return 1
+		return 254
 	}
 
 	remotes, err := s.GetAllRemotes()
 	if err != nil {
 		stderr.PrintE("unable to get remotes", err)
-		return 1
+		return 254
 	}
 
 	remoteMap := make(map[string]*imagestore.Remote)
@@ -188,8 +270,10 @@ func runImages(cmd *cobra.Command, args []string) int {
 	aciInfos, err := s.GetAllACIInfos(sortAciinfoFields, bool(flagImagesSortAsc))
 	if err != nil {
 		stderr.PrintE("unable to get aci infos", err)
-		return 1
+		return 254
 	}
+
+	var imagesToPrint []printableImage
 
 	for _, aciInfo := range aciInfos {
 		imj, err := s.GetImageManifestJSON(aciInfo.BlobKey)
@@ -203,99 +287,78 @@ func runImages(cmd *cobra.Command, args []string) int {
 			continue
 		}
 		version, ok := im.Labels.Get("version")
-		var fieldValues []string
-		for _, f := range flagImagesFields.Options {
-			fieldValue := ""
-			switch f {
-			case l(id):
-				hashKey := aciInfo.BlobKey
-				if !flagFullOutput {
-					// The short hash form is [HASH_ALGO]-[FIRST 12 CHAR]
-					// For example, sha512-123456789012
-					pos := strings.Index(hashKey, "-")
-					trimLength := pos + 13
-					if pos > 0 && trimLength < len(hashKey) {
-						hashKey = hashKey[:trimLength]
-					}
-				}
-				fieldValue = hashKey
-			case l(name):
-				fieldValue = aciInfo.Name
-				if ok {
-					fieldValue = fmt.Sprintf("%s:%s", fieldValue, version)
-				}
-			case l(importTime):
-				if flagFullOutput {
-					fieldValue = aciInfo.ImportTime.Format(defaultTimeLayout)
-				} else {
-					fieldValue = humanize.Time(aciInfo.ImportTime)
-				}
-			case l(lastUsed):
-				if flagFullOutput {
-					fieldValue = aciInfo.LastUsed.Format(defaultTimeLayout)
-				} else {
-					fieldValue = humanize.Time(aciInfo.LastUsed)
-				}
-			case l(size):
-				totalSize := aciInfo.Size + aciInfo.TreeStoreSize
-				if flagFullOutput {
-					fieldValue = fmt.Sprintf("%d", totalSize)
-				} else {
-					fieldValue = humanize.IBytes(uint64(totalSize))
-				}
-			case l(latest):
-				fieldValue = fmt.Sprintf("%t", aciInfo.Latest)
-			case l(insecureOptions):
-				f, err := rktflag.NewSecFlagsFromValue(int(aciInfo.InsecureOptions))
-				if err != nil {
-					stderr.Error(err)
-					return 1
-				}
 
-				// remove ondisk, it's a runtime insecure option
-				sp := strings.Split(f.String(), ",")
-				for i, o := range sp {
-					if o == "ondisk" {
-						sp = append(sp[:i], sp[i+1:]...)
-					}
-				}
-
-				fieldValue = fmt.Sprintf("%s", strings.Join(sp, ","))
-			case l(aciURL):
-				if imageRemote := remoteMap[aciInfo.BlobKey]; imageRemote == nil {
-					fieldValue = ""
-				} else {
-					fieldValue = fmt.Sprintf("%s", imageRemote.ACIURL)
-				}
-			case l(signatureURL):
-				if imageRemote := remoteMap[aciInfo.BlobKey]; imageRemote == nil {
-					fieldValue = ""
-				} else {
-					fieldValue = fmt.Sprintf("%s", imageRemote.SigURL)
-				}
-			}
-			fieldValues = append(fieldValues, fieldValue)
-
+		imageID := aciInfo.BlobKey
+		imageName := aciInfo.Name
+		if ok {
+			imageName = fmt.Sprintf("%s:%s", imageName, version)
 		}
-		fmt.Fprintf(tabOut, "%s\n", strings.Join(fieldValues, "\t"))
+
+		totalSize := aciInfo.Size + aciInfo.TreeStoreSize
+
+		if !flagFullOutput && flagImageFormat == outputFormatTabbed {
+			imageID = trimImageID(imageID)
+		}
+
+		imagesToPrint = append(imagesToPrint, printableImage{
+			ImageListEntry: rktlib.ImageListEntry{
+				ID:           imageID,
+				Name:         imageName,
+				ImportTime:   aciInfo.ImportTime.UnixNano(),
+				LastUsedTime: aciInfo.LastUsed.UnixNano(),
+				Size:         totalSize,
+			},
+			format: flagImageFormat,
+			full:   flagFullOutput,
+		})
+	}
+
+	switch flagImageFormat {
+	case outputFormatTabbed:
+		if !flagNoLegend {
+			var headerFields []string
+			for _, f := range flagImagesFields.Options {
+				headerFields = append(headerFields, ImagesFieldHeaderMap[f])
+			}
+			fmt.Fprintf(tabOut, "%s\n", strings.Join(headerFields, "\t"))
+		}
+		for _, image := range imagesToPrint {
+			fmt.Fprintf(tabOut, "%s\n", image.printableString(flagImagesFields))
+		}
+	case outputFormatJSON:
+		result, err := json.Marshal(imagesToPrint)
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			fmt.Fprintf(tabOut, "%s\n", result)
+		}
+	case outputFormatPrettyJSON:
+		result, err := json.MarshalIndent(imagesToPrint, "", "\t")
+		if err != nil {
+			errors = append(errors, err)
+		} else {
+			fmt.Fprintf(tabOut, "%s\n", result)
+		}
 	}
 
 	if len(errors) > 0 {
-		sep := "----------------------------------------"
-		stderr.Printf("%d error(s) encountered when listing images:", len(errors))
-		stderr.Print(sep)
-		for _, err := range errors {
-			stderr.Error(err)
-			stderr.Print(sep)
-		}
-		stderr.Print("misc:")
-		stderr.Printf("  rkt's appc version: %s", schema.AppContainerVersion)
-		// make a visible break between errors and the listing
-		stderr.Print("")
+		printErrors(errors, "listing images")
 	}
+
 	tabOut.Flush()
 	stdout.Print(tabBuffer.String())
 	return 0
+}
+
+func trimImageID(imageID string) string {
+	// The short hash form is [HASH_ALGO]-[FIRST 12 CHAR]
+	// For example, sha512-123456789012
+	pos := strings.Index(imageID, "-")
+	trimLength := pos + 13
+	if pos > 0 && trimLength < len(imageID) {
+		imageID = imageID[:trimLength]
+	}
+	return imageID
 }
 
 func newImgListLoadError(err error, imj []byte, blobKey string) error {

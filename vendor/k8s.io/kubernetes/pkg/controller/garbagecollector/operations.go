@@ -36,7 +36,7 @@ func (gc *GarbageCollector) apiResource(apiVersion, kind string, namespaced bool
 	fqKind := schema.FromAPIVersionAndKind(apiVersion, kind)
 	mapping, err := gc.restMapper.RESTMapping(fqKind.GroupKind(), apiVersion)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get REST mapping for kind: %s, version: %s", kind, apiVersion)
+		return nil, newRESTMappingError(kind, apiVersion)
 	}
 	glog.V(5).Infof("map kind %s, version %s to resource %s", kind, apiVersion, mapping.Resource)
 	resource := metav1.APIResource{
@@ -69,7 +69,7 @@ func (gc *GarbageCollector) getObject(item objectReference) (*unstructured.Unstr
 	if err != nil {
 		return nil, err
 	}
-	return client.Resource(resource, item.Namespace).Get(item.Name)
+	return client.Resource(resource, item.Namespace).Get(item.Name, metav1.GetOptions{})
 }
 
 func (gc *GarbageCollector) updateObject(item objectReference, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
@@ -115,7 +115,7 @@ func (gc *GarbageCollector) removeFinalizer(owner *node, targetFinalizer string)
 		for _, f := range finalizers {
 			if f == targetFinalizer {
 				found = true
-				break
+				continue
 			}
 			newFinalizers = append(newFinalizers, f)
 		}

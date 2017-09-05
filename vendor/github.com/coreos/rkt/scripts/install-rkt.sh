@@ -4,7 +4,7 @@ set -x
 
 cd $(mktemp -d)
 
-version="1.11.0"
+version="1.25.0"
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -13,7 +13,10 @@ apt-get install -y --no-install-recommends \
         ca-certificates \
         gnupg2 \
         bash-completion \
-        checkinstall
+        checkinstall \
+        curl \
+        iptables \
+        wget
 
 curl -sSL https://coreos.com/dist/pubkeys/app-signing-pubkey.gpg | gpg2 --import -
 key=$(gpg2 --with-colons --keyid-format LONG -k security@coreos.com | egrep ^pub | cut -d ':' -f5)
@@ -26,6 +29,19 @@ tar xvzf rkt-v"${version}".tar.gz
 
 cat <<EOF >install-pak
 #!/bin/bash
+
+# abort/fail on any error
+set -e
+
+# fix mkdir issues with checkinstall and fstrans
+for dir in /usr/lib/rkt/stage1-images/\\
+        /usr/share/man/man1/\\
+        /usr/share/bash-completion/completions/\\
+        /usr/lib/tmpfiles.d/\\
+        /usr/lib/systemd/system/
+do
+    mkdir -p \$dir 2>/dev/null || :
+done
 
 for flavor in fly coreos kvm; do
     install -Dm644 rkt-v${version}/stage1-\${flavor}.aci /usr/lib/rkt/stage1-images/stage1-\${flavor}.aci

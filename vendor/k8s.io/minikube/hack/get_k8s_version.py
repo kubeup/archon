@@ -19,9 +19,10 @@
 import json
 import subprocess
 import sys
+from datetime import datetime
 
 K8S_PACKAGE = 'k8s.io/kubernetes/'
-X_ARG_BASE = '-X k8s.io/minikube/vendor/k8s.io/kubernetes/pkg/version.'
+X_ARGS = ['-X k8s.io/minikube/vendor/k8s.io/kubernetes/pkg/version.', '-X k8s.io/minikube/vendor/k8s.io/client-go/pkg/version.']
 
 def get_rev():
   return 'gitCommit=%s' % get_from_godep('Rev')
@@ -44,11 +45,18 @@ def get_tree_state():
     result = 'clean'
   return 'gitTreeState=%s' % result
 
+def get_build_date():
+  return 'buildDate=%s' % datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+
 def main():
   if len(sys.argv) > 1 and sys.argv[1] == "--k8s-version-only":
       return get_from_godep('Comment')
-  args = [get_rev(), get_version(), get_tree_state()]
-  return ' '.join([X_ARG_BASE + arg for arg in args])
+  args = [get_rev(), get_version(), get_tree_state(), get_build_date()]
+  ret = ''
+  for xarg in X_ARGS:
+    for arg in args:
+      ret += xarg + arg + " "
+  return ret
 
 if __name__ == '__main__':
   sys.exit(main())

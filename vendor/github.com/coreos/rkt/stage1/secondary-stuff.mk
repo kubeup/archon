@@ -6,12 +6,18 @@ _S1_SS_SUBDIRS_ := \
 	diagnostic \
 	gc \
 	init \
+	attach \
+	iottymux \
 	net \
 	net-plugins \
 	prepare-app \
 	reaper \
 	stop \
 	stop_kvm \
+	app_add \
+	app_rm \
+	app_start \
+	app_stop \
 	units \
 	aci
 

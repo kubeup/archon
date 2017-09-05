@@ -24,6 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/discovery"
+	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic"
 	restclient "k8s.io/client-go/rest"
 	core "k8s.io/client-go/testing"
@@ -37,12 +39,35 @@ import (
 	fakekubeclientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
 	namespaces string = "namespaces"
 	clusters   string = "clusters"
 )
+
+type fakeDiscoveryForFedNSTest struct {
+	fakediscovery.FakeDiscovery
+}
+
+// ServerPreferredNamespacedResources here overrides the fakeDiscovery ServerPreferredNamespacedResources()
+// implementation only for this federated unit test.
+func (f *fakeDiscoveryForFedNSTest) ServerPreferredNamespacedResources() ([]*metav1.APIResourceList, error) {
+	preferredFakeResources := []*metav1.APIResourceList{}
+	preferredFakeResources = append(preferredFakeResources, &metav1.APIResourceList{})
+
+	return preferredFakeResources, nil
+}
+
+type fakeClientSetForFedNSTest struct {
+	fakefedclientset.Clientset
+}
+
+// Discovery overrides the fakefedclientset Discovery() method only for this federated unit test.
+func (fc *fakeClientSetForFedNSTest) Discovery() discovery.DiscoveryInterface {
+	return &fakeDiscoveryForFedNSTest{FakeDiscovery: fakediscovery.FakeDiscovery{Fake: &fc.Fake}}
+}
 
 func TestNamespaceController(t *testing.T) {
 	cluster1 := NewCluster("cluster1", apiv1.ConditionTrue)
@@ -57,11 +82,11 @@ func TestNamespaceController(t *testing.T) {
 		},
 	}
 
-	fakeClient := &fakefedclientset.Clientset{}
+	fakeClient := &fakeClientSetForFedNSTest{}
 	RegisterFakeList(clusters, &fakeClient.Fake, &federationapi.ClusterList{Items: []federationapi.Cluster{*cluster1}})
 	RegisterFakeList(namespaces, &fakeClient.Fake, &apiv1.NamespaceList{Items: []apiv1.Namespace{}})
 	namespaceWatch := RegisterFakeWatch(namespaces, &fakeClient.Fake)
-	namespaceCreateChan := RegisterFakeCopyOnCreate(namespaces, &fakeClient.Fake, namespaceWatch)
+	namespaceUpdateChan := RegisterFakeCopyOnUpdate(namespaces, &fakeClient.Fake, namespaceWatch)
 	clusterWatch := RegisterFakeWatch(clusters, &fakeClient.Fake)
 
 	cluster1Client := &fakekubeclientset.Clientset{}
@@ -99,15 +124,14 @@ func TestNamespaceController(t *testing.T) {
 	// Test add federated namespace.
 	namespaceWatch.Add(&ns1)
 	// Verify that the DeleteFromUnderlyingClusters finalizer is added to the namespace.
-	// Note: finalize invokes the create action in Fake client.
-	// TODO: Seems like a bug. Should invoke update. Fix it.
-	updatedNamespace := GetNamespaceFromChan(namespaceCreateChan)
-	assert.True(t, namespaceController.hasFinalizerFunc(updatedNamespace, deletionhelper.FinalizerDeleteFromUnderlyingClusters))
+	updatedNamespace := GetNamespaceFromChan(namespaceUpdateChan)
+	require.NotNil(t, updatedNamespace)
+	AssertHasFinalizer(t, updatedNamespace, deletionhelper.FinalizerDeleteFromUnderlyingClusters)
 	ns1 = *updatedNamespace
 
 	// Verify that the namespace is created in underlying cluster1.
 	createdNamespace := GetNamespaceFromChan(cluster1CreateChan)
-	assert.NotNil(t, createdNamespace)
+	require.NotNil(t, createdNamespace)
 	assert.Equal(t, ns1.Name, createdNamespace.Name)
 
 	// Wait for the namespace to appear in the informer store
@@ -126,7 +150,7 @@ func TestNamespaceController(t *testing.T) {
 	// Test add cluster
 	clusterWatch.Add(cluster2)
 	createdNamespace2 := GetNamespaceFromChan(cluster2CreateChan)
-	assert.NotNil(t, createdNamespace2)
+	require.NotNil(t, createdNamespace2)
 	assert.Equal(t, ns1.Name, createdNamespace2.Name)
 	assert.Contains(t, createdNamespace2.Annotations, "A")
 

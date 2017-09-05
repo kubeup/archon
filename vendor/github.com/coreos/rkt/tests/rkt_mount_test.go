@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build host coreos src
-
 package main
 
 import (
@@ -27,7 +25,7 @@ import (
 )
 
 func TestMountSymlink(t *testing.T) {
-	tmpDir := createTempDirOrPanic("rkt-mount-test-")
+	tmpDir := mustTempDir("rkt-mount-test-")
 	defer os.RemoveAll(tmpDir)
 	mountSrcFile := filepath.Join(tmpDir, "hello")
 	if err := ioutil.WriteFile(mountSrcFile, []byte("world"), 0666); err != nil {
@@ -41,7 +39,7 @@ func TestMountSymlink(t *testing.T) {
 	defer ctx.Cleanup()
 
 	tests := []struct {
-		linkFile     string
+		targetFile   string
 		actualFile   string
 		expectedLine string
 		exitCode     int
@@ -67,27 +65,67 @@ func TestMountSymlink(t *testing.T) {
 			"world",
 			0,
 		},
-		// '/dir1/../../../foo' is invalid because it tries to escape rootfs.
 		{
 			"/dir1/../../../foo",
-			"/dir2/foo",
-			"path escapes app's root",
-			1,
+			"/foo",
+			"world",
+			0,
 		},
-		// '/dir1/link_invalid' is an invalid link because it tries to escape rootfs.
 		{
-			"/dir1/link_invalid/foo",
+			"/dir1/link_abs_dotdot_dir2/foo",
 			"/dir2/foo",
-			"escapes app's root with value",
-			1,
+			"world",
+			0,
+		},
+		{
+			"/dir1/../../../newdir/foo",
+			"/newdir/foo",
+			"world",
+			0,
+		},
+		{
+			"/dir1/link_rel_dir2/newdir/foo",
+			"/dir2/newdir/foo",
+			"world",
+			0,
+		},
+		{
+			"/dir1/link_abs_dir2/newdir/foo",
+			"/dir2/newdir/foo",
+			"world",
+			0,
+		},
+		{
+			"/dir1/link_abs_notexists/newdir1/newdir2/foo",
+			"/notexists/newdir1/newdir2/foo",
+			"world",
+			0,
+		},
+		{
+			"/dir1/link_abs_root/newdir1/newdir2/foo",
+			"/newdir1/newdir2/foo",
+			"world",
+			0,
+		},
+		{
+			"../../../../../../../../../../../../../../../foo",
+			"/foo",
+			"world",
+			0,
 		},
 	}
 
 	for _, tt := range tests {
-		paramMount := fmt.Sprintf("--volume=test,kind=host,source=%s --mount volume=test,target=%s", mountSrcFile, tt.linkFile)
+		paramMount := fmt.Sprintf(
+			"--volume=test,kind=host,source=%s --mount=volume=test,target=%s",
+			mountSrcFile, tt.targetFile,
+		)
 
 		// Read the actual file.
-		rktCmd := fmt.Sprintf("%s --insecure-options=image run %s --set-env=FILE=%s %s", ctx.Cmd(), paramMount, tt.actualFile, image)
+		rktCmd := fmt.Sprintf(
+			"%s --insecure-options=image --debug run %s --set-env=FILE=%s %s",
+			ctx.Cmd(), paramMount, tt.actualFile, image,
+		)
 		t.Logf("%s\n", rktCmd)
 
 		if tt.exitCode == 0 {
@@ -101,36 +139,4 @@ func TestMountSymlink(t *testing.T) {
 			waitOrFail(t, child, tt.exitCode)
 		}
 	}
-}
-
-// TestProcFSRestrictions checks that access to sensitive paths under
-// /proc and /sys is correctly restricted:
-// https://github.com/coreos/rkt/issues/2484
-func TestProcFSRestrictions(t *testing.T) {
-	// check access to read-only paths
-	roEntry := "/proc/sysrq-trigger"
-	testContent := "h"
-	roImage := patchTestACI("rkt-inspect-write-procfs.aci", fmt.Sprintf("--exec=/inspect --write-file --file-name %s --content %s", roEntry, testContent))
-	defer os.Remove(roImage)
-
-	roCtx := testutils.NewRktRunCtx()
-	defer roCtx.Cleanup()
-
-	roCmd := fmt.Sprintf("%s --insecure-options=image run %s", roCtx.Cmd(), roImage)
-
-	roExpectedLine := fmt.Sprintf("Cannot write to file \"%s\"", roEntry)
-	runRktAndCheckOutput(t, roCmd, roExpectedLine, true)
-
-	// check access to inaccessible paths
-	hiddenEntry := "/sys/firmware/"
-	hiddenImage := patchTestACI("rkt-inspect-stat-procfs.aci", fmt.Sprintf("--exec=/inspect --stat-file --file-name %s", hiddenEntry))
-	defer os.Remove(hiddenImage)
-
-	hiddenCtx := testutils.NewRktRunCtx()
-	defer hiddenCtx.Cleanup()
-
-	hiddenCmd := fmt.Sprintf("%s --insecure-options=image run %s", hiddenCtx.Cmd(), hiddenImage)
-
-	hiddenExpectedLine := fmt.Sprintf("%s: mode: d---------", hiddenEntry)
-	runRktAndCheckOutput(t, hiddenCmd, hiddenExpectedLine, false)
 }

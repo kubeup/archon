@@ -1,5 +1,14 @@
 [![Build Status](https://travis-ci.org/containernetworking/cni.svg?branch=master)](https://travis-ci.org/containernetworking/cni)
 [![Coverage Status](https://coveralls.io/repos/github/containernetworking/cni/badge.svg?branch=master)](https://coveralls.io/github/containernetworking/cni?branch=master)
+[![Slack Status](https://cryptic-tundra-43194.herokuapp.com/badge.svg)](https://cryptic-tundra-43194.herokuapp.com/)
+
+---
+
+# Community Sync Meeting
+
+There is a community sync meeting for users and developers every 1-2 months. The next meeting will help on a Google Hangout and the link is in the [agenda](https://docs.google.com/document/d/10ECyT2mBGewsJUcmYmS8QNo1AcNgy2ZIe2xS7lShYhE/edit?usp=sharing) (Notes from previous meeting are also in this doc). The next meeting will be held on *April 12th* at *3:00pm UTC* [Add to Calendar](https://www.worldtimebuddy.com/?qm=1&lid=100,5,2643743,5391959&h=100&date=2017-4-12&sln=15-16).
+
+---
 
 # CNI - the Container Network Interface
 
@@ -26,14 +35,19 @@ To avoid duplication, we think it is prudent to define a common interface betwee
 - [rkt - container engine](https://coreos.com/blog/rkt-cni-networking.html)
 - [Kurma - container runtime](http://kurma.io/)
 - [Kubernetes - a system to simplify container operations](http://kubernetes.io/docs/admin/network-plugins/)
-- [Cloud Foundry - a platform for cloud applications](https://github.com/cloudfoundry-incubator/guardian-cni-adapter)
+- [Cloud Foundry - a platform for cloud applications](https://github.com/cloudfoundry-incubator/netman-release)
 - [Mesos - a distributed systems kernel](https://github.com/apache/mesos/blob/master/docs/cni.md)
 
-### 3rd Party Network plugins
+### 3rd party plugins
 - [Project Calico - a layer 3 virtual network](https://github.com/projectcalico/calico-cni)
 - [Weave - a multi-host Docker network](https://github.com/weaveworks/weave)
 - [Contiv Networking - policy networking for various use cases](https://github.com/contiv/netplugin)
 - [SR-IOV](https://github.com/hustcat/sriov-cni)
+- [Cilium - BPF & XDP for containers](https://github.com/cilium/cilium)
+- [Infoblox - enterprise IP address management for containers](https://github.com/infobloxopen/cni-infoblox)
+- [Multus - a Multi plugin](https://github.com/Intel-Corp/multus-cni)
+- [Romana - Layer 3 CNI plugin supporting network policy for Kubernetes](https://github.com/romana/kube)
+- [CNI-Genie - generic CNI network plugin](https://github.com/Huawei-PaaS/CNI-Genie)
 
 The CNI team also maintains some [core plugins](plugins).
 
@@ -69,6 +83,7 @@ Start out by creating a netconf file to describe a network:
 $ mkdir -p /etc/cni/net.d
 $ cat >/etc/cni/net.d/10-mynet.conf <<EOF
 {
+	"cniVersion": "0.2.0",
 	"name": "mynet",
 	"type": "bridge",
 	"bridge": "cni0",
@@ -85,6 +100,7 @@ $ cat >/etc/cni/net.d/10-mynet.conf <<EOF
 EOF
 $ cat >/etc/cni/net.d/99-loopback.conf <<EOF
 {
+	"cniVersion": "0.2.0",
 	"type": "loopback"
 }
 EOF
@@ -168,3 +184,4 @@ If these topics of are interest, please contact the team via the mailing list or
 For any questions about CNI, please reach out on the mailing list:
 - Email: [cni-dev](https://groups.google.com/forum/#!forum/cni-dev)
 - IRC: #[containernetworking](irc://irc.freenode.org:6667/#containernetworking) channel on freenode.org
+- Slack: [containernetworking.slack.com](https://cryptic-tundra-43194.herokuapp.com)

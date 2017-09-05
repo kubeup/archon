@@ -3,7 +3,7 @@
 #
 
 .PHONY: version all run dist clean
-	
+
 APP_NAME := heketi
 CLIENT_PKG_NAME := heketi-client
 SHA := $(shell git rev-parse --short HEAD)
@@ -29,7 +29,7 @@ GO=go
 # Sources and Targets
 EXECUTABLES :=$(APP_NAME)
 # Build Binaries setting main.version and main.build vars
-LDFLAGS :=-ldflags "-X main.HEKETI_VERSION=$(VERSION)"
+LDFLAGS :=-ldflags "-X main.HEKETI_VERSION=$(VERSION) -extldflags '-z relro -z now'"
 # Package target
 PACKAGE :=$(DIR)/dist/$(APP_NAME)-$(VERSION).$(GOOS).$(ARCH).tar.gz
 CLIENT_PACKAGE :=$(DIR)/dist/$(APP_NAME)-client-$(VERSION).$(GOOS).$(ARCH).tar.gz
@@ -60,7 +60,7 @@ client:
 run: server
 	./$(APP_NAME)
 
-test: 
+test:
 	godep go test $(GOFILES)
 
 clean:
@@ -84,9 +84,12 @@ $(PACKAGE): all
 $(CLIENT_PACKAGE): all
 	@echo Packaging client Binaries...
 	@mkdir -p tmp/$(CLIENT_PKG_NAME)/bin
-	@mkdir -p tmp/$(CLIENT_PKG_NAME)/share/heketi/templates
+	@mkdir -p tmp/$(CLIENT_PKG_NAME)/share/heketi/openshift/templates
+	@mkdir -p tmp/$(CLIENT_PKG_NAME)/share/heketi/kubernetes
+	@cp client/cli/go/topology-sample.json tmp/$(CLIENT_PKG_NAME)/share/heketi
 	@cp client/cli/go/heketi-cli tmp/$(CLIENT_PKG_NAME)/bin
-	@cp extras/openshift/templates/* tmp/$(CLIENT_PKG_NAME)/share/heketi/templates
+	@cp extras/openshift/templates/* tmp/$(CLIENT_PKG_NAME)/share/heketi/openshift/templates
+	@cp extras/kubernetes/* tmp/$(CLIENT_PKG_NAME)/share/heketi/kubernetes
 	@mkdir -p $(DIR)/dist/
 	tar -czf $@ -C tmp $(CLIENT_PKG_NAME);
 	@rm -rf tmp
@@ -95,4 +98,19 @@ $(CLIENT_PACKAGE): all
 
 dist: $(PACKAGE) $(CLIENT_PACKAGE)
 
-.PHONY: server client test clean name run version 
+linux_amd64_dist:
+	GOOS=linux GOARCH=amd64 $(MAKE) dist
+
+linux_arm_dist:
+	GOOS=linux GOARCH=arm $(MAKE) dist
+
+linux_arm64_dist:
+	GOOS=linux GOARCH=arm64 $(MAKE) dist
+
+darwin_amd64_dist:
+	GOOS=darwin GOARCH=amd64 $(MAKE) dist
+
+release: darwin_amd64_dist linux_arm64_dist linux_arm_dist linux_amd64_dist
+
+.PHONY: server client test clean name run version release \
+        darwin_amd64_dist linux_arm_dist linux_amd64_dist linux_arm64_dist

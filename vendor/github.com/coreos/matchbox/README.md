@@ -1,53 +1,47 @@
 # matchbox [![Build Status](https://travis-ci.org/coreos/matchbox.svg?branch=master)](https://travis-ci.org/coreos/matchbox) [![GoDoc](https://godoc.org/github.com/coreos/matchbox?status.png)](https://godoc.org/github.com/coreos/matchbox) [![Docker Repository on Quay](https://quay.io/repository/coreos/matchbox/status "Docker Repository on Quay")](https://quay.io/repository/coreos/matchbox) [![IRC](https://img.shields.io/badge/irc-%23coreos-449FD8.svg)](https://botbot.me/freenode/coreos)
 
-Network boot and provision CoreOS clusters on virtual or physical hardware.
+`matchbox` is a service that matches bare-metal machines (based on labels like MAC, UUID, etc.) to profiles that PXE boot and provision Container Linux clusters. Profiles specify the kernel/initrd, kernel arguments, iPXE config, GRUB config, [Container Linux Config][cl-config], or other configs a machine should use. Matchbox can be [installed](Documentation/deployment.md) as a binary, RPM, container image, or deployed on a Kubernetes cluster and it provides an authenticated gRPC API for clients like [Terraform][terraform].
 
-**Announcement**: coreos-baremetal and `bootcfg` have been renamed to CoreOS `matchbox`, which will be reflected in v0.5.0. Please see [CHANGES](CHANGES.md) or [#400](https://github.com/coreos/matchbox/issues/400). If you're looking for older docs, be sure to use the branch/tag switcher.
-
-## Guides
-
-* [Network Setup](Documentation/network-setup.md)
-* [Machine Lifecycle](Documentation/machine-lifecycle.md)
-* [Background: PXE Booting](Documentation/network-booting.md)
-* Tutorials (QEMU/KVM/libvirt)
-    * [matchbox with rkt](Documentation/getting-started-rkt.md)
-    * [matchbox with Docker](Documentation/getting-started-docker.md)
-
-## matchbox
-
-`matchbox` is an HTTP and gRPC service that renders signed [Ignition configs](https://coreos.com/ignition/docs/latest/what-is-ignition.html), [cloud-configs](https://coreos.com/os/docs/latest/cloud-config.html), network boot configs, and metadata to machines to create CoreOS clusters. Groups match machines based on labels (e.g. MAC, UUID, stage, region) and use named Profiles for provisioning. Network boot endpoints provide PXE, iPXE, and GRUB. `matchbox` can be deployed as a binary, as an [appc](https://github.com/appc/spec) container with [rkt](https://coreos.com/rkt/docs/latest/), or as a Docker container.
-
+* [Documentation][docs]
 * [matchbox Service](Documentation/matchbox.md)
 * [Profiles](Documentation/matchbox.md#profiles)
 * [Groups](Documentation/matchbox.md#groups)
 * Config Templates
-    * [Ignition](Documentation/ignition.md)
-    * [Cloud-Config](Documentation/cloud-config.md)
+    * [Container Linux Config][cl-config]
+    * [Cloud-Config][cloud-config]
 * [Configuration](Documentation/config.md)
-* [HTTP API](Documentation/api.md)
-* [gRPC API](https://godoc.org/github.com/coreos/matchbox/matchbox/client)
+* [HTTP API](Documentation/api.md) / [gRPC API](https://godoc.org/github.com/coreos/matchbox/matchbox/client)
+* [Background: Machine Lifecycle](Documentation/machine-lifecycle.md)
+* [Background: PXE Booting](Documentation/network-booting.md)
+
+### Installation
+
 * Installation
-    * [CoreOS / Linux distros](Documentation/deployment.md)
-    * [rkt](Documentation/deployment.md#rkt) / [docker](Documentation/deployment.md#docker)
-    * [Kubernetes](Documentation/deployment.md#kubernetes)
+    * Installing on [Container Linux / other distros](Documentation/deployment.md)
+    * Installing on [Kubernetes](Documentation/deployment.md#kubernetes)
+    * Running with [rkt](Documentation/deployment.md#rkt) / [docker](Documentation/deployment.md#docker)
+* [Network Setup](Documentation/network-setup.md)
 
-### Examples
+### Tutorials
 
-The [examples](examples) network boot and provision CoreOS clusters. Network boot [QEMU/KVM](scripts/README.md#libvirt) VMs to try the examples on your Linux laptop.
+* [Getting Started](Documentation/getting-started.md) - provision Container Linux machines (beginner)
+* Local QEMU/KVM
+    * [matchbox with rkt](Documentation/getting-started-rkt.md)
+    * [matchbox with Docker](Documentation/getting-started-docker.md)
+* Clusters
+  * [etcd3](Documentation/getting-started-rkt.md) - Install a 3-node etcd3 cluster
+  * [Kubernetes](Documentation/bootkube.md) - Install a 3-node self-hosted Kubernetes v1.7.3 cluster
+* Clusters (Terraform-based)
+  * [etcd3](examples/terraform/etcd3-install/README.md) - Install a 3-node etcd3 cluster
+  * [Kubernetes](examples/terraform/bootkube-install/README.md) - Install a 3-node self-hosted Kubernetes v1.7.3 cluster
 
-* Multi-node [Kubernetes cluster](Documentation/kubernetes.md)
-* Multi-node [rktnetes](Documentation/rktnetes.md) cluster (i.e. Kubernetes with rkt as the container runtime)
-* Multi-node [self-hosted](Documentation/bootkube.md) Kubernetes cluster
-* [Upgrading](Documentation/bootkube-upgrades.md) self-hosted Kubernetes clusters
-* Multi-node etcd2 or etcd3 cluster
-* Network boot and/or install to disk (multi-stage installs)
+## Contrib
 
-### Enterprise
+* [dnsmasq](contrib/dnsmasq/README.md) - Run DHCP, TFTP, and DNS services with docker or rkt
+* [squid](contrib/squid/README.md) - Run a transparent cache proxy
+* [terraform-provider-matchbox](https://github.com/coreos/terraform-provider-matchbox) - Terraform provider plugin for Matchbox
 
-[Tectonic](https://coreos.com/tectonic/) is the enterprise-ready Kubernetes offering from CoreOS (free for 10 nodes!). The [Tectonic Installer](https://coreos.com/tectonic/docs/latest/install/bare-metal/#4-tectonic-installer) app integrates directly with `matchbox` through its gRPC API to provide a rich graphical client for populating `matchbox` with machine configs.
-
-Learn more from our [docs](https://coreos.com/tectonic/docs/latest/) or [blog](https://coreos.com/blog/tectonic-1-5-2.html).
-
-![Tectonic Installer](Documentation/img/tectonic-installer.png)
-
-![Tectonic Console](Documentation/img/tectonic-console.png)
+[docs]: https://coreos.com/matchbox/docs/latest
+[terraform]: https://github.com/coreos/terraform-provider-matchbox
+[cl-config]: Documentation/container-linux-config.md
+[cloud-config]: Documentation/cloud-config.md

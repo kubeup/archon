@@ -33,7 +33,6 @@ import (
 	"k8s.io/minikube/cmd/util"
 	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
-	"k8s.io/minikube/pkg/minikube/machine"
 	"k8s.io/minikube/pkg/minikube/notify"
 )
 
@@ -56,8 +55,6 @@ const (
 
 var (
 	enableUpdateNotification = true
-	enableKubectlDownloadMsg = true
-	clientType               machine.ClientType
 )
 
 var viperWhiteList = []string{
@@ -78,16 +75,6 @@ var RootCmd = &cobra.Command{
 			}
 		}
 
-		if viper.GetBool(showLibmachineLogs) {
-			fmt.Println(`
---show-libmachine-logs is deprecated.
-Please use --v=3 to show libmachine logs, and --v=7 for debug level libmachine logs
-`)
-		}
-
-		//TODO(r2d4): config should not reference API
-		clientType = configCmd.GetClientType()
-
 		// Log level 3 or greater enables libmachine logs
 		if !glog.V(3) {
 			log.SetOutWriter(ioutil.Discard)
@@ -99,21 +86,29 @@ Please use --v=3 to show libmachine logs, and --v=7 for debug level libmachine l
 			log.SetDebug(true)
 		}
 
+		if viper.GetBool(showLibmachineLogs) {
+			fmt.Println(`
+--show-libmachine-logs is deprecated.
+Please use --v=3 to show libmachine logs, and --v=7 for debug level libmachine logs
+`)
+		}
+
+		logDir := pflag.Lookup("log_dir")
+		if !logDir.Changed {
+			logDir.Value.Set(constants.MakeMiniPath("logs"))
+		}
+
 		if enableUpdateNotification {
 			notify.MaybePrintUpdateTextFromGithub(os.Stderr)
 		}
-		if enableKubectlDownloadMsg {
-			util.MaybePrintKubectlDownloadMsg(runtime.GOOS, os.Stderr)
-		}
+		util.MaybePrintKubectlDownloadMsg(runtime.GOOS, os.Stderr)
 	},
 }
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := RootCmd.Execute(); err != nil {
-		glog.Exitln(err)
-	}
+	_ = RootCmd.Execute()
 }
 
 // Handle config values for flags used in external packages (e.g. glog)
@@ -136,15 +131,16 @@ func setFlagsUsingViper() {
 func init() {
 	RootCmd.PersistentFlags().Bool(showLibmachineLogs, false, "Deprecated: To enable libmachine logs, set --v=3 or higher")
 	RootCmd.PersistentFlags().Bool(useVendoredDriver, false, "Use the vendored in drivers instead of RPC")
+	RootCmd.PersistentFlags().StringP(config.MachineProfile, "p", constants.DefaultMachineName, `The name of the minikube VM being used.  
+	This can be modified to allow for multiple minikube instances to be run independently`)
 	RootCmd.AddCommand(configCmd.ConfigCmd)
 	RootCmd.AddCommand(configCmd.AddonsCmd)
+	RootCmd.AddCommand(configCmd.ProfileCmd)
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
-	logDir := pflag.Lookup("log_dir")
-	if !logDir.Changed {
-		logDir.Value.Set(constants.MakeMiniPath("logs"))
-	}
 	viper.BindPFlags(RootCmd.PersistentFlags())
+
 	cobra.OnInitialize(initConfig)
+
 }
 
 // initConfig reads in config file and ENV variables if set.

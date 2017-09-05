@@ -69,6 +69,38 @@ var _ = Describe("Host", func() {
 		})
 	})
 
+	Describe("ProvisionHost", func() {
+		It("host provisioning succeeds", func() {
+			mockTask := createMockTask("CREATE_HOST", "COMPLETED")
+			server.SetResponseJson(200, mockTask)
+
+			task, err := client.Hosts.Create(hostSpec, "deployment-Id")
+			task, err = client.Tasks.Wait(task.ID)
+			GinkgoT().Log(err)
+			Expect(err).Should(BeNil())
+
+			mockTask = createMockTask("PROVISION_HOST", "COMPLETED")
+			server.SetResponseJson(202, mockTask)
+
+			task, err = client.Hosts.Provision(task.Entity.ID)
+			task, err = client.Tasks.Wait(task.ID)
+
+			GinkgoT().Log(err)
+			Expect(err).Should(BeNil())
+			Expect(task).ShouldNot(BeNil())
+			Expect(task.Operation).Should(Equal("PROVISION_HOST"))
+			Expect(task.State).Should(Equal("COMPLETED"))
+
+			mockTask = createMockTask("DELETE_HOST", "COMPLETED")
+			server.SetResponseJson(200, mockTask)
+			task, err = client.Hosts.Delete(task.Entity.ID)
+			task, err = client.Tasks.Wait(task.ID)
+			GinkgoT().Log(err)
+			Expect(err).Should(BeNil())
+
+		})
+	})
+
 	Describe("GetHosts", func() {
 		It("GetHosts succeeds", func() {
 			mockTask := createMockTask("CREATE_HOST", "COMPLETED")

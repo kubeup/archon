@@ -1,5 +1,29 @@
 [
   {
+      "name": "v0.20.0",
+      "checksums": {
+          "darwin": "591737b728745dbf01f634bf714353c416c2e56c39e2e0431910fa51783b7a19",
+          "linux": "f7d51f0b94f88650ced3ddb6e079f560e7ef142b8e4d53a5aee511ca1c2e3df4",
+          "windows": "d4be02e5e7075943d6b4efca44c0ff56286f72236e2640d82010b944646612b7"
+      }
+  },
+  {
+      "name": "v0.19.0",
+      "checksums": {
+          "darwin": "efe27dd4f791403b90eefab8c1f6ea3c7f3115a7609f41e3189517f088e20f0e",
+          "linux": "1b3447b307fa256378c9541731cfc5d5b06128f88dab04b3cfc9deeeceddb2bf",
+          "windows": "105fa416fbda1fc8f4ad6c2e9a7883733d5f11ae247ef6cfd15e9fbc6dd5dd56"
+      }
+  },
+  {
+      "name": "v0.18.0",
+      "checksums": {
+          "darwin": "301dc5f47cccface80769bd3a03d58ba80893f6ede75f2a7ec22f1bc56666deb",
+          "linux": "212fbf52a6d601deb383271e2af756982f9b72715e1f7a3d65770d04387d8c8d",
+          "windows": "302bfe9747882291e686ecf6f337e78836f7bb0e1783fc6d8bf1f3482fb2badf"
+      }
+  },
+  {
       "name": "v0.17.1",
       "checksums": {
           "darwin": "b175c355d377a6ce2fefdd19201c865a7e628581261ac949fffb725af459c389",

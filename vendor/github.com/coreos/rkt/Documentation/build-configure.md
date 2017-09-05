@@ -15,7 +15,7 @@ Note that specifying this parameter does not necessarily mean that rkt will use 
 Available flavors are:
 
 - `coreos` - it takes systemd and bash from a CoreOS PXE image; uses systemd-nspawn
-- `kvm` - it takes systemd, bash and other binaries from a CoreOS PXE image; uses lkvm
+- `kvm` - it takes systemd, bash and other binaries from a CoreOS PXE image; uses lkvm or qemu
 - `src` - it builds systemd, takes bash from the host at build time; uses built systemd-nspawn
 - `host` - it takes systemd and bash from host at runtime; uses systemd-nspawn from the host
 - `fly` - chroot-only approach for single-application minimal isolation containers; native Go implementation
@@ -101,10 +101,17 @@ You may want to change it to point the build system to use some local repository
 
 #### `--with-stage1-systemd-version`
 
+This parameter specifies the systemd version to be built.
+Version names are usually in form of `v<number>`, where number is a systemd version.
+The default is `v999`.
+
+#### `--with-stage1-systemd-revision`
+
 This parameter takes either a tag name or a branch name.
-Tag names are usually in form of `v<number>`, where number is a systemd version.
-The default is `v229`.
-You can use branch name `master` to test the bleeding edge version of systemd.
+You can use branch name `master` to test the bleeding edge version of systemd or any working branch, or tag name.
+Since arbitrary branch names do not imply which systemd version is being built, the actual systemd version
+is specified using `--with-stage1-systemd-version`.
+The default is `master`.
 
 ### `coreos` and `kvm` flavor
 
@@ -148,10 +155,21 @@ These flags are related to security.
 
 #### `--enable-tpm`
 
-This option to enable [logging to the TPM][rkt-tpm] is set by default. For logging to work, [TrouSerS](http://trousers.sourceforge.net/) is required. Set this option to `auto` to conditionally enable TPM features based on build support.
+This option to enable [logging to the TPM][rkt-tpm] is set by default. For logging to work, [TrouSerS][trousers] is required. Set this option to `auto` to conditionally enable TPM features based on build support.
 
 #### `--enable-insecure-go`
 
 This option to allow building rkt with go having known security issues is unset by default. Use it with caution.
 
+## Development
+
+#### `--enable-incremental-build`
+
+This option enables incremental compilation. This is useful for local development.
+In contrast to a release build this option enables `go install` vs `go build`
+which decreases incremental compilation time.
+Note that this option is not supported in cross-compile builds.
+For this reason the incremental build option must not be used for release builds.
+
 [rkt-tpm]: devel/tpm.md
+[trousers]: http://trousers.sourceforge.net/

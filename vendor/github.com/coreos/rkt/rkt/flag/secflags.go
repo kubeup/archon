@@ -14,7 +14,11 @@
 
 package flag
 
-import "strings"
+import (
+	"strings"
+
+	pkgflag "github.com/coreos/rkt/pkg/flag"
+)
 
 const (
 	insecureNone  = 0
@@ -23,85 +27,120 @@ const (
 	insecureOnDisk
 	insecureHTTP
 	insecurePubKey
+	insecureCapabilities
+	insecurePaths
+	insecureSeccomp
 
-	insecureAll = (insecureImage | insecureTLS | insecureOnDisk | insecureHTTP | insecurePubKey)
+	insecureAllFetch = (insecureImage | insecureTLS | insecureHTTP | insecurePubKey)
+	insecureAllRun   = (insecureOnDisk | insecureCapabilities | insecurePaths | insecureSeccomp)
+	insecureAll      = (insecureAllFetch | insecureAllRun)
 )
 
 var (
-	insecureOptions = []string{"none", "image", "tls", "ondisk", "http", "pubkey", "all"}
+	insecureOptions = []string{
+		"none",
+		"image",
+		"tls",
+		"ondisk",
+		"http",
+		"pubkey",
+		"capabilities",
+		"paths",
+		"seccomp",
+		"all-fetch",
+		"all-run",
+		"all",
+	}
 
 	insecureOptionsMap = map[string]int{
-		insecureOptions[0]: insecureNone,
-		insecureOptions[1]: insecureImage,
-		insecureOptions[2]: insecureTLS,
-		insecureOptions[3]: insecureOnDisk,
-		insecureOptions[4]: insecureHTTP,
-		insecureOptions[5]: insecurePubKey,
-		insecureOptions[6]: insecureAll,
+		insecureOptions[0]:  insecureNone,
+		insecureOptions[1]:  insecureImage,
+		insecureOptions[2]:  insecureTLS,
+		insecureOptions[3]:  insecureOnDisk,
+		insecureOptions[4]:  insecureHTTP,
+		insecureOptions[5]:  insecurePubKey,
+		insecureOptions[6]:  insecureCapabilities,
+		insecureOptions[7]:  insecurePaths,
+		insecureOptions[8]:  insecureSeccomp,
+		insecureOptions[9]:  insecureAllFetch,
+		insecureOptions[10]: insecureAllRun,
+		insecureOptions[11]: insecureAll,
 	}
 )
 
 type SecFlags struct {
-	*bitFlags
+	*pkgflag.BitFlags
 }
 
 func NewSecFlagsFromValue(val int) (*SecFlags, error) {
 	sf := &SecFlags{
-		bitFlags: &bitFlags{flags: val},
+		&pkgflag.BitFlags{Flags: val},
 	}
 
 	return sf, nil
 }
 
 func NewSecFlags(defOpts string) (*SecFlags, error) {
-	bf, err := newBitFlags(insecureOptions, defOpts, insecureOptionsMap)
+	bf, err := pkgflag.NewBitFlags(insecureOptions, defOpts, insecureOptionsMap)
 	if err != nil {
 		return nil, err
 	}
 
 	sf := &SecFlags{
-		bitFlags: bf,
+		BitFlags: bf,
 	}
 	return sf, nil
 }
 
 func (sf *SecFlags) SkipImageCheck() bool {
-	return sf.hasFlag(insecureImage)
+	return sf.HasFlag(insecureImage)
 }
 
 func (sf *SecFlags) SkipTLSCheck() bool {
-	return sf.hasFlag(insecureTLS)
+	return sf.HasFlag(insecureTLS)
 }
 
 func (sf *SecFlags) SkipOnDiskCheck() bool {
-	return sf.hasFlag(insecureOnDisk)
+	return sf.HasFlag(insecureOnDisk)
 }
 
 func (sf *SecFlags) AllowHTTP() bool {
-	return sf.hasFlag(insecureHTTP)
+	return sf.HasFlag(insecureHTTP)
 }
 
 func (sf *SecFlags) ConsiderInsecurePubKeys() bool {
-	return sf.hasFlag(insecurePubKey)
+	return sf.HasFlag(insecurePubKey)
+}
+
+func (sf *SecFlags) SkipCapabilities() bool {
+	return sf.HasFlag(insecureCapabilities)
+}
+
+func (sf *SecFlags) SkipPaths() bool {
+	return sf.HasFlag(insecurePaths)
+}
+
+func (sf *SecFlags) SkipSeccomp() bool {
+	return sf.HasFlag(insecureSeccomp)
 }
 
 func (sf *SecFlags) SkipAllSecurityChecks() bool {
-	return sf.hasFlag(insecureAll)
+	return sf.HasFlag(insecureAll)
 }
 
 func (sf *SecFlags) SkipAnySecurityChecks() bool {
-	return sf.flags != 0
+	return sf.Flags != 0
 }
 
 func (sf *SecFlags) Value() int {
-	return sf.flags
+	return sf.Flags
 }
 
 func (sf *SecFlags) String() string {
 	opts := []string{}
 
 	for optstr, opt := range insecureOptionsMap {
-		if sf.hasFlag(opt) {
+		if sf.HasFlag(opt) {
 			if opt == insecureNone || opt == insecureAll {
 				continue
 			}

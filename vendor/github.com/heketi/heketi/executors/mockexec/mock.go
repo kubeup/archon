@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package mockexec
@@ -29,10 +22,12 @@ type MockExecutor struct {
 	MockBrickCreate        func(host string, brick *executors.BrickRequest) (*executors.BrickInfo, error)
 	MockBrickDestroy       func(host string, brick *executors.BrickRequest) error
 	MockBrickDestroyCheck  func(host string, brick *executors.BrickRequest) error
-	MockVolumeCreate       func(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error)
-	MockVolumeExpand       func(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error)
+	MockVolumeCreate       func(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error)
+	MockVolumeExpand       func(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error)
 	MockVolumeDestroy      func(host string, volume string) error
 	MockVolumeDestroyCheck func(host, volume string) error
+	MockVolumeReplaceBrick func(host string, volume string, oldBrick *executors.BrickInfo, newBrick *executors.BrickInfo) error
+	MockVolumeInfo         func(host string, volume string) (*executors.SingleVolumeInfo, error)
 }
 
 func NewMockExecutor() (*MockExecutor, error) {
@@ -72,12 +67,12 @@ func NewMockExecutor() (*MockExecutor, error) {
 		return nil
 	}
 
-	m.MockVolumeCreate = func(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error) {
-		return &executors.VolumeInfo{}, nil
+	m.MockVolumeCreate = func(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error) {
+		return &executors.SingleVolumeInfo{}, nil
 	}
 
-	m.MockVolumeExpand = func(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error) {
-		return &executors.VolumeInfo{}, nil
+	m.MockVolumeExpand = func(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error) {
+		return &executors.SingleVolumeInfo{}, nil
 	}
 
 	m.MockVolumeDestroy = func(host string, volume string) error {
@@ -86,6 +81,14 @@ func NewMockExecutor() (*MockExecutor, error) {
 
 	m.MockVolumeDestroyCheck = func(host, volume string) error {
 		return nil
+	}
+
+	m.MockVolumeReplaceBrick = func(host string, volume string, oldBrick *executors.BrickInfo, newBrick *executors.BrickInfo) error {
+		return nil
+	}
+
+	m.MockVolumeInfo = func(host string, volume string) (*executors.SingleVolumeInfo, error) {
+		return &executors.SingleVolumeInfo{}, nil
 	}
 
 	return m, nil
@@ -123,11 +126,11 @@ func (m *MockExecutor) BrickDestroyCheck(host string, brick *executors.BrickRequ
 	return m.MockBrickDestroyCheck(host, brick)
 }
 
-func (m *MockExecutor) VolumeCreate(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error) {
+func (m *MockExecutor) VolumeCreate(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error) {
 	return m.MockVolumeCreate(host, volume)
 }
 
-func (m *MockExecutor) VolumeExpand(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error) {
+func (m *MockExecutor) VolumeExpand(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error) {
 	return m.MockVolumeExpand(host, volume)
 }
 
@@ -137,4 +140,12 @@ func (m *MockExecutor) VolumeDestroy(host string, volume string) error {
 
 func (m *MockExecutor) VolumeDestroyCheck(host string, volume string) error {
 	return m.MockVolumeDestroyCheck(host, volume)
+}
+
+func (m *MockExecutor) VolumeReplaceBrick(host string, volume string, oldBrick *executors.BrickInfo, newBrick *executors.BrickInfo) error {
+	return m.MockVolumeReplaceBrick(host, volume, oldBrick, newBrick)
+}
+
+func (m *MockExecutor) VolumeInfo(host string, volume string) (*executors.SingleVolumeInfo, error) {
+	return m.MockVolumeInfo(host, volume)
 }

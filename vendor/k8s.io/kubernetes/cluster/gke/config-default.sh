@@ -43,6 +43,14 @@ ENABLE_CLUSTER_MONITORING="${KUBE_ENABLE_CLUSTER_MONITORING:-standalone}"
 
 KUBE_DELETE_NETWORK=${KUBE_DELETE_NETWORK:-false}
 
-# Indicates if the values (eg. kube password) in metadata should be treated as
-# canonical, and therefore disk copies ought to be recreated/clobbered.
+# Indicates if the values (i.e. KUBE_USER and KUBE_PASSWORD for basic
+# authentication) in metadata should be treated as canonical, and therefore disk
+# copies ought to be recreated/clobbered.
 METADATA_CLOBBERS_CONFIG=true
+
+# Fluentd requirements
+FLUENTD_GCP_MEMORY_LIMIT="${FLUENTD_GCP_MEMORY_LIMIT:-300Mi}"
+FLUENTD_GCP_CPU_REQUEST="${FLUENTD_GCP_CPU_REQUEST:-100m}"
+FLUENTD_GCP_MEMORY_REQUEST="${FLUENTD_GCP_MEMORY_REQUEST:-200Mi}"
+# Adding to PROVIDER_VARS, since this is GCP-specific.
+PROVIDER_VARS="${PROVIDER_VARS:-} FLUENTD_GCP_MEMORY_LIMIT FLUENTD_GCP_CPU_REQUEST FLUENTD_GCP_MEMORY_REQUEST"

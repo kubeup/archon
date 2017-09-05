@@ -132,8 +132,11 @@ func DeepCopy_batch_CronJobStatus(in interface{}, out interface{}, c *conversion
 		}
 		if in.LastScheduleTime != nil {
 			in, out := &in.LastScheduleTime, &out.LastScheduleTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		return nil
 	}
@@ -164,8 +167,16 @@ func DeepCopy_batch_JobCondition(in interface{}, out interface{}, c *conversion.
 		in := in.(*JobCondition)
 		out := out.(*JobCondition)
 		*out = *in
-		out.LastProbeTime = in.LastProbeTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastProbeTime); err != nil {
+			return err
+		} else {
+			out.LastProbeTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -221,8 +232,10 @@ func DeepCopy_batch_JobSpec(in interface{}, out interface{}, c *conversion.Clone
 			*out = new(bool)
 			**out = **in
 		}
-		if err := api.DeepCopy_api_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api.PodTemplateSpec)
 		}
 		return nil
 	}
@@ -244,13 +257,19 @@ func DeepCopy_batch_JobStatus(in interface{}, out interface{}, c *conversion.Clo
 		}
 		if in.StartTime != nil {
 			in, out := &in.StartTime, &out.StartTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		if in.CompletionTime != nil {
 			in, out := &in.CompletionTime, &out.CompletionTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		return nil
 	}

@@ -63,9 +63,7 @@ func (f *dockerFetcher) fetchImageFrom(u *url.URL, latest bool) (string, error) 
 		return "", fmt.Errorf("signature verification for docker images is not supported (try --insecure-options=image)")
 	}
 
-	if f.Debug {
-		log.Printf("fetching image from %s", u.String())
-	}
+	diag.Printf("fetching image from %s", u.String())
 
 	aciFile, err := f.fetch(u)
 	if err != nil {
@@ -76,8 +74,7 @@ func (f *dockerFetcher) fetchImageFrom(u *url.URL, latest bool) (string, error) 
 	defer aciFile.Close()
 
 	key, err := f.S.WriteACI(aciFile, imagestore.ACIFetchInfo{
-		Latest:          latest,
-		InsecureOptions: int64(f.InsecureFlags.Value()),
+		Latest: latest,
 	})
 	if err != nil {
 		return "", err

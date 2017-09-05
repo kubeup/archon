@@ -53,15 +53,11 @@ func DeepCopy_example_Pod(in interface{}, out interface{}, c *conversion.Cloner)
 		} else {
 			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
 		}
-		if newVal, err := c.DeepCopy(&in.Spec); err != nil {
+		if err := DeepCopy_example_PodSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
-		} else {
-			out.Spec = *newVal.(*PodSpec)
 		}
-		if newVal, err := c.DeepCopy(&in.Status); err != nil {
+		if err := DeepCopy_example_PodStatus(&in.Status, &out.Status, c); err != nil {
 			return err
-		} else {
-			out.Status = *newVal.(*PodStatus)
 		}
 		return nil
 	}
@@ -72,8 +68,16 @@ func DeepCopy_example_PodCondition(in interface{}, out interface{}, c *conversio
 		in := in.(*PodCondition)
 		out := out.(*PodCondition)
 		*out = *in
-		out.LastProbeTime = in.LastProbeTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastProbeTime); err != nil {
+			return err
+		} else {
+			out.LastProbeTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -87,10 +91,8 @@ func DeepCopy_example_PodList(in interface{}, out interface{}, c *conversion.Clo
 			in, out := &in.Items, &out.Items
 			*out = make([]Pod, len(*in))
 			for i := range *in {
-				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
+				if err := DeepCopy_example_Pod(&(*in)[i], &(*out)[i], c); err != nil {
 					return err
-				} else {
-					(*out)[i] = *newVal.(*Pod)
 				}
 			}
 		}
@@ -133,17 +135,18 @@ func DeepCopy_example_PodStatus(in interface{}, out interface{}, c *conversion.C
 			in, out := &in.Conditions, &out.Conditions
 			*out = make([]PodCondition, len(*in))
 			for i := range *in {
-				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
+				if err := DeepCopy_example_PodCondition(&(*in)[i], &(*out)[i], c); err != nil {
 					return err
-				} else {
-					(*out)[i] = *newVal.(*PodCondition)
 				}
 			}
 		}
 		if in.StartTime != nil {
 			in, out := &in.StartTime, &out.StartTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		return nil
 	}

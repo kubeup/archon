@@ -35,7 +35,10 @@ func init() {
 // to allow building arbitrary schemes.
 func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	return scheme.AddGeneratedDeepCopyFuncs(
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_ClientConnectionConfiguration, InType: reflect.TypeOf(&ClientConnectionConfiguration{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyConfiguration, InType: reflect.TypeOf(&KubeProxyConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyConntrackConfiguration, InType: reflect.TypeOf(&KubeProxyConntrackConfiguration{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration, InType: reflect.TypeOf(&KubeProxyIPTablesConfiguration{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeSchedulerConfiguration, InType: reflect.TypeOf(&KubeSchedulerConfiguration{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletAnonymousAuthentication, InType: reflect.TypeOf(&KubeletAnonymousAuthentication{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1alpha1_KubeletAuthentication, InType: reflect.TypeOf(&KubeletAuthentication{})},
@@ -48,18 +51,48 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	)
 }
 
+func DeepCopy_v1alpha1_ClientConnectionConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ClientConnectionConfiguration)
+		out := out.(*ClientConnectionConfiguration)
+		*out = *in
+		return nil
+	}
+}
+
 func DeepCopy_v1alpha1_KubeProxyConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
 	{
 		in := in.(*KubeProxyConfiguration)
 		out := out.(*KubeProxyConfiguration)
 		*out = *in
-		if in.IPTablesMasqueradeBit != nil {
-			in, out := &in.IPTablesMasqueradeBit, &out.IPTablesMasqueradeBit
-			*out = new(int32)
-			**out = **in
+		if err := DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration(&in.IPTables, &out.IPTables, c); err != nil {
+			return err
 		}
 		if in.OOMScoreAdj != nil {
 			in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
+			*out = new(int32)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_v1alpha1_KubeProxyConntrackConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeProxyConntrackConfiguration)
+		out := out.(*KubeProxyConntrackConfiguration)
+		*out = *in
+		return nil
+	}
+}
+
+func DeepCopy_v1alpha1_KubeProxyIPTablesConfiguration(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*KubeProxyIPTablesConfiguration)
+		out := out.(*KubeProxyIPTablesConfiguration)
+		*out = *in
+		if in.MasqueradeBit != nil {
+			in, out := &in.MasqueradeBit, &out.MasqueradeBit
 			*out = new(int32)
 			**out = **in
 		}
@@ -175,6 +208,11 @@ func DeepCopy_v1alpha1_KubeletConfiguration(in interface{}, out interface{}, c *
 			*out = new(int32)
 			**out = **in
 		}
+		if in.CAdvisorPort != nil {
+			in, out := &in.CAdvisorPort, &out.CAdvisorPort
+			*out = new(int32)
+			**out = **in
+		}
 		if in.OOMScoreAdj != nil {
 			in, out := &in.OOMScoreAdj, &out.OOMScoreAdj
 			*out = new(int32)
@@ -229,8 +267,10 @@ func DeepCopy_v1alpha1_KubeletConfiguration(in interface{}, out interface{}, c *
 			in, out := &in.RegisterWithTaints, &out.RegisterWithTaints
 			*out = make([]v1.Taint, len(*in))
 			for i := range *in {
-				if err := v1.DeepCopy_v1_Taint(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*v1.Taint)
 				}
 			}
 		}
@@ -292,11 +332,6 @@ func DeepCopy_v1alpha1_KubeletConfiguration(in interface{}, out interface{}, c *
 			in, out := &in.AllowedUnsafeSysctls, &out.AllowedUnsafeSysctls
 			*out = make([]string, len(*in))
 			copy(*out, *in)
-		}
-		if in.EnableCRI != nil {
-			in, out := &in.EnableCRI, &out.EnableCRI
-			*out = new(bool)
-			**out = **in
 		}
 		if in.SystemReserved != nil {
 			in, out := &in.SystemReserved, &out.SystemReserved

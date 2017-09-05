@@ -1148,7 +1148,19 @@ func (r Result) Into(obj runtime.Object) error {
 	if r.decoder == nil {
 		return fmt.Errorf("serializer for %s doesn't exist", r.contentType)
 	}
+	if len(r.body) == 0 {
+		return fmt.Errorf("0-length response")
+	}
 
+	ascii := true
+	for _, c := range r.body {
+		if c < 10 || c > 127 {
+			ascii = false
+		}
+	}
+	if ascii {
+		//glog.Infof("Obj: %T %#v, Body: %s", obj, obj, string(r.body))
+	}
 	out, _, err := r.decoder.Decode(r.body, nil, obj)
 	if err != nil || out == obj {
 		return err

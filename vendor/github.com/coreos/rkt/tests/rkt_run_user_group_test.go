@@ -110,7 +110,7 @@ func TestAppUserGroup(t *testing.T) {
 			}
 
 			for _, userNSOpt := range userNSOpts {
-				// run the user/group overriden app first
+				// run the user/group overridden app first
 				rktCmd := fmt.Sprintf(
 					"%s --debug --insecure-options=image run %s %s %s %s",
 					ctx.Cmd(),
@@ -118,9 +118,9 @@ func TestAppUserGroup(t *testing.T) {
 					image, tt.rktParams,
 					imageDummy,
 				)
-				runRktAndCheckOutput(t, rktCmd, tt.expected, false)
+				runRktAndCheckRegexOutput(t, rktCmd, tt.expected)
 
-				// run the user/group overriden app last
+				// run the user/group overridden app last
 				rktCmd = fmt.Sprintf(
 					"%s --debug --insecure-options=image run %s %s %s %s",
 					ctx.Cmd(),
@@ -128,7 +128,7 @@ func TestAppUserGroup(t *testing.T) {
 					imageDummy,
 					image, tt.rktParams,
 				)
-				runRktAndCheckOutput(t, rktCmd, tt.expected, false)
+				runRktAndCheckRegexOutput(t, rktCmd, tt.expected)
 			}
 		}()
 	}

@@ -36,11 +36,64 @@ func init() {
 // to allow building arbitrary schemes.
 func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	return scheme.AddGeneratedDeepCopyFuncs(
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_ControllerRevision, InType: reflect.TypeOf(&ControllerRevision{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_ControllerRevisionList, InType: reflect.TypeOf(&ControllerRevisionList{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_RollingUpdateStatefulSetStrategy, InType: reflect.TypeOf(&RollingUpdateStatefulSetStrategy{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_StatefulSet, InType: reflect.TypeOf(&StatefulSet{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_StatefulSetList, InType: reflect.TypeOf(&StatefulSetList{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_StatefulSetSpec, InType: reflect.TypeOf(&StatefulSetSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_StatefulSetStatus, InType: reflect.TypeOf(&StatefulSetStatus{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_apps_StatefulSetUpdateStrategy, InType: reflect.TypeOf(&StatefulSetUpdateStrategy{})},
 	)
+}
+
+func DeepCopy_apps_ControllerRevision(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ControllerRevision)
+		out := out.(*ControllerRevision)
+		*out = *in
+		if newVal, err := c.DeepCopy(&in.ObjectMeta); err != nil {
+			return err
+		} else {
+			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
+		}
+		// in.Data is kind 'Interface'
+		if in.Data != nil {
+			if newVal, err := c.DeepCopy(&in.Data); err != nil {
+				return err
+			} else {
+				out.Data = *newVal.(*runtime.Object)
+			}
+		}
+		return nil
+	}
+}
+
+func DeepCopy_apps_ControllerRevisionList(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ControllerRevisionList)
+		out := out.(*ControllerRevisionList)
+		*out = *in
+		if in.Items != nil {
+			in, out := &in.Items, &out.Items
+			*out = make([]ControllerRevision, len(*in))
+			for i := range *in {
+				if err := DeepCopy_apps_ControllerRevision(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+}
+
+func DeepCopy_apps_RollingUpdateStatefulSetStrategy(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*RollingUpdateStatefulSetStrategy)
+		out := out.(*RollingUpdateStatefulSetStrategy)
+		*out = *in
+		return nil
+	}
 }
 
 func DeepCopy_apps_StatefulSet(in interface{}, out interface{}, c *conversion.Cloner) error {
@@ -94,17 +147,29 @@ func DeepCopy_apps_StatefulSetSpec(in interface{}, out interface{}, c *conversio
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api.DeepCopy_api_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api.PodTemplateSpec)
 		}
 		if in.VolumeClaimTemplates != nil {
 			in, out := &in.VolumeClaimTemplates, &out.VolumeClaimTemplates
 			*out = make([]api.PersistentVolumeClaim, len(*in))
 			for i := range *in {
-				if err := api.DeepCopy_api_PersistentVolumeClaim(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*api.PersistentVolumeClaim)
 				}
 			}
+		}
+		if err := DeepCopy_apps_StatefulSetUpdateStrategy(&in.UpdateStrategy, &out.UpdateStrategy, c); err != nil {
+			return err
+		}
+		if in.RevisionHistoryLimit != nil {
+			in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
+			*out = new(int32)
+			**out = **in
 		}
 		return nil
 	}
@@ -118,6 +183,20 @@ func DeepCopy_apps_StatefulSetStatus(in interface{}, out interface{}, c *convers
 		if in.ObservedGeneration != nil {
 			in, out := &in.ObservedGeneration, &out.ObservedGeneration
 			*out = new(int64)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_apps_StatefulSetUpdateStrategy(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*StatefulSetUpdateStrategy)
+		out := out.(*StatefulSetUpdateStrategy)
+		*out = *in
+		if in.RollingUpdate != nil {
+			in, out := &in.RollingUpdate, &out.RollingUpdate
+			*out = new(RollingUpdateStatefulSetStrategy)
 			**out = **in
 		}
 		return nil

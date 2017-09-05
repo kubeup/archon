@@ -1,16 +1,50 @@
-# matchbox
+# Matchbox
 
 Notable changes between releases.
 
 ## Latest
 
-* Build matchbox with Go 1.8 for container images and binaries 
+* Add gRPC API endpoints for managing generic (experimental) templates
+* Remove Profile `Cmdline` map (deprecated in v0.5.0), use `Args` slice instead
+* Remove pixiecore support (deprecated in v0.5.0)
+
+### Examples / Modules
+
+* Upgrade Kubernetes v1.7.3 example clusters
+* Kubernetes examples clusters enable etcd TLS
+* Deploy the Container Linux Update Operator (CLUO) to coordinate reboots of Container Linux nodes in Kubernetes clusters. See the cluster [addon docs](Documentation/cluster-addons.md).
+* Kubernetes examples (terraform and non-terraform) mask locksmithd
+* Terraform modules `bootkube` and `profiles` (Kubernetes) mask locksmithd
+
+## v0.6.1 (2017-05-25)
+
+* Improve the installation documentation
+* Move examples/etc/matchbox/cert-gen to scripts/tls
+* Build Matchbox with Go 1.8.3 for images and binaries
+
+### Examples
+
+* Upgrade self-hosted Kubernetes cluster examples to v1.6.4
+* Add NoSchedule taint to self-hosted Kubernetes controllers
+* Remove static Kubernetes and rktnetes cluster examples
+
+## v0.6.0 (2017-04-25)
+
+* New [terraform-provider-matchbox](https://github.com/coreos/terraform-provider-matchbox) plugin for Terraform users!
+* New hosted [documentation](https://coreos.com/matchbox/docs/latest) on coreos.com
+* Add `ProfileDelete`, `GroupDelete`, `IgnitionGet` and `IgnitionDelete` gRPC endpoints
+* Build matchbox with Go 1.8 for container images and binaries
+* Generate code with gRPC v1.2.1 and matching Go protoc-gen-go plugin
+* Update Ignition to v0.14.0 and coreos-cloudinit to v1.13.0
+* Update "fuze" docs to the new name [Container Linux Configs](https://coreos.com/os/docs/latest/configuration.html)
+* Remove `bootcmd` binary from release tarballs
 
 ### Examples
 
 * Upgrade Kubernetes v1.5.5 (static) example clusters
-* Upgrade Kubernetes v1.5.6 (self-hosted) example cluster
+* Upgrade Kubernetes v1.6.1 (self-hosted) example cluster
 * Use etcd3 by default in all clusters (remove etcd2 clusters)
+* Add Terraform examples for etcd3 and self-hosted Kubernetes 1.6.1
 
 ## v0.5.0 (2017-01-23) 
 

@@ -28,11 +28,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/kubernetes/pkg/api/v1"
-	// "k8s.io/kubernetes/pkg/client/clientset_generated/clientset"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/kubernetes/pkg/api/v1"
 	v1clientset "k8s.io/kubernetes/pkg/client/clientset_generated/clientset/typed/core/v1"
 )
 
@@ -165,7 +166,10 @@ func (d *namespacedResourcesDeleter) initOpCache() {
 	// TODO(sttts): get rid of opCache and http 405 logic around it and trust discovery info
 	resources, err := d.discoverResourcesFn()
 	if err != nil {
-		glog.Fatalf("Failed to get supported resources: %v", err)
+		utilruntime.HandleError(fmt.Errorf("unable to get all supported resources from server: %v", err))
+	}
+	if len(resources) == 0 {
+		glog.Fatalf("Unable to get any supported resources from server: %v", err)
 	}
 	deletableGroupVersionResources := []schema.GroupVersionResource{}
 	for _, rl := range resources {
@@ -340,8 +344,9 @@ func (d *namespacedResourcesDeleter) deleteCollection(
 	// namespace controller does not want the garbage collector to insert the orphan finalizer since it calls
 	// resource deletions generically.  it will ensure all resources in the namespace are purged prior to releasing
 	// namespace itself.
-	orphanDependents := false
-	err := dynamicClient.Resource(&apiResource, namespace).DeleteCollection(&metav1.DeleteOptions{OrphanDependents: &orphanDependents}, metav1.ListOptions{})
+	background := metav1.DeletePropagationBackground
+	opts := &metav1.DeleteOptions{PropagationPolicy: &background}
+	err := dynamicClient.Resource(&apiResource, namespace).DeleteCollection(opts, metav1.ListOptions{})
 
 	if err == nil {
 		return true, nil
@@ -379,7 +384,7 @@ func (d *namespacedResourcesDeleter) listCollection(
 	}
 
 	apiResource := metav1.APIResource{Name: gvr.Resource, Namespaced: true}
-	obj, err := dynamicClient.Resource(&apiResource, namespace).List(metav1.ListOptions{})
+	obj, err := dynamicClient.Resource(&apiResource, namespace).List(metav1.ListOptions{IncludeUninitialized: true})
 	if err == nil {
 		unstructuredList, ok := obj.(*unstructured.UnstructuredList)
 		if !ok {
@@ -417,7 +422,9 @@ func (d *namespacedResourcesDeleter) deleteEachItem(
 	}
 	apiResource := metav1.APIResource{Name: gvr.Resource, Namespaced: true}
 	for _, item := range unstructuredList.Items {
-		if err = dynamicClient.Resource(&apiResource, namespace).Delete(item.GetName(), nil); err != nil && !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) {
+		background := metav1.DeletePropagationBackground
+		opts := &metav1.DeleteOptions{PropagationPolicy: &background}
+		if err = dynamicClient.Resource(&apiResource, namespace).Delete(item.GetName(), opts); err != nil && !errors.IsNotFound(err) && !errors.IsMethodNotSupported(err) {
 			return err
 		}
 	}
@@ -504,14 +511,20 @@ func (d *namespacedResourcesDeleter) deleteAllContent(
 	if err != nil {
 		return estimate, err
 	}
+	var errs []error
 	for gvr := range groupVersionResources {
 		gvrEstimate, err := d.deleteAllContentForGroupVersionResource(gvr, namespace, namespaceDeletedAt)
 		if err != nil {
-			return estimate, err
+			// If there is an error, hold on to it but proceed with all the remaining
+			// groupVersionResources.
+			errs = append(errs, err)
 		}
 		if gvrEstimate > estimate {
 			estimate = gvrEstimate
 		}
+	}
+	if len(errs) > 0 {
+		return estimate, utilerrors.NewAggregate(errs)
 	}
 	glog.V(4).Infof("namespace controller - deleteAllContent - namespace: %s, estimate: %v", namespace, estimate)
 	return estimate, nil
@@ -547,7 +560,7 @@ func (d *namespacedResourcesDeleter) estimateGracefulTerminationForPods(ns strin
 	if podsGetter == nil || reflect.ValueOf(podsGetter).IsNil() {
 		return estimate, fmt.Errorf("unexpected: podsGetter is nil. Cannot estimate grace period seconds for pods")
 	}
-	items, err := podsGetter.Pods(ns).List(metav1.ListOptions{})
+	items, err := podsGetter.Pods(ns).List(metav1.ListOptions{IncludeUninitialized: true})
 	if err != nil {
 		return estimate, err
 	}

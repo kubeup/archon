@@ -6,10 +6,13 @@ import (
 	"testing"
 
 	"github.com/gophercloud/gophercloud/acceptance/clients"
+	"github.com/gophercloud/gophercloud/acceptance/tools"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 )
 
 func TestFlavorsList(t *testing.T) {
+	t.Logf("** Default flavors (same as Project flavors): **")
+	t.Logf("")
 	client, err := clients.NewComputeV2Client()
 	if err != nil {
 		t.Fatalf("Unable to create a compute client: %v", err)
@@ -26,8 +29,29 @@ func TestFlavorsList(t *testing.T) {
 	}
 
 	for _, flavor := range allFlavors {
-		PrintFlavor(t, &flavor)
+		tools.PrintResource(t, flavor)
 	}
+
+	flavorAccessTypes := [3]flavors.AccessType{flavors.PublicAccess, flavors.PrivateAccess, flavors.AllAccess}
+	for _, flavorAccessType := range flavorAccessTypes {
+		t.Logf("** %s flavors: **", flavorAccessType)
+		t.Logf("")
+		allPages, err := flavors.ListDetail(client, flavors.ListOpts{AccessType: flavorAccessType}).AllPages()
+		if err != nil {
+			t.Fatalf("Unable to retrieve flavors: %v", err)
+		}
+
+		allFlavors, err := flavors.ExtractFlavors(allPages)
+		if err != nil {
+			t.Fatalf("Unable to extract flavor results: %v", err)
+		}
+
+		for _, flavor := range allFlavors {
+			tools.PrintResource(t, flavor)
+			t.Logf("")
+		}
+	}
+
 }
 
 func TestFlavorsGet(t *testing.T) {
@@ -36,7 +60,7 @@ func TestFlavorsGet(t *testing.T) {
 		t.Fatalf("Unable to create a compute client: %v", err)
 	}
 
-	choices, err :=clients.AcceptanceTestChoicesFromEnv()
+	choices, err := clients.AcceptanceTestChoicesFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,5 +70,5 @@ func TestFlavorsGet(t *testing.T) {
 		t.Fatalf("Unable to get flavor information: %v", err)
 	}
 
-	PrintFlavor(t, flavor)
+	tools.PrintResource(t, flavor)
 }

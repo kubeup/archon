@@ -19,6 +19,8 @@ package validation
 import (
 	"testing"
 
+	"github.com/spf13/pflag"
+
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 )
@@ -45,23 +47,49 @@ func TestValidateTokenDiscovery(t *testing.T) {
 	}
 }
 
-func TestValidateAuthorizationMode(t *testing.T) {
+func TestValidateAuthorizationModes(t *testing.T) {
+	var tests = []struct {
+		s        []string
+		f        *field.Path
+		expected bool
+	}{
+		{[]string{""}, nil, false},
+		{[]string{"rBAC"}, nil, false},                       // not supported
+		{[]string{"rBAC", "Webhook"}, nil, false},            // not supported
+		{[]string{"RBAC", "Webhook", "Webhook"}, nil, false}, // not supported
+		{[]string{"not valid"}, nil, false},                  // not supported
+		{[]string{"RBAC"}, nil, true},                        // supported
+		{[]string{"Webhook"}, nil, true},                     // supported
+		{[]string{"RBAC", "Webhook"}, nil, true},             // supported
+	}
+	for _, rt := range tests {
+		actual := ValidateAuthorizationModes(rt.s, rt.f)
+		if (len(actual) == 0) != rt.expected {
+			t.Errorf(
+				"failed ValidateAuthorizationModes:\n\texpected: %t\n\t  actual: %t",
+				rt.expected,
+				(len(actual) == 0),
+			)
+		}
+	}
+}
+
+func TestValidateNodeName(t *testing.T) {
 	var tests = []struct {
 		s        string
 		f        *field.Path
 		expected bool
 	}{
-		{"", nil, false},
-		{"rBAC", nil, false},      // not supported
-		{"not valid", nil, false}, // not supported
-		{"RBAC", nil, true},       // supported
-		{"Webhook", nil, true},    // supported
+		{"", nil, false},                 // ok if not provided
+		{"1234", nil, true},              // supported
+		{"valid-hostname", nil, true},    // supported
+		{"INVALID-HOSTNAME", nil, false}, // Upper cases is invalid
 	}
 	for _, rt := range tests {
-		actual := ValidateAuthorizationMode(rt.s, rt.f)
+		actual := ValidateNodeName(rt.s, rt.f)
 		if (len(actual) == 0) != rt.expected {
 			t.Errorf(
-				"failed ValidateAuthorizationMode:\n\texpected: %t\n\t  actual: %t",
+				"failed ValidateNodeName:\n\texpected: %t\n\t  actual: %t",
 				rt.expected,
 				(len(actual) == 0),
 			)
@@ -166,27 +194,30 @@ func TestValidateIPNetFromString(t *testing.T) {
 }
 
 func TestValidateMasterConfiguration(t *testing.T) {
+	nodename := "valid-nodename"
 	var tests = []struct {
 		s        *kubeadm.MasterConfiguration
 		expected bool
 	}{
 		{&kubeadm.MasterConfiguration{}, false},
 		{&kubeadm.MasterConfiguration{
-			AuthorizationMode: "RBAC",
+			AuthorizationModes: []string{"RBAC"},
 			Networking: kubeadm.Networking{
 				ServiceSubnet: "10.96.0.1/12",
 				DNSDomain:     "cluster.local",
 			},
 			CertificatesDir: "/some/cert/dir",
+			NodeName:        nodename,
 		}, false},
 		{&kubeadm.MasterConfiguration{
-			AuthorizationMode: "RBAC",
+			AuthorizationModes: []string{"RBAC"},
 			Networking: kubeadm.Networking{
 				ServiceSubnet: "10.96.0.1/12",
 				DNSDomain:     "cluster.local",
 			},
 			CertificatesDir: "/some/other/cert/dir",
 			Token:           "abcdef.0123456789abcdef",
+			NodeName:        nodename,
 		}, true},
 	}
 	for _, rt := range tests {
@@ -220,6 +251,49 @@ func TestValidateNodeConfiguration(t *testing.T) {
 				"failed ValidateNodeConfiguration:\n\texpected: %t\n\t  actual: %t",
 				rt.expected,
 				(len(actual) == 0),
+			)
+		}
+	}
+}
+
+func TestValidateMixedArguments(t *testing.T) {
+	var tests = []struct {
+		args     []string
+		expected bool
+	}{
+		// Expected to succeed, --config is mixed with skip-* flags only or no other flags
+		{[]string{"--foo=bar"}, true},
+		{[]string{"--config=hello"}, true},
+		{[]string{"--config=hello", "--skip-preflight-checks=true"}, true},
+		{[]string{"--config=hello", "--skip-token-print=true"}, true},
+		{[]string{"--config=hello", "--skip-preflight-checks", "--skip-token-print"}, true},
+		// Expected to fail, --config is mixed with the --foo flag
+		{[]string{"--config=hello", "--skip-preflight-checks", "--foo=bar"}, false},
+		{[]string{"--config=hello", "--foo=bar"}, false},
+	}
+
+	var cfgPath string
+
+	for _, rt := range tests {
+		f := pflag.NewFlagSet("test", pflag.ContinueOnError)
+		if f.Parsed() {
+			t.Error("f.Parse() = true before Parse")
+		}
+		f.String("foo", "", "flag bound to config object")
+		f.Bool("skip-preflight-checks", false, "flag not bound to config object")
+		f.Bool("skip-token-print", false, "flag not bound to config object")
+		f.StringVar(&cfgPath, "config", cfgPath, "Path to kubeadm config file")
+		if err := f.Parse(rt.args); err != nil {
+			t.Fatal(err)
+		}
+
+		actual := ValidateMixedArguments(f)
+		if (actual == nil) != rt.expected {
+			t.Errorf(
+				"failed ValidateMixedArguments:\n\texpected: %t\n\t  actual: %t testdata: %v",
+				rt.expected,
+				(actual == nil),
+				rt.args,
 			)
 		}
 	}

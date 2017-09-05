@@ -35,7 +35,7 @@ func TestImageExtract(t *testing.T) {
 	inspectFile := testutils.GetValueFromEnvOrPanic("INSPECT_BINARY")
 	inspectHash := getHashOrPanic(inspectFile)
 
-	tmpDir := createTempDirOrPanic("rkt-TestImageRender-")
+	tmpDir := mustTempDir("rkt-TestImageRender-")
 	defer os.RemoveAll(tmpDir)
 
 	ctx := testutils.NewRktRunCtx()
@@ -74,7 +74,7 @@ func TestImageExtract(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		expectedStatus := 1
+		expectedStatus := 254
 		if tt.shouldFind {
 			expectedStatus = 0
 		}

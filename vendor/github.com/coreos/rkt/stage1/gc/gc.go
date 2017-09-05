@@ -33,6 +33,7 @@ import (
 
 	"github.com/coreos/rkt/common"
 	"github.com/coreos/rkt/common/cgroup"
+	"github.com/coreos/rkt/common/cgroup/v1"
 	"github.com/coreos/rkt/networking"
 	rktlog "github.com/coreos/rkt/pkg/log"
 )
@@ -42,12 +43,15 @@ const (
 )
 
 var (
-	debug bool
-	log   *rktlog.Logger = rktlog.New(os.Stderr, "stage1 gc", debug)
+	debug       bool
+	log         *rktlog.Logger
+	diag        *rktlog.Logger
+	localConfig string
 )
 
 func init() {
 	flag.BoolVar(&debug, "debug", false, "Run in debug mode")
+	flag.StringVar(&localConfig, "local-config", common.DefaultLocalConfigDir, "Local config path")
 
 	// this ensures that main runs only on main thread (thread group leader).
 	// since namespace ops (unshare, setns) are done for a single thread, we
@@ -58,19 +62,27 @@ func init() {
 func main() {
 	flag.Parse()
 
+	log, diag, _ = rktlog.NewLogSet("stage1 gc", debug)
+	if !debug {
+		diag.SetOutput(ioutil.Discard)
+	}
+
 	podID, err := types.NewUUID(flag.Arg(0))
 	if err != nil {
 		log.Fatal("UUID is missing or malformed")
 	}
 
+	diag.Printf("Removing journal link.")
 	if err := removeJournalLink(podID); err != nil {
 		log.PrintE("error removing journal link", err)
 	}
 
-	if err := cleanupCgroups(); err != nil {
+	diag.Printf("Cleaning up cgroups.")
+	if err := cleanupV1Cgroups(); err != nil {
 		log.PrintE("error cleaning up cgroups", err)
 	}
 
+	diag.Printf("Tearing down networks.")
 	if err := gcNetworking(podID); err != nil {
 		log.FatalE("", err)
 	}
@@ -90,12 +102,15 @@ func gcNetworking(podID *types.UUID) error {
 		}
 	}
 
-	n, err := networking.Load(".", podID)
+	n, err := networking.Load(".", podID, localConfig)
 	switch {
 	case err == nil:
 		n.Teardown(flavor, debug)
 	case os.IsNotExist(err):
-		// probably ran with --net=host
+		// either ran with --net=host, or failed during setup
+		if err := networking.CleanUpGarbage(".", podID); err != nil {
+			diag.PrintE("failed cleaning up nework NS", err)
+		}
 	default:
 		return errwrap.Wrap(errors.New("failed loading networking state"), err)
 	}
@@ -122,9 +137,21 @@ func (c dirsByLength) Len() int           { return len(c) }
 func (c dirsByLength) Less(i, j int) bool { return len(c[i]) < len(c[j]) }
 func (c dirsByLength) Swap(i, j int)      { c[i], c[j] = c[j], c[i] }
 
-func cleanupCgroups() error {
+func cleanupV1Cgroups() error {
+	isUnified, err := cgroup.IsCgroupUnified("/")
+	if err != nil {
+		return errwrap.Wrap(errors.New("failed to determine the cgroup version"), err)
+	}
+	if isUnified {
+		return nil
+	}
+
 	b, err := ioutil.ReadFile("subcgroup")
 	if err != nil {
+		if os.IsNotExist(err) {
+			diag.Printf("subcgroup file missing, probably a failed pod. Skipping cgroup cleanup.")
+			return nil
+		}
 		return errwrap.Wrap(errors.New("error reading subcgroup file"), err)
 	}
 	subcgroup := string(b)
@@ -132,7 +159,7 @@ func cleanupCgroups() error {
 	// if we're trying to clean up our own cgroup it means we're running in the
 	// same unit file as the rkt pod. We don't have to do anything, systemd
 	// will do the cleanup for us
-	ourCgroupPath, err := cgroup.GetOwnCgroupPath("name=systemd")
+	ourCgroupPath, err := v1.GetOwnCgroupPath("name=systemd")
 	if err == nil {
 		if strings.HasPrefix(ourCgroupPath, "/"+subcgroup) {
 			return nil

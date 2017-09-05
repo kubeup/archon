@@ -16,8 +16,8 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
@@ -32,11 +32,11 @@ import (
 	"github.com/coreos/go-systemd/activation"
 	"github.com/coreos/rkt/api/v1alpha"
 	"github.com/coreos/rkt/common"
-	"github.com/coreos/rkt/common/cgroup"
+	"github.com/coreos/rkt/common/cgroup/v1"
+	pkgPod "github.com/coreos/rkt/pkg/pod"
 	"github.com/coreos/rkt/pkg/set"
 	"github.com/coreos/rkt/store/imagestore"
 	"github.com/coreos/rkt/version"
-	"github.com/godbus/dbus"
 	"github.com/hashicorp/errwrap"
 	"github.com/hashicorp/golang-lru"
 	"github.com/spf13/cobra"
@@ -44,8 +44,12 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Default size for the pod manifest LRU cache.
-const defaultCacheSize = 512
+const (
+	// Default size for the pod LRU cache.
+	defaultPodCacheSize = 512
+	// Default size for the image LRU cache.
+	defaultImageCacheSize = 512
+)
 
 var (
 	supportedAPIVersion = "1.0.0-alpha"
@@ -77,6 +81,10 @@ type podCacheItem struct {
 	mtime time.Time
 }
 
+type imageCacheItem struct {
+	image *v1alpha.Image
+}
+
 // copyPod copies the immutable information of the pod into the new pod.
 func copyPod(pod *v1alpha.Pod) *v1alpha.Pod {
 	p := &v1alpha.Pod{
@@ -95,10 +103,26 @@ func copyPod(pod *v1alpha.Pod) *v1alpha.Pod {
 	return p
 }
 
+// copyImage copies the image object to avoid modification on the original one.
+func copyImage(img *v1alpha.Image) *v1alpha.Image {
+	return &v1alpha.Image{
+		BaseFormat:      img.BaseFormat,
+		Id:              img.Id,
+		Name:            img.Name,
+		Version:         img.Version,
+		ImportTimestamp: img.ImportTimestamp,
+		Manifest:        img.Manifest,
+		Size:            img.Size,
+		Annotations:     img.Annotations,
+		Labels:          img.Labels,
+	}
+}
+
 // v1AlphaAPIServer implements v1Alpha.APIServer interface.
 type v1AlphaAPIServer struct {
 	store    *imagestore.Store
 	podCache *lru.Cache
+	imgCache *lru.Cache
 }
 
 var _ v1alpha.PublicAPIServer = &v1AlphaAPIServer{}
@@ -109,14 +133,20 @@ func newV1AlphaAPIServer() (*v1AlphaAPIServer, error) {
 		return nil, err
 	}
 
-	cache, err := lru.New(defaultCacheSize)
+	podCache, err := lru.New(defaultPodCacheSize)
+	if err != nil {
+		return nil, err
+	}
+
+	imgCache, err := lru.New(defaultImageCacheSize)
 	if err != nil {
 		return nil, err
 	}
 
 	return &v1AlphaAPIServer{
 		store:    s,
-		podCache: cache,
+		podCache: podCache,
+		imgCache: imgCache,
 	}, nil
 }
 
@@ -284,24 +314,56 @@ func satisfiesAnyPodFilters(pod *v1alpha.Pod, filters []*v1alpha.PodFilter) bool
 	return false
 }
 
-// getPodManifest returns the pod manifest of the pod.
-// It will try to find the manifest in the LRU cache first, if not found or the manifest is stale,
-// then it will read the manifest from the disk.
-// Both marshaled and unmarshaled manifest are returned.
-func (s *v1AlphaAPIServer) getPodManifest(p *pod) (*schema.PodManifest, []byte, error) {
-	data, err := p.readFile("pod")
+// getPodCgroup gets the cgroup path for a pod. This can be done in one of a couple ways:
+//
+// 1) stage1-coreos
+//
+// This one can be tricky because after machined registration, the cgroup might change.
+// For these flavors, the cgroup it will end up in after machined moves it is
+// written to a file named `subcgroup`, so we use that instead.
+//
+// 2) All others
+//
+// Assume that we can simply get the cgroup of the pod's init PID, and use that.
+func getPodCgroup(p *pkgPod.Pod, pid int) (string, error) {
+	// Note, this file should always exist if the pid is known since it is
+	// written before the pid file
+	// The contents are of the form:
+	// machined-registration (whether it has happened or not, but if stage1 plans to do so):
+	//   'machine.slice/machine-rkt\x2dbfb67ff1\x2dc745\x2d4aec\x2db1e1\x2d7ce85a1fd42b.scope'
+	// no registration, ran as systemd-unit 'foo.service':
+	//   'system.slice/foo.service'
+	// stage1-fly: file does not exist
+	subCgroupFile := filepath.Join(p.Path(), "subcgroup")
+	data, err := ioutil.ReadFile(subCgroupFile)
+	// normalize cgroup to include a leading '/'
+	if err == nil {
+		strCgroup := string(data)
+		if strings.HasPrefix(strCgroup, "/") {
+			return strCgroup, nil
+		}
+		return "/" + strCgroup, nil
+	}
+
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	// if it is an "isNotExist", assume this is a stage1 flavor that won't change
+	// cgroups. Just give the systemd cgroup of its pid
+	// Get cgroup for the "name=systemd" controller; we assume the api-server is
+	// running on a system using systemd for returning cgroups, and will just not
+	// set it otherwise.
+	cgroup, err := v1.GetCgroupPathByPid(pid, "name=systemd")
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to read pod manifest for pod %q", p.uuid), err)
-		return nil, nil, err
+		return "", err
 	}
-
-	var manifest schema.PodManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to unmarshal pod manifest for pod %q", p.uuid), err)
-		return nil, nil, err
-	}
-
-	return &manifest, data, nil
+	// If the stage1 systemd > v226, it will put the PID1 into "init.scope"
+	// implicit scope unit in the root slice.
+	// See https://github.com/coreos/rkt/pull/2331#issuecomment-203540543
+	//
+	// TODO(yifan): Revisit this when using unified cgroup hierarchy.
+	cgroup = strings.TrimSuffix(cgroup, "/init.scope")
+	return cgroup, nil
 }
 
 // getApplist returns a list of apps in the pod.
@@ -331,9 +393,9 @@ func getApplist(manifest *schema.PodManifest) []*v1alpha.App {
 }
 
 // getNetworks returns the list of the info of the network that the pod belongs to.
-func getNetworks(p *pod) []*v1alpha.Network {
+func getNetworks(p *pkgPod.Pod) []*v1alpha.Network {
 	var networks []*v1alpha.Network
-	for _, n := range p.nets {
+	for _, n := range p.Nets {
 		networks = append(networks, &v1alpha.Network{
 			Name: n.NetName,
 			// There will be IPv6 support soon so distinguish between v4 and v6
@@ -352,9 +414,9 @@ func (e errs) Error() string {
 	return fmt.Sprintf("%v", e.errs)
 }
 
-// fillStaticAppInfo will modify the 'v1pod' in place with the infomation retrived with 'pod'.
+// fillStaticAppInfo will modify the 'v1pod' in place with the information retrieved with 'pod'.
 // Today, these information are static and will not change during the pod's lifecycle.
-func fillStaticAppInfo(store *imagestore.Store, pod *pod, v1pod *v1alpha.Pod) error {
+func fillStaticAppInfo(store *imagestore.Store, pod *pkgPod.Pod, v1pod *v1alpha.Pod) error {
 	var errlist []error
 
 	// Fill static app image info.
@@ -372,7 +434,7 @@ func fillStaticAppInfo(store *imagestore.Store, pod *pod, v1pod *v1alpha.Pod) er
 			// info from store. Some of it is filled in below if possible.
 		}
 
-		im, err := pod.getAppImageManifest(*types.MustACName(app.Name))
+		im, err := pod.AppImageManifest(app.Name)
 		if err != nil {
 			stderr.PrintE(fmt.Sprintf("failed to get image manifests for app %q", app.Name), err)
 			errlist = append(errlist, err)
@@ -393,12 +455,12 @@ func fillStaticAppInfo(store *imagestore.Store, pod *pod, v1pod *v1alpha.Pod) er
 	return nil
 }
 
-func (s *v1AlphaAPIServer) getBasicPodFromDisk(p *pod) (*v1alpha.Pod, error) {
-	pod := &v1alpha.Pod{Id: p.uuid.String()}
+func (s *v1AlphaAPIServer) getBasicPodFromDisk(p *pkgPod.Pod) (*v1alpha.Pod, error) {
+	pod := &v1alpha.Pod{Id: p.UUID.String()}
 
-	manifest, data, err := s.getPodManifest(p)
+	data, manifest, err := p.PodManifest()
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to get the pod manifest for pod %q", p.uuid), err)
+		stderr.PrintE(fmt.Sprintf("failed to get the pod manifest for pod %q", p.UUID), err)
 	} else {
 		pod.Annotations = convertAnnotationsToKeyValue(manifest.Annotations)
 		pod.Apps = getApplist(manifest)
@@ -409,15 +471,24 @@ func (s *v1AlphaAPIServer) getBasicPodFromDisk(p *pod) (*v1alpha.Pod, error) {
 	return pod, err
 }
 
+func getPodManifestModTime(p *pkgPod.Pod) (time.Time, error) {
+	podFile := filepath.Join(p.Path(), "pod")
+	fi, err := os.Stat(podFile)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return fi.ModTime(), nil
+}
+
 // getBasicPod returns v1alpha.Pod with basic pod information.
-func (s *v1AlphaAPIServer) getBasicPod(p *pod) *v1alpha.Pod {
-	mtime, mtimeErr := p.getModTime("pod")
+func (s *v1AlphaAPIServer) getBasicPod(p *pkgPod.Pod) *v1alpha.Pod {
+	mtime, mtimeErr := getPodManifestModTime(p)
 	if mtimeErr != nil {
-		stderr.PrintE(fmt.Sprintf("failed to read the pod manifest's mtime for pod %q", p.uuid), mtimeErr)
+		stderr.PrintE(fmt.Sprintf("failed to read the pod manifest's mtime for pod %q", p.UUID), mtimeErr)
 	}
 
 	// Couldn't use pod.uuid directly as it's a pointer.
-	itemValue, found := s.podCache.Get(p.uuid.String())
+	itemValue, found := s.podCache.Get(p.UUID.String())
 	if found && mtimeErr == nil {
 		cacheItem := itemValue.(*podCacheItem)
 
@@ -435,113 +506,83 @@ func (s *v1AlphaAPIServer) getBasicPod(p *pod) *v1alpha.Pod {
 	}
 
 	cacheItem := &podCacheItem{pod, mtime}
-	s.podCache.Add(p.uuid.String(), cacheItem)
+	s.podCache.Add(p.UUID.String(), cacheItem)
 
 	// Return a copy of the pod, so the cached pod is not mutated later.
 	return copyPod(cacheItem.pod)
 }
 
-func waitForMachinedRegistration(uuid string) error {
-	conn, err := dbus.SystemBus()
-	if err != nil {
-		return err
-	}
-	machined := conn.Object("org.freedesktop.machine1", "/org/freedesktop/machine1")
-	machineName := "rkt-" + uuid
-
-	var o dbus.ObjectPath
-	for i := 0; i < 10; i++ {
-		if err := machined.Call("org.freedesktop.machine1.Manager.GetMachine", 0, machineName).Store(&o); err == nil {
-			return nil
-		}
-		time.Sleep(time.Millisecond * 50)
-	}
-
-	return errors.New("pod not found")
-}
-
 // fillPodDetails fills the v1pod's dynamic info in place, e.g. the pod's state,
 // the pod's network info, the apps' state, etc. Such information can change
 // during the lifecycle of the pod, so we need to read it in every request.
-func fillPodDetails(store *imagestore.Store, p *pod, v1pod *v1alpha.Pod) {
+func fillPodDetails(store *imagestore.Store, p *pkgPod.Pod, v1pod *v1alpha.Pod) {
 	v1pod.Pid = -1
 
-	switch p.getState() {
-	case Embryo:
+	switch p.State() {
+	case pkgPod.Embryo:
 		v1pod.State = v1alpha.PodState_POD_STATE_EMBRYO
 		// When a pod is in embryo state, there is not much
 		// information to return.
 		return
-	case Preparing:
+	case pkgPod.Preparing:
 		v1pod.State = v1alpha.PodState_POD_STATE_PREPARING
-	case AbortedPrepare:
+	case pkgPod.AbortedPrepare:
 		v1pod.State = v1alpha.PodState_POD_STATE_ABORTED_PREPARE
-	case Prepared:
+	case pkgPod.Prepared:
 		v1pod.State = v1alpha.PodState_POD_STATE_PREPARED
-	case Running:
+	case pkgPod.Running:
 		v1pod.State = v1alpha.PodState_POD_STATE_RUNNING
 		v1pod.Networks = getNetworks(p)
-	case Deleting:
+	case pkgPod.Deleting:
 		v1pod.State = v1alpha.PodState_POD_STATE_DELETING
-	case Exited:
+	case pkgPod.Exited:
 		v1pod.State = v1alpha.PodState_POD_STATE_EXITED
-	case Garbage:
+	case pkgPod.Garbage, pkgPod.ExitedGarbage:
 		v1pod.State = v1alpha.PodState_POD_STATE_GARBAGE
 	default:
 		v1pod.State = v1alpha.PodState_POD_STATE_UNDEFINED
 		return
 	}
 
-	createdAt, err := p.getCreationTime()
+	createdAt, err := p.CreationTime()
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to get the creation time for pod %q", p.uuid), err)
+		stderr.PrintE(fmt.Sprintf("failed to get the creation time for pod %q", p.UUID), err)
 	} else if !createdAt.IsZero() {
 		v1pod.CreatedAt = createdAt.UnixNano()
 	}
 
-	startedAt, err := p.getStartTime()
+	startedAt, err := p.StartTime()
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to get the start time for pod %q", p.uuid), err)
+		stderr.PrintE(fmt.Sprintf("failed to get the start time for pod %q", p.UUID), err)
 	} else if !startedAt.IsZero() {
 		v1pod.StartedAt = startedAt.UnixNano()
 
 	}
 
-	gcMarkedAt, err := p.getGCMarkedTime()
+	gcMarkedAt, err := p.GCMarkedTime()
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to get the gc marked time for pod %q", p.uuid), err)
+		stderr.PrintE(fmt.Sprintf("failed to get the gc marked time for pod %q", p.UUID), err)
 	} else if !gcMarkedAt.IsZero() {
 		v1pod.GcMarkedAt = gcMarkedAt.UnixNano()
 	}
 
-	pid, err := p.getPID()
+	pid, err := p.Pid()
 	if err != nil {
-		stderr.PrintE(fmt.Sprintf("failed to get the PID for pod %q", p.uuid), err)
+		stderr.PrintE(fmt.Sprintf("failed to get the PID for pod %q", p.UUID), err)
 	} else {
 		v1pod.Pid = int32(pid)
 	}
 
 	if v1pod.State == v1alpha.PodState_POD_STATE_RUNNING {
-		if err := waitForMachinedRegistration(v1pod.Id); err != nil {
-			// If there's an error, it means we're not registered to machined
-			// in a reasonable time. Just output the cgroup we're in.
-			stderr.PrintE("checking for machined registration failed", err)
-		}
-		// Get cgroup for the "name=systemd" controller.
-		pid, err := p.getContainerPID1()
+		pid, err := p.ContainerPid1()
 		if err != nil {
-			stderr.PrintE(fmt.Sprintf("failed to get the container PID1 for pod %q", p.uuid), err)
+			stderr.PrintE(fmt.Sprintf("failed to get the container PID1 for pod %q", p.UUID), err)
 		} else {
-			cgroup, err := cgroup.GetCgroupPathByPid(pid, "name=systemd")
+			cgroup, err := getPodCgroup(p, pid)
 			if err != nil {
-				stderr.PrintE(fmt.Sprintf("failed to get the cgroup path for pod %q", p.uuid), err)
+				stderr.PrintE(fmt.Sprintf("failed to get the cgroup path for pod %q", p.UUID), err)
 			} else {
-				// If the stage1 systemd > v226, it will put the PID1 into "init.scope"
-				// implicit scope unit in the root slice.
-				// See https://github.com/coreos/rkt/pull/2331#issuecomment-203540543
-				//
-				// TODO(yifan): Revisit this when using unified cgroup hierarchy.
-				v1pod.Cgroup = strings.TrimSuffix(cgroup, "/init.scope")
+				v1pod.Cgroup = cgroup
 			}
 		}
 	}
@@ -549,10 +590,10 @@ func fillPodDetails(store *imagestore.Store, p *pod, v1pod *v1alpha.Pod) {
 	for _, app := range v1pod.Apps {
 		readStatus := false
 
-		if p.isRunning() {
+		if p.State() == pkgPod.Running {
 			readStatus = true
 			app.State = v1alpha.AppState_APP_STATE_RUNNING
-		} else if p.afterRun() {
+		} else if p.IsAfterRun() {
 			readStatus = true
 			app.State = v1alpha.AppState_APP_STATE_EXITED
 		} else {
@@ -560,24 +601,18 @@ func fillPodDetails(store *imagestore.Store, p *pod, v1pod *v1alpha.Pod) {
 		}
 
 		if readStatus {
-			statusDir, err := p.getStatusDir()
-			if err != nil {
-				stderr.PrintE("failed to get pod exit status directory", err)
-			} else {
-				value, err := p.readIntFromFile(filepath.Join(statusDir, app.Name))
-				if err != nil && !os.IsNotExist(err) {
-					stderr.PrintE(fmt.Sprintf("failed to read status for app %q", app.Name), err)
-				} else {
-					app.ExitCode = int32(value)
-				}
+			exitCode, err := p.AppExitCode(app.Name)
+			if err != nil && !os.IsNotExist(err) {
+				stderr.PrintE(fmt.Sprintf("failed to read status for app %q", app.Name), err)
 			}
+			app.ExitCode = int32(exitCode)
 		}
 	}
 }
 
 func (s *v1AlphaAPIServer) ListPods(ctx context.Context, request *v1alpha.ListPodsRequest) (*v1alpha.ListPodsResponse, error) {
 	var pods []*v1alpha.Pod
-	if err := walkPods(includeMostDirs, func(p *pod) {
+	if err := pkgPod.WalkPods(getDataDir(), pkgPod.IncludeMostDirs, func(p *pkgPod.Pod) {
 		pod := s.getBasicPod(p)
 
 		fillPodDetails(s.store, p, pod)
@@ -600,13 +635,7 @@ func (s *v1AlphaAPIServer) ListPods(ctx context.Context, request *v1alpha.ListPo
 }
 
 func (s *v1AlphaAPIServer) InspectPod(ctx context.Context, request *v1alpha.InspectPodRequest) (*v1alpha.InspectPodResponse, error) {
-	uuid, err := types.NewUUID(request.Id)
-	if err != nil {
-		stderr.PrintE(fmt.Sprintf("invalid pod id %q", request.Id), err)
-		return nil, err
-	}
-
-	p, err := getPod(uuid)
+	p, err := pkgPod.PodFromUUIDString(getDataDir(), request.Id)
 	if err != nil {
 		stderr.PrintE(fmt.Sprintf("failed to get pod %q", request.Id), err)
 		return nil, err
@@ -777,7 +806,7 @@ func (s *v1AlphaAPIServer) ListImages(ctx context.Context, request *v1alpha.List
 
 	var images []*v1alpha.Image
 	for _, aciInfo := range aciInfos {
-		image, err := aciInfoToV1AlphaAPIImage(s.store, aciInfo)
+		image, err := s.getImageInfo(aciInfo.BlobKey)
 		if err != nil {
 			continue
 		}
@@ -792,8 +821,37 @@ func (s *v1AlphaAPIServer) ListImages(ctx context.Context, request *v1alpha.List
 	return &v1alpha.ListImagesResponse{Images: images}, nil
 }
 
-// getImageInfo for a given image ID, returns the *v1alpha.Image object.
-func getImageInfo(store *imagestore.Store, imageID string) (*v1alpha.Image, error) {
+// getImageInfo returns the image info of a given image ID.
+// It will first try to read the image info from cache.
+// - If the image exists in cache:
+//   - If the image exists on disk, then return it directly.
+//   - Otherwise, return nil.
+// - Else, try to return the image from disk.
+func (s *v1AlphaAPIServer) getImageInfo(imageID string) (*v1alpha.Image, error) {
+	item, found := s.imgCache.Get(imageID)
+	if found {
+		image := item.(*imageCacheItem).image
+
+		// Check if the image has been removed.
+		if found := s.store.HasFullKey(image.Id); !found {
+			s.imgCache.Remove(imageID)
+			return nil, fmt.Errorf("no such image with ID %q", imageID)
+		}
+		return copyImage(image), nil
+	}
+
+	image, err := s.getImageInfoFromDisk(s.store, imageID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.imgCache.Add(imageID, &imageCacheItem{image})
+
+	return copyImage(image), err
+}
+
+// getImageInfoFromDisk for a given image ID, returns the *v1alpha.Image object.
+func (s *v1AlphaAPIServer) getImageInfoFromDisk(store *imagestore.Store, imageID string) (*v1alpha.Image, error) {
 	aciInfo, err := store.GetACIInfoWithBlobKey(imageID)
 	if err != nil {
 		stderr.PrintE(fmt.Sprintf("failed to get ACI info for image %q", imageID), err)
@@ -809,7 +867,7 @@ func getImageInfo(store *imagestore.Store, imageID string) (*v1alpha.Image, erro
 }
 
 func (s *v1AlphaAPIServer) InspectImage(ctx context.Context, request *v1alpha.InspectImageRequest) (*v1alpha.InspectImageResponse, error) {
-	image, err := getImageInfo(s.store, request.Id)
+	image, err := s.getImageInfo(request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -850,11 +908,11 @@ func runAPIService(cmd *cobra.Command, args []string) (exit int) {
 	listeners, err := openAPISockets()
 	if err != nil {
 		stderr.PrintE("Failed to open sockets", err)
-		return 1
+		return 254
 	}
 	if len(listeners) == 0 { // This is unlikely...
 		stderr.Println("No sockets to listen to. Quitting.")
-		return 1
+		return 254
 	}
 
 	publicServer := grpc.NewServer() // TODO(yifan): Add TLS credential option.
@@ -862,7 +920,7 @@ func runAPIService(cmd *cobra.Command, args []string) (exit int) {
 	v1AlphaAPIServer, err := newV1AlphaAPIServer()
 	if err != nil {
 		stderr.PrintE("failed to create API service", err)
-		return 1
+		return 254
 	}
 
 	v1alpha.RegisterPublicAPIServer(publicServer, v1AlphaAPIServer)

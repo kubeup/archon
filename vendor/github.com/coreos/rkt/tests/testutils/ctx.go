@@ -21,6 +21,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/coreos/gexpect"
 	"github.com/coreos/rkt/tests/testutils/logger"
@@ -144,6 +145,12 @@ func (ctx *RktRunCtx) Reset() {
 
 func (ctx *RktRunCtx) cleanupChildren() error {
 	for _, child := range ctx.children {
+		if child.Cmd == nil ||
+			child.Cmd.Process == nil ||
+			child.Cmd.ProcessState == nil {
+			continue
+		}
+
 		if child.Cmd.ProcessState.Exited() {
 			logger.Logf("Child %q already exited", child.Cmd.Path)
 			continue
@@ -191,6 +198,12 @@ func (ctx *RktRunCtx) Cmd() string {
 	)
 }
 
+func (ctx *RktRunCtx) ExecCmd(arg ...string) *exec.Cmd {
+	args := ctx.rktOptions()
+	args = append(args, arg...)
+	return exec.Command(ctx.rktBin(), args...)
+}
+
 // TODO(jonboulle): clean this up
 func (ctx *RktRunCtx) CmdNoConfig() string {
 	return fmt.Sprintf("%s %s",
@@ -206,6 +219,23 @@ func (ctx *RktRunCtx) rktBin() string {
 		abs = rkt
 	}
 	return abs
+}
+
+func (ctx *RktRunCtx) GetUidGidRktBinOwnerNotRoot() (int, int) {
+	s, err := os.Stat(ctx.rktBin())
+	if err != nil {
+		return GetUnprivilegedUidGid()
+	}
+
+	uid := int(s.Sys().(*syscall.Stat_t).Uid)
+	gid := int(s.Sys().(*syscall.Stat_t).Gid)
+
+	// If owner is root, fallback to user "nobody"
+	if uid == 0 {
+		return GetUnprivilegedUidGid()
+	}
+
+	return uid, gid
 }
 
 func (ctx *RktRunCtx) rktOptions() []string {

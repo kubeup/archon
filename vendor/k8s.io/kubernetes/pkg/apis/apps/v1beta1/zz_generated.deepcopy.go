@@ -37,6 +37,8 @@ func init() {
 // to allow building arbitrary schemes.
 func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	return scheme.AddGeneratedDeepCopyFuncs(
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_ControllerRevision, InType: reflect.TypeOf(&ControllerRevision{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_ControllerRevisionList, InType: reflect.TypeOf(&ControllerRevisionList{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_Deployment, InType: reflect.TypeOf(&Deployment{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_DeploymentCondition, InType: reflect.TypeOf(&DeploymentCondition{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_DeploymentList, InType: reflect.TypeOf(&DeploymentList{})},
@@ -46,6 +48,7 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_DeploymentStrategy, InType: reflect.TypeOf(&DeploymentStrategy{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_RollbackConfig, InType: reflect.TypeOf(&RollbackConfig{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_RollingUpdateDeployment, InType: reflect.TypeOf(&RollingUpdateDeployment{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_RollingUpdateStatefulSetStrategy, InType: reflect.TypeOf(&RollingUpdateStatefulSetStrategy{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_Scale, InType: reflect.TypeOf(&Scale{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_ScaleSpec, InType: reflect.TypeOf(&ScaleSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_ScaleStatus, InType: reflect.TypeOf(&ScaleStatus{})},
@@ -53,7 +56,45 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_StatefulSetList, InType: reflect.TypeOf(&StatefulSetList{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_StatefulSetSpec, InType: reflect.TypeOf(&StatefulSetSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_StatefulSetStatus, InType: reflect.TypeOf(&StatefulSetStatus{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_v1beta1_StatefulSetUpdateStrategy, InType: reflect.TypeOf(&StatefulSetUpdateStrategy{})},
 	)
+}
+
+func DeepCopy_v1beta1_ControllerRevision(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ControllerRevision)
+		out := out.(*ControllerRevision)
+		*out = *in
+		if newVal, err := c.DeepCopy(&in.ObjectMeta); err != nil {
+			return err
+		} else {
+			out.ObjectMeta = *newVal.(*v1.ObjectMeta)
+		}
+		if newVal, err := c.DeepCopy(&in.Data); err != nil {
+			return err
+		} else {
+			out.Data = *newVal.(*runtime.RawExtension)
+		}
+		return nil
+	}
+}
+
+func DeepCopy_v1beta1_ControllerRevisionList(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*ControllerRevisionList)
+		out := out.(*ControllerRevisionList)
+		*out = *in
+		if in.Items != nil {
+			in, out := &in.Items, &out.Items
+			*out = make([]ControllerRevision, len(*in))
+			for i := range *in {
+				if err := DeepCopy_v1beta1_ControllerRevision(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
 }
 
 func DeepCopy_v1beta1_Deployment(in interface{}, out interface{}, c *conversion.Cloner) error {
@@ -81,8 +122,16 @@ func DeepCopy_v1beta1_DeploymentCondition(in interface{}, out interface{}, c *co
 		in := in.(*DeploymentCondition)
 		out := out.(*DeploymentCondition)
 		*out = *in
-		out.LastUpdateTime = in.LastUpdateTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastUpdateTime); err != nil {
+			return err
+		} else {
+			out.LastUpdateTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -139,8 +188,10 @@ func DeepCopy_v1beta1_DeploymentSpec(in interface{}, out interface{}, c *convers
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api_v1.DeepCopy_v1_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api_v1.PodTemplateSpec)
 		}
 		if err := DeepCopy_v1beta1_DeploymentStrategy(&in.Strategy, &out.Strategy, c); err != nil {
 			return err
@@ -177,6 +228,11 @@ func DeepCopy_v1beta1_DeploymentStatus(in interface{}, out interface{}, c *conve
 					return err
 				}
 			}
+		}
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
 		}
 		return nil
 	}
@@ -220,6 +276,20 @@ func DeepCopy_v1beta1_RollingUpdateDeployment(in interface{}, out interface{}, c
 		if in.MaxSurge != nil {
 			in, out := &in.MaxSurge, &out.MaxSurge
 			*out = new(intstr.IntOrString)
+			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_v1beta1_RollingUpdateStatefulSetStrategy(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*RollingUpdateStatefulSetStrategy)
+		out := out.(*RollingUpdateStatefulSetStrategy)
+		*out = *in
+		if in.Partition != nil {
+			in, out := &in.Partition, &out.Partition
+			*out = new(int32)
 			**out = **in
 		}
 		return nil
@@ -324,17 +394,29 @@ func DeepCopy_v1beta1_StatefulSetSpec(in interface{}, out interface{}, c *conver
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api_v1.DeepCopy_v1_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api_v1.PodTemplateSpec)
 		}
 		if in.VolumeClaimTemplates != nil {
 			in, out := &in.VolumeClaimTemplates, &out.VolumeClaimTemplates
 			*out = make([]api_v1.PersistentVolumeClaim, len(*in))
 			for i := range *in {
-				if err := api_v1.DeepCopy_v1_PersistentVolumeClaim(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*api_v1.PersistentVolumeClaim)
 				}
 			}
+		}
+		if err := DeepCopy_v1beta1_StatefulSetUpdateStrategy(&in.UpdateStrategy, &out.UpdateStrategy, c); err != nil {
+			return err
+		}
+		if in.RevisionHistoryLimit != nil {
+			in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
+			*out = new(int32)
+			**out = **in
 		}
 		return nil
 	}
@@ -349,6 +431,22 @@ func DeepCopy_v1beta1_StatefulSetStatus(in interface{}, out interface{}, c *conv
 			in, out := &in.ObservedGeneration, &out.ObservedGeneration
 			*out = new(int64)
 			**out = **in
+		}
+		return nil
+	}
+}
+
+func DeepCopy_v1beta1_StatefulSetUpdateStrategy(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*StatefulSetUpdateStrategy)
+		out := out.(*StatefulSetUpdateStrategy)
+		*out = *in
+		if in.RollingUpdate != nil {
+			in, out := &in.RollingUpdate, &out.RollingUpdate
+			*out = new(RollingUpdateStatefulSetStrategy)
+			if err := DeepCopy_v1beta1_RollingUpdateStatefulSetStrategy(*in, *out, c); err != nil {
+				return err
+			}
 		}
 		return nil
 	}

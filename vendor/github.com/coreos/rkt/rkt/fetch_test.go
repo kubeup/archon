@@ -29,8 +29,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coreos/rkt/common/apps"
 	"github.com/coreos/rkt/pkg/aci"
+	"github.com/coreos/rkt/pkg/aci/acitest"
+	dist "github.com/coreos/rkt/pkg/distribution"
 	"github.com/coreos/rkt/pkg/keystore"
 	"github.com/coreos/rkt/pkg/keystore/keystoretest"
 	"github.com/coreos/rkt/rkt/config"
@@ -162,11 +163,10 @@ func TestDownloading(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	imj := `{
-			"acKind": "ImageManifest",
-			"acVersion": "0.7.4",
-			"name": "example.com/test01"
-		}`
+	imj, err := acitest.ImageManifestString(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	entries := []*aci.ACIEntry{
 		// An empty file
@@ -230,10 +230,10 @@ func TestDownloading(t *testing.T) {
 		denyAuthTS.URL: "deny auth",
 	}
 	tests := []struct {
-		ACIURL   string
-		hit      bool
-		options  http.Header
-		authFail bool
+		aciURL       string
+		remoteExists bool
+		options      http.Header
+		authFail     bool
 	}{
 		{noAuthTS.URL, false, noAuth, false},
 		{noAuthTS.URL, true, noAuth, false},
@@ -259,19 +259,22 @@ func TestDownloading(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		_, ok, err := s.GetRemote(tt.ACIURL)
+		_, err := s.GetRemote(tt.aciURL)
 		if err != nil {
-			t.Fatalf("unexpected err: %v", err)
+			if err != imagestore.ErrRemoteNotFound {
+				t.Fatalf("unexpected err: %v", err)
+			}
+
+			if tt.remoteExists {
+				t.Fatalf("should've found the remote, got %v", err)
+			}
+		} else if !tt.remoteExists {
+			t.Fatalf("should've gotten a remote not found error")
 		}
-		if tt.hit == false && ok {
-			t.Fatalf("expected miss got a hit")
-		}
-		if tt.hit == true && !ok {
-			t.Fatalf("expected a hit got a miss")
-		}
-		parsed, err := url.Parse(tt.ACIURL)
+
+		parsed, err := url.Parse(tt.aciURL)
 		if err != nil {
-			panic(fmt.Sprintf("Invalid url from test server: %s", tt.ACIURL))
+			panic(fmt.Sprintf("Invalid url from test server: %s", tt.aciURL))
 		}
 		headers := map[string]config.Headerer{
 			parsed.Host: &testHeaderer{tt.options},
@@ -281,12 +284,20 @@ func TestDownloading(t *testing.T) {
 			Headers:       headers,
 			InsecureFlags: insecureFlags,
 		}
-		_, err = ft.FetchImage(tt.ACIURL, "", apps.AppImageURL)
+		u, err := url.Parse(tt.aciURL)
+		if err != nil {
+			t.Fatalf("unexpected error %v", err)
+		}
+		d, err := dist.NewACIArchiveFromTransportURL(u)
+		if err != nil {
+			t.Fatalf("unexpected error %v", err)
+		}
+		_, err = ft.FetchImage(d, tt.aciURL, "")
 		if err != nil && !tt.authFail {
-			t.Fatalf("expected download to succeed, it failed: %v (server: %q, headers: `%v`)", err, urlToName[tt.ACIURL], tt.options)
+			t.Fatalf("expected download to succeed, it failed: %v (server: %q, headers: `%v`)", err, urlToName[tt.aciURL], tt.options)
 		}
 		if err == nil && tt.authFail {
-			t.Fatalf("expected download to fail, it succeeded (server: %q, headers: `%v`)", urlToName[tt.ACIURL], tt.options)
+			t.Fatalf("expected download to fail, it succeeded (server: %q, headers: `%v`)", urlToName[tt.aciURL], tt.options)
 		}
 	}
 
@@ -354,7 +365,16 @@ func TestFetchImage(t *testing.T) {
 		Ks:            ks,
 		InsecureFlags: secureFlags,
 	}
-	_, err = ft.FetchImage(fmt.Sprintf("%s/app.aci", ts.URL), "", apps.AppImageURL)
+
+	u, err := url.Parse(fmt.Sprintf("%s/app.aci", ts.URL))
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	d, err := dist.NewACIArchiveFromTransportURL(u)
+	if err != nil {
+		t.Fatalf("unexpected error %v", err)
+	}
+	_, err = ft.FetchImage(d, u.String(), "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -541,13 +561,21 @@ func TestFetchImageCache(t *testing.T) {
 			Ks:            ks,
 			InsecureFlags: secureFlags,
 			// Skip local store
-			NoStore: true,
+			PullPolicy: image.PullPolicyUpdate,
 		}
-		_, err = ft.FetchImage(aciURL, "", apps.AppImageURL)
+		u, err := url.Parse(aciURL)
+		if err != nil {
+			t.Fatalf("unexpected error %v", err)
+		}
+		d, err := dist.NewACIArchiveFromTransportURL(u)
+		if err != nil {
+			t.Fatalf("unexpected error %v", err)
+		}
+		_, err = ft.FetchImage(d, u.String(), "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		rem, _, err := s.GetRemote(aciURL)
+		rem, err := s.GetRemote(aciURL)
 		if err != nil {
 			t.Fatalf("Error getting remote info: %v\n", err)
 		}
@@ -559,11 +587,11 @@ func TestFetchImageCache(t *testing.T) {
 		}
 
 		downloadTime := rem.DownloadTime
-		_, err = ft.FetchImage(aciURL, "", apps.AppImageURL)
+		_, err = ft.FetchImage(d, u.String(), "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		rem, _, err = s.GetRemote(aciURL)
+		rem, err = s.GetRemote(aciURL)
 		if err != nil {
 			t.Fatalf("Error getting remote info: %v\n", err)
 		}

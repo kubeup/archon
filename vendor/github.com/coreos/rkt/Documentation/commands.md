@@ -5,9 +5,6 @@ Please contribute if you see an area that needs more detail.
 
 ## Downloading Images (ACIs)
 
-[aci-images]: https://github.com/appc/spec/blob/master/spec/aci.md#app-container-image
-[appc-discovery]: https://github.com/appc/spec/blob/master/spec/discovery.md#app-container-image-discovery
-
 rkt runs applications packaged according to the open-source [App Container Image][aci-images] specification.
 ACIs consist of the root filesystem of the application container, a manifest, and an optional signature.
 
@@ -19,9 +16,6 @@ rkt uses these hints to execute [meta discovery][appc-discovery].
 * [fetch](subcommands/fetch.md)
 
 ## Running Pods
-
-[metadata-spec]: https://github.com/appc/spec/blob/master/spec/ace.md#app-container-metadata-service
-[rkt-mds]: subcommands/metadata-service.md
 
 rkt can execute ACIs identified by name, hash, local file path, or URL.
 If an ACI hasn't been cached on disk, rkt will attempt to find and download it.
@@ -73,15 +67,30 @@ In addition to the flags used by individual `rkt` commands, `rkt` has a set of g
 
 | Flag | Default | Options | Description |
 | --- | --- | --- | --- |
-| `--cpuprofile (hidden flag)` | `` | A file path | Write CPU profile to the file |
+| `--cpuprofile (hidden flag)` | ''  | A file path | Write CPU profile to the file |
 | `--debug` |  `false` | `true` or `false` | Prints out more debug information to `stderr` |
 | `--dir` | `/var/lib/rkt` | A directory path | Path to the `rkt` data directory |
-| `--insecure-options` |  none | **none**: All security features are enabled<br/>**http**: Allow HTTP connections. Be warned that this will send any credentials as clear text.<br/>**image**: Disables verifying image signatures<br/>**tls**: Accept any certificate from the server and any host name in that certificate<br/>**ondisk**: Disables verifying the integrity of the on-disk, rendered image before running. This significantly speeds up start time.<br/>**pubkey**: Allow fetching pubkeys via insecure connections (via HTTP connections or from servers with unverified certificates). This slightly extends the meaning of the `--trust-keys-from-https` flag.<br/>**all**: Disables all security checks | Comma-separated list of security features to disable |
+| `--insecure-options` |  none | **none**, **http**, **image**, **tls**, **ondisk**, **pubkey**, **capabilities**, **paths**, **seccomp**, **all-fetch**, **all-run**, **all** <br/> More information below. | Comma-separated list of security features to disable |
 | `--local-config` |  `/etc/rkt` | A directory path | Path to the local configuration directory |
-| `--memprofile (hidden flag)` | `` | A file path | Write memory profile to the file |
+| `--memprofile (hidden flag)` | '' | A file path | Write memory profile to the file |
 | `--system-config` |  `/usr/lib/rkt` | A directory path | Path to the system configuration directory |
 | `--trust-keys-from-https` |  `false` | `true` or `false` | Automatically trust gpg keys fetched from HTTPS (or HTTP if the insecure `pubkey` option is also specified) |
-| `--user-config` |  `` | A directory path | Path to the user configuration directory |
+| `--user-config` | '' | A directory path | Path to the user configuration directory |
+
+### `--insecure-options`
+
+- **none**: All security features are enabled
+- **http**: Allow HTTP connections. Be warned that this will send any credentials as clear text, allowing anybody with access to your network to obtain them. It will also perform no validation of the remote server, making it possible for an attacker to impersonate the remote server. This applies specifically to fetching images, signatures, and gpg pubkeys.
+- **image**: Disables verifying image signatures. If someone is able to replace the image on the server with a modified one or is in a position to impersonate the server, they will be able to force you to run arbitrary code.
+- **tls**: Accept any certificate from the server and any host name in that certificate. This will make it possible for attackers to spoof the remote server and provide malicious images.
+- **ondisk**: Disables verifying the integrity of the on-disk, rendered image before running. This significantly speeds up start time. If an attacker is able to modify the contents of your local filesystem, this will allow them to cause you to run arbitrary malicious code.
+- **pubkey**: Allow fetching pubkeys via insecure connections (via HTTP connections or from servers with unverified certificates). This slightly extends the meaning of the `--trust-keys-from-https` flag. This will make it possible for an attacker to spoof the remote server, potentially providing fake keys and allowing them to provide container images that have been tampered with.
+- **capabilities**: Gives all [capabilities][capabilities] to apps. This allows an attacker that is able to execute code in the container to trivially escalate to root privileges on the host. 
+- **paths**: Disables inaccessible and read-only paths. This makes it easier for an attacker who can gain control over a single container to execute code in the host system, potentially allowing them to escape from the container. This also leaks additional information.
+- **seccomp**: Disables [seccomp][seccomp]. This increases the attack surface available to an attacker who can gain control over a single container, potentially making it easier for them to escape from the container.
+- **all-fetch**: Disables the following security checks: image, tls, http
+- **all-run**: Disables the following security checks: ondisk, capabilities, paths, seccomp
+- **all**: Disables all security checks
 
 ## Logging
 
@@ -127,7 +136,29 @@ $ journalctl -M rkt-bc3c1451-2e81-45c6-aeb0-807db44e31b4 -t redis
 [...]
 ```
 
-Additionaly, logs can be programmatically accessed via the [sd-journal API](https://www.freedesktop.org/software/systemd/man/sd-journal.html).
+Additionaly, logs can be programmatically accessed via the [sd-journal API][sd-journal].
+
+Currently there are two known main issues with logging in rkt:
+* In some rare situations when an application inside the pod is writing to `/dev/stdout` and `/dev/stderr` (i.e. nginx) there is no way to obtain logs.
+ The app should be modified so it will write to `stdout` or `syslog`. In the case of nginx:
+ ```
+ error_log stderr;
+ 
+ http {
+     access_log syslog:server=unix:/dev/log main;
+     [...]
+ }
+ ```
+ should be added to ```/etc/nginx/nginx.conf```
+
+* Some applications, like etcd 3.0, write directly to journald. Such log entries will not be written to stdout or stderr.
+ These logs can be retrieved by passing the machine ID to journalctl:
+
+ ```
+ $ journalctl -M rkt-bc3c1451-2e81-45c6-aeb0-807db44e31b4
+ ```
+
+ For the specific etcd case, since release 3.1.0-rc.1 it is possible to force emitting logs to stdout via a `--log-output=stdout` command-line option.
 
 ##### Stopped pod
 
@@ -140,3 +171,13 @@ journalctl -m _MACHINE_ID=132f9d560e3f4d1eba8668efd488bb62
 ```
 
 On some distributions such as Ubuntu, persistent journal storage is not enabled by default. In this case, it is not possible to get the logs of a stopped pod. Persistent journal storage can be enabled with `sudo mkdir /var/log/journal` before starting the pods.
+
+
+[aci-images]: https://github.com/appc/spec/blob/master/spec/aci.md#app-container-image
+[appc-discovery]: https://github.com/appc/spec/blob/master/spec/discovery.md#app-container-image-discovery
+[etcd-5449]: https://github.com/coreos/etcd/issues/5449
+[metadata-spec]: https://github.com/appc/spec/blob/master/spec/ace.md#app-container-metadata-service
+[rkt-mds]: subcommands/metadata-service.md
+[sd-journal]: https://www.freedesktop.org/software/systemd/man/sd-journal.html
+[capabilities]: capabilities-guide.md
+[seccomp]: seccomp-guide.md

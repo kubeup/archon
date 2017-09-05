@@ -20,7 +20,9 @@ Please visit the [WIKI](http://github.com/heketi/heketi/wiki) for project docume
 Please visit [Vagrant-Heketi](https://github.com/heketi/vagrant-heketi) to try out the demo.
 
 # Community
-[Join our mailing list](http://lists.gluster.org/mailman/listinfo/heketi-devel)
+
+* Mailing list: [Join our mailing list](http://lists.gluster.org/mailman/listinfo/heketi-devel)
+* IRC: #heketi on Freenode
 
 # Talks
 
@@ -33,5 +35,3 @@ Please visit [Vagrant-Heketi](https://github.com/heketi/vagrant-heketi) to try o
 
 [![image](https://img.youtube.com/vi/jpkG4wciy4U/3.jpg)](https://www.youtube.com/watch?v=jpkG4wciy4U) [Slides](https://github.com/lpabon/go-slides)
 
-# Licensing
-Heketi is licensed under the Apache License, Version 2.0.  See [LICENSE](https://github.com/heketi/heketi/blob/master/LICENSE) for the full license text.

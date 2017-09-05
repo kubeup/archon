@@ -70,15 +70,15 @@ Docker images do not support signature verification.
 When fetching, rkt will try to avoid unnecessary network transfers.
 For example, if an image is already in the local store, rkt will use HTTP's ETag and Cache-Control to avoid downloading it again unless the image was updated on the remote server.
 
-This behavior can be changed by using the `--store-only` and `--no-store` flags.
-Their meanings are detailed in the [image fetching behavior](../image-fetching-behavior.md) documentation.
+This behavior can be changed by using the `--pull-policy` flag.
+Usage of this flag is detailed in the [image fetching behavior][img-fetch] documentation.
 
 ## Authentication
 
 If you want to download an image from a private repository, then you will often need to pass credentials to be able to access it.
 rkt currently supports authentication for fetching images via https:// or docker:// protocols.
 To specify credentials you will have to write some configuration files.
-You can find the format of the configuration file and examples in the [configuration documentation](../configuration.md).
+You can find the format of the configuration file and examples in the [configuration documentation][configuration].
 Note that the configuration kind for images downloaded via https:// and images downloaded via docker:// is different.
 
 ## Options
@@ -86,12 +86,15 @@ Note that the configuration kind for images downloaded via https:// and images d
 | Flag | Default | Options | Description |
 | --- | --- | --- | --- |
 | `--full` |  `false` | `true` or `false` | Print the full image hash after fetching |
-| `--no-store` |  `false` | `true` or `false` | Fetch images ignoring the local store. See [image fetching behavior](../image-fetching-behavior.md) |
 | `--signature` |  `` | A file path | Local signature file to use in validating the preceding image |
-| `--store-only` |  `false` | `true` or `false` | Use only available images in the store (do not discover or download from remote URLs). See [image fetching behavior](../image-fetching-behavior.md) |
+| `--pull-policy` | `new` | `never`, `new`, or `update` | Sets the policy for when to fetch an image. See [image fetching behavior][img-fetch] |
 
 ## Global options
 
-See the table with [global options in general commands documentation](../commands.md#global-options).
+See the table with [global options in general commands documentation][global-options].
+
 
 [appc-discovery]: https://github.com/appc/spec/blob/master/spec/discovery.md
+[configuration]: ../configuration.md
+[global-options]: ../commands.md#global-options
+[img-fetch]: ../image-fetching-behavior.md

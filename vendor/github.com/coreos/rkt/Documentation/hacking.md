@@ -7,9 +7,11 @@ For more information on the rkt internals, see the [`devel`](devel/) documentati
 
 ## Building rkt
 
-You should be able build rkt on any modern Linux system with [Go](https://golang.org/) (1.5+) installed.
+The easiest way to build rkt is by using the coreos.com/rkt/builder ACI image. See instructions for how to use it in the README at [github.com/coreos/rkt-builder][rkt-builder].
+
+Alternatively, you should be able build rkt on any modern Linux system with [Go](https://golang.org/) (1.5+) installed.
 For the most part the codebase is self-contained (e.g. all dependencies are vendored), but assembly of the stage1 requires some other tools to be installed on the system.
-Please see [the list of the build-time dependencies](dependencies.md#build-time-dependencies).
+Please see [the list of the build-time dependencies][build-time-dependencies].
 Once the dependencies have been satisfied you can build rkt with a default configuration by running the following commands:
 
 ```
@@ -22,10 +24,10 @@ Build verbosity can be controlled with the V variable.
 Set V to 0 to have a silent build.
 Set V to either 1 or 2 to get short messages about what is being done (level 2 prints more of them).
 Set V to 3 to get raw output.
-Instead of a number, English words can be used: `quiet` or `silent` for level 0, `info` for level 1, `all` for level 2 and `raw` for level 3. 
+Instead of a number, English words can be used: `quiet` or `silent` for level 0, `info` for level 1, `all` for level 2 and `raw` for level 3.
 For example, `make V=raw` is equivalent to `make V=3`.
 
-To be able to run rkt, please see [the list of the run-time dependencies](dependencies.md#run-time-dependencies).
+To be able to run rkt, please see [the list of the run-time dependencies][run-time-dependencies].
 
 ### Building rkt with Docker
 
@@ -33,7 +35,7 @@ Alternatively, you can build rkt in a Docker container with the following comman
 Replace `$SRC` with the absolute path to your rkt source code:
 
 ```
-# docker run -v $SRC:/opt/rkt debian:sid /bin/bash -c "cd /opt/rkt && ./scripts/install-deps-debian-sid.sh && go get github.com/appc/spec/... && ./autogen.sh && ./configure && make"
+# docker run -v $SRC:/opt/rkt debian:sid /bin/bash -c "cd /opt/rkt && ./scripts/install-deps-debian-sid.sh && ./autogen.sh && ./configure && make"
 ```
 
 ### Building systemd in stage1 from source
@@ -45,13 +47,14 @@ To do this, use the following `configure` parameters after running `./autogen.sh
 - `--with-stage1-flavors`
 - `--with-stage1-default-flavor` (optional)
 - `--with-stage1-systemd-version`
+- `--with-stage1-systemd-revision` (optional)
 - `--with-stage1-systemd-src`
 
-For more details, see [configure script parameters documentation](build-configure.md).
+For more details, see [configure script parameters documentation][build-configure].
 Example:
 
 ```
-./autogen.sh && ./configure --with-stage1-flavors=src --with-stage1-systemd-version=master --with-stage1-systemd-src=$HOME/src/systemd && make
+./autogen.sh && ./configure --with-stage1-flavors=src --with-stage1-systemd-version=v231 --with-stage1-systemd-revision=master --with-stage1-systemd-src=$HOME/src/systemd && make
 ```
 
 ### Building stage1 with kvm as execution engine
@@ -73,7 +76,7 @@ If building with docker, these must be added to the `apt-get install` command.
 
 ### Alternative stage1 paths
 
-rkt is designed and intended to be modular, using a [staged architecture](devel/architecture.md).
+rkt is designed and intended to be modular, using a [staged architecture][architecture].
 
 `rkt run` determines the stage1 image it should use via its `--stage1-{url,path,name,hash,from-dir}` flags.
 If this flag is not given to rkt, the stage1 image will default to the settings taken from the configuration.
@@ -82,7 +85,7 @@ It usually means that rkt will look for a file called `stage1-<default flavor>.a
 
 However, a default value can be set for this parameter at build time by setting the option `--with-stage1-default-location` when invoking `./configure`.
 It can be set with the `paths` kind of configuration.
-For more details, see [configure script parameters documentation](build-configure.md) and [configuration documentation](configuration.md).
+For more details, see [configure script parameters documentation][build-configure] and [configuration documentation][configuration].
 
 rkt expects stage1 images to be signed except in the following cases:
 
@@ -92,11 +95,11 @@ rkt expects stage1 images to be signed except in the following cases:
 
 ### Updating the coreos flavor stage1
 
-Follow the instructions on [Update coreos flavor stage1](devel/update-coreos-stage1.md).
+Follow the instructions on [Update coreos flavor stage1][update-coreos-stage1].
 
 ## Managing dependencies
 
-rkt uses [`glide`](https://github.com/Masterminds/glide) and [`glide-vc`](https://github.com/sgotti/glide-vc) to manage third-party dependencies.
+rkt uses [`glide`][glide] and [`glide-vc`][glide-vc] to manage third-party dependencies.
 The build process is crafted to make this transparent to most users (i.e. if you're just building rkt from source, or modifying any of the codebase without changing dependencies, you should have no need to interact with glide).
 But occasionally the need arises to either a) add a new dependency or b) update/remove an existing dependency.
 
@@ -114,11 +117,11 @@ Ensure you have the **latest version** of `glide` and `glide-vc` available in yo
 
 Use the glide tool to add a new dependency. In order to add a dependency to a package i.e. `github.com/fizz/buzz` for version `1.2.3`, execute:
 ```
-$ glide get -u github.com/fizz/buzz#1.2.3
+$ glide get github.com/fizz/buzz#v1.2.3
 $ ./scripts/glide-update.sh
 ```
 
-Note that although glide does support [versions and ranges](https://github.com/Masterminds/glide/blob/master/docs/versions.md) currently it is preferred to pin to concrete versions as described above.
+Note that although glide does support [versions and ranges][glide-versioning] currently it is preferred to pin to concrete versions as described above.
 
 *Note*: Do *not* use `go get` and `glide update` to add new dependencies. It will cause both `glide.lock` and `glide.yaml` files to diverge.
 
@@ -197,3 +200,16 @@ As well as a simple sanity check that the code actually builds and tests pass, h
 - `git diff` should show _all_ third-party import paths prefixed with `Godeps/_workspace`
 
 If something looks awry, restart, pray to your preferred deity, and try again.
+
+
+[architecture]: devel/architecture.md
+[build-configure]: build-configure.md
+[build-time-dependencies]: dependencies.md#build-time-dependencies
+[configuration]: configuration.md
+[glide]: https://glide.sh
+[glide-vc]: https://github.com/sgotti/glide-vc
+[glide-versioning]: https://glide.readthedocs.io/en/latest/versions/
+[go]: https://golang.org/
+[rkt-builder]: https://github.com/coreos/rkt-builder
+[run-time-dependencies]: dependencies.md#run-time-dependencies
+[update-coreos-stage1]: devel/update-coreos-stage1.md

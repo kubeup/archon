@@ -29,12 +29,12 @@ import (
 // deleteCmd represents the delete command
 var deleteCmd = &cobra.Command{
 	Use:   "delete",
-	Short: "Deletes a local kubernetes cluster.",
+	Short: "Deletes a local kubernetes cluster",
 	Long: `Deletes a local kubernetes cluster. This command deletes the VM, and removes all
 associated files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Deleting local Kubernetes cluster...")
-		api, err := machine.NewAPIClient(clientType)
+		api, err := machine.NewAPIClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting client: %s\n", err)
 			os.Exit(1)
@@ -43,9 +43,13 @@ associated files.`,
 
 		if err = cluster.DeleteHost(api); err != nil {
 			fmt.Println("Errors occurred deleting machine: ", err)
-			cmdUtil.MaybeReportErrorAndExit(err)
+			os.Exit(1)
 		}
 		fmt.Println("Machine deleted.")
+
+		if err := cmdUtil.KillMountProcess(); err != nil {
+			fmt.Println("Errors occurred deleting mount process: ", err)
+		}
 	},
 }
 

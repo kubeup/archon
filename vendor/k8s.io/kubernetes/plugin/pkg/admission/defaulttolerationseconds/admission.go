@@ -21,11 +21,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/golang/glog"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apiserver/pkg/admission"
-	"k8s.io/kubernetes/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/helper"
+	"k8s.io/kubernetes/plugin/pkg/scheduler/algorithm"
 )
 
 var (
@@ -38,8 +38,9 @@ var (
 			" that is added by default to every pod that does not already have such a toleration.")
 )
 
-func init() {
-	admission.RegisterPlugin("DefaultTolerationSeconds", func(config io.Reader) (admission.Interface, error) {
+// Register registers a plugin
+func Register(plugins *admission.Plugins) {
+	plugins.Register("DefaultTolerationSeconds", func(config io.Reader) (admission.Interface, error) {
 		return NewDefaultTolerationSeconds(), nil
 	})
 }
@@ -62,14 +63,18 @@ func NewDefaultTolerationSeconds() admission.Interface {
 }
 
 func (p *plugin) Admit(attributes admission.Attributes) (err error) {
-	if attributes.GetResource().GroupResource() != v1.Resource("pods") {
+	if attributes.GetResource().GroupResource() != api.Resource("pods") {
 		return nil
 	}
 
-	pod, ok := attributes.GetObject().(*v1.Pod)
-	if !ok {
-		glog.Errorf("expected pod but got %s", attributes.GetKind().Kind)
+	if len(attributes.GetSubresource()) > 0 {
+		// only run the checks below on pods proper and not subresources
 		return nil
+	}
+
+	pod, ok := attributes.GetObject().(*api.Pod)
+	if !ok {
+		return errors.NewBadRequest(fmt.Sprintf("expected *api.Pod but got %T", attributes.GetObject()))
 	}
 
 	tolerations := pod.Spec.Tolerations
@@ -77,13 +82,13 @@ func (p *plugin) Admit(attributes admission.Attributes) (err error) {
 	toleratesNodeNotReady := false
 	toleratesNodeUnreachable := false
 	for _, toleration := range tolerations {
-		if (toleration.Key == metav1.TaintNodeNotReady || len(toleration.Key) == 0) &&
-			(toleration.Effect == v1.TaintEffectNoExecute || len(toleration.Effect) == 0) {
+		if (toleration.Key == algorithm.TaintNodeNotReady || len(toleration.Key) == 0) &&
+			(toleration.Effect == api.TaintEffectNoExecute || len(toleration.Effect) == 0) {
 			toleratesNodeNotReady = true
 		}
 
-		if (toleration.Key == metav1.TaintNodeUnreachable || len(toleration.Key) == 0) &&
-			(toleration.Effect == v1.TaintEffectNoExecute || len(toleration.Effect) == 0) {
+		if (toleration.Key == algorithm.TaintNodeUnreachable || len(toleration.Key) == 0) &&
+			(toleration.Effect == api.TaintEffectNoExecute || len(toleration.Effect) == 0) {
 			toleratesNodeUnreachable = true
 		}
 	}
@@ -94,29 +99,21 @@ func (p *plugin) Admit(attributes admission.Attributes) (err error) {
 	}
 
 	if !toleratesNodeNotReady {
-		_, err := v1.AddOrUpdateTolerationInPod(pod, &v1.Toleration{
-			Key:               metav1.TaintNodeNotReady,
-			Operator:          v1.TolerationOpExists,
-			Effect:            v1.TaintEffectNoExecute,
+		helper.AddOrUpdateTolerationInPod(pod, &api.Toleration{
+			Key:               algorithm.TaintNodeNotReady,
+			Operator:          api.TolerationOpExists,
+			Effect:            api.TaintEffectNoExecute,
 			TolerationSeconds: defaultNotReadyTolerationSeconds,
 		})
-		if err != nil {
-			return admission.NewForbidden(attributes,
-				fmt.Errorf("failed to add default tolerations for taints `notReady:NoExecute` and `unreachable:NoExecute`, err: %v", err))
-		}
 	}
 
 	if !toleratesNodeUnreachable {
-		_, err := v1.AddOrUpdateTolerationInPod(pod, &v1.Toleration{
-			Key:               metav1.TaintNodeUnreachable,
-			Operator:          v1.TolerationOpExists,
-			Effect:            v1.TaintEffectNoExecute,
+		helper.AddOrUpdateTolerationInPod(pod, &api.Toleration{
+			Key:               algorithm.TaintNodeUnreachable,
+			Operator:          api.TolerationOpExists,
+			Effect:            api.TaintEffectNoExecute,
 			TolerationSeconds: defaultUnreachableTolerationSeconds,
 		})
-		if err != nil {
-			return admission.NewForbidden(attributes,
-				fmt.Errorf("failed to add default tolerations for taints `notReady:NoExecute` and `unreachable:NoExecute`, err: %v", err))
-		}
 	}
 	return nil
 }

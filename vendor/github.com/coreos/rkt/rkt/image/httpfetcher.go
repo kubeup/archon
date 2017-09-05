@@ -17,13 +17,13 @@ package image
 import (
 	"errors"
 	"io"
-
 	"net/url"
 	"time"
 
+	rktflag "github.com/coreos/rkt/rkt/flag"
+
 	"github.com/coreos/rkt/pkg/keystore"
 	"github.com/coreos/rkt/rkt/config"
-	rktflag "github.com/coreos/rkt/rkt/flag"
 	"github.com/coreos/rkt/store/imagestore"
 	"github.com/hashicorp/errwrap"
 )
@@ -34,6 +34,7 @@ type httpFetcher struct {
 	S             *imagestore.Store
 	Ks            *keystore.Keystore
 	Rem           *imagestore.Remote
+	NoCache       bool
 	Debug         bool
 	Headers       map[string]config.Headerer
 }
@@ -44,16 +45,22 @@ func (f *httpFetcher) Hash(u *url.URL, a *asc) (string, error) {
 	ensureLogger(f.Debug)
 	urlStr := u.String()
 
-	if f.Debug {
-		log.Printf("fetching image from %s", urlStr)
+	if !f.NoCache && f.Rem != nil {
+		if useCached(f.Rem.DownloadTime, f.Rem.CacheMaxAge) {
+			diag.Printf("image for %s isn't expired, not fetching.", urlStr)
+			return f.Rem.BlobKey, nil
+		}
 	}
 
-	aciFile, cd, err := f.fetchURL(u, a, f.eTag())
+	diag.Printf("fetching image from %s", urlStr)
+
+	aciFile, cd, err := f.fetchURL(u, a, eTag(f.Rem))
 	if err != nil {
 		return "", err
 	}
-	defer func() { maybeClose(aciFile) }()
-	if key := f.maybeUseCached(cd); key != "" {
+	defer aciFile.Close()
+
+	if key := maybeUseCached(f.Rem, cd); key != "" {
 		// TODO(krnowak): that does not update the store with
 		// the new CacheMaxAge and Download Time, so it will
 		// query the server every time after initial
@@ -61,8 +68,7 @@ func (f *httpFetcher) Hash(u *url.URL, a *asc) (string, error) {
 		return key, nil
 	}
 	key, err := f.S.WriteACI(aciFile, imagestore.ACIFetchInfo{
-		Latest:          false,
-		InsecureOptions: int64(f.InsecureFlags.Value()),
+		Latest: false,
 	})
 	if err != nil {
 		return "", err
@@ -86,19 +92,6 @@ func (f *httpFetcher) Hash(u *url.URL, a *asc) (string, error) {
 	return key, nil
 }
 
-func (f *httpFetcher) maybeUseCached(cd *cacheData) string {
-	if f.Rem == nil || cd == nil {
-		return ""
-	}
-	if cd.UseCached {
-		return f.Rem.BlobKey
-	}
-	if useCached(f.Rem.DownloadTime, cd.MaxAge) {
-		return f.Rem.BlobKey
-	}
-	return ""
-}
-
 func (f *httpFetcher) fetchURL(u *url.URL, a *asc, etag string) (readSeekCloser, *cacheData, error) {
 	if f.InsecureFlags.SkipTLSCheck() && f.Ks != nil {
 		log.Printf("warning: TLS verification has been disabled")
@@ -120,36 +113,48 @@ func (f *httpFetcher) fetchURL(u *url.URL, a *asc, etag string) (readSeekCloser,
 }
 
 func (f *httpFetcher) fetchVerifiedURL(u *url.URL, a *asc, etag string) (readSeekCloser, *cacheData, error) {
+	var aciFile readSeekCloser // closed on error
+	var errClose error         // error signaling to close aciFile
+
 	o := f.httpOps()
 	f.maybeOverrideAscFetcherWithRemote(o, u, a)
 	ascFile, retry, err := o.DownloadSignature(a)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() { maybeClose(ascFile) }()
+	defer ascFile.Close()
 
 	aciFile, cd, err := o.DownloadImageWithETag(u, etag)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() { maybeClose(aciFile) }()
+
+	defer func() {
+		if errClose != nil {
+			aciFile.Close()
+		}
+	}()
+
 	if cd.UseCached {
-		return nil, cd, nil
+		aciFile.Close()
+		return NopReadSeekCloser(nil), cd, nil
 	}
 
 	if retry {
-		ascFile, err = o.DownloadSignatureAgain(a)
-		if err != nil {
-			return nil, nil, err
+		ascFile.Close()
+		ascFile, errClose = o.DownloadSignatureAgain(a)
+		if errClose != nil {
+			ascFile = NopReadSeekCloser(nil)
+			return nil, nil, errClose
 		}
 	}
 
-	if err := f.validate(aciFile, ascFile); err != nil {
-		return nil, nil, err
+	errClose = f.validate(aciFile, ascFile)
+	if errClose != nil {
+		return nil, nil, errClose
 	}
-	retAciFile := aciFile
-	aciFile = nil
-	return retAciFile, cd, nil
+
+	return aciFile, cd, nil
 }
 
 func (f *httpFetcher) httpOps() *httpOps {
@@ -176,13 +181,6 @@ func (f *httpFetcher) validate(aciFile, ascFile io.ReadSeeker) error {
 
 	printIdentities(entity)
 	return nil
-}
-
-func (f *httpFetcher) eTag() string {
-	if f.Rem != nil {
-		return f.Rem.ETag
-	}
-	return ""
 }
 
 func (f *httpFetcher) maybeOverrideAscFetcherWithRemote(o *httpOps, u *url.URL, a *asc) {

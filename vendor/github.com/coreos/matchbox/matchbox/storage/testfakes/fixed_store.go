@@ -40,6 +40,12 @@ func (s *FixedStore) GroupGet(id string) (*storagepb.Group, error) {
 	return nil, fmt.Errorf("Group not found")
 }
 
+// GroupDelete deletes the Group from the Groups map with the given id.
+func (s *FixedStore) GroupDelete(id string) error {
+	delete(s.Groups, id)
+	return nil
+}
+
 // GroupList returns the groups in the Groups map.
 func (s *FixedStore) GroupList() ([]*storagepb.Group, error) {
 	groups := make([]*storagepb.Group, len(s.Groups))
@@ -63,6 +69,12 @@ func (s *FixedStore) ProfileGet(id string) (*storagepb.Profile, error) {
 		return profile, nil
 	}
 	return nil, fmt.Errorf("Profile not found")
+}
+
+// ProfileDelete deletes the Profile from the Profiles map with the given id.
+func (s *FixedStore) ProfileDelete(id string) error {
+	delete(s.Profiles, id)
+	return nil
 }
 
 // ProfileList returns the profiles in the Profiles map.
@@ -90,18 +102,36 @@ func (s *FixedStore) IgnitionGet(name string) (string, error) {
 	return "", fmt.Errorf("no Ignition template %s", name)
 }
 
+// IgnitionDelete deletes an Ignition template by name.
+func (s *FixedStore) IgnitionDelete(name string) error {
+	delete(s.IgnitionConfigs, name)
+	return nil
+}
+
+// GenericPut create or updates an Generic template.
+func (s *FixedStore) GenericPut(name string, config []byte) error {
+	s.GenericConfigs[name] = string(config)
+	return nil
+}
+
+// GenericGet returns an Generic template by name.
+func (s *FixedStore) GenericGet(name string) (string, error) {
+	if config, present := s.GenericConfigs[name]; present {
+		return config, nil
+	}
+	return "", fmt.Errorf("no Generic template %s", name)
+}
+
+// GenericDelete deletes an Generic template by name.
+func (s *FixedStore) GenericDelete(name string) error {
+	delete(s.GenericConfigs, name)
+	return nil
+}
+
 // CloudGet returns a Cloud-config template by name.
 func (s *FixedStore) CloudGet(name string) (string, error) {
 	if config, present := s.CloudConfigs[name]; present {
 		return config, nil
 	}
 	return "", fmt.Errorf("no Cloud-Config template %s", name)
-}
-
-// GenericGet returns a generic template by name.
-func (s *FixedStore) GenericGet(name string) (string, error) {
-	if config, present := s.GenericConfigs[name]; present {
-		return config, nil
-	}
-	return "", fmt.Errorf("no generic template %s", name)
 }

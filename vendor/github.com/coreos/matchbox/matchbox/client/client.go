@@ -3,6 +3,8 @@ package client
 import (
 	"crypto/tls"
 	"errors"
+	"fmt"
+	"net"
 	"time"
 
 	"google.golang.org/grpc"
@@ -31,6 +33,7 @@ type Client struct {
 	Groups   rpcpb.GroupsClient
 	Profiles rpcpb.ProfilesClient
 	Ignition rpcpb.IgnitionClient
+	Generic  rpcpb.GenericClient
 	conn     *grpc.ClientConn
 }
 
@@ -38,6 +41,11 @@ type Client struct {
 func New(config *Config) (*Client, error) {
 	if len(config.Endpoints) == 0 {
 		return nil, errNoEndpoints
+	}
+	for _, endpoint := range config.Endpoints {
+		if _, _, err := net.SplitHostPort(endpoint); err != nil {
+			return nil, fmt.Errorf("client: invalid host:port endpoint: %v", err)
+		}
 	}
 	return newClient(config)
 }
@@ -57,6 +65,7 @@ func newClient(config *Config) (*Client, error) {
 		Groups:   rpcpb.NewGroupsClient(conn),
 		Profiles: rpcpb.NewProfilesClient(conn),
 		Ignition: rpcpb.NewIgnitionClient(conn),
+		Generic:  rpcpb.NewGenericClient(conn),
 	}
 	return client, nil
 }

@@ -16,17 +16,31 @@ It has these top-level messages:
 	GroupPutRequest
 	GroupPutResponse
 	GroupGetRequest
-	GroupListRequest
 	GroupGetResponse
+	GroupDeleteRequest
+	GroupDeleteResponse
+	GroupListRequest
 	GroupListResponse
 	ProfilePutRequest
 	ProfilePutResponse
 	ProfileGetRequest
 	ProfileGetResponse
+	ProfileDeleteRequest
+	ProfileDeleteResponse
 	ProfileListRequest
 	ProfileListResponse
 	IgnitionPutRequest
 	IgnitionPutResponse
+	IgnitionGetRequest
+	IgnitionGetResponse
+	IgnitionDeleteRequest
+	IgnitionDeleteResponse
+	GenericPutRequest
+	GenericPutResponse
+	GenericGetRequest
+	GenericGetResponse
+	GenericDeleteRequest
+	GenericDeleteResponse
 */
 package serverpb
 
@@ -150,14 +164,6 @@ func (m *GroupGetRequest) GetId() string {
 	return ""
 }
 
-type GroupListRequest struct {
-}
-
-func (m *GroupListRequest) Reset()                    { *m = GroupListRequest{} }
-func (m *GroupListRequest) String() string            { return proto.CompactTextString(m) }
-func (*GroupListRequest) ProtoMessage()               {}
-func (*GroupListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
-
 type GroupGetResponse struct {
 	Group *storagepb.Group `protobuf:"bytes,1,opt,name=group" json:"group,omitempty"`
 }
@@ -165,7 +171,7 @@ type GroupGetResponse struct {
 func (m *GroupGetResponse) Reset()                    { *m = GroupGetResponse{} }
 func (m *GroupGetResponse) String() string            { return proto.CompactTextString(m) }
 func (*GroupGetResponse) ProtoMessage()               {}
-func (*GroupGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*GroupGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *GroupGetResponse) GetGroup() *storagepb.Group {
 	if m != nil {
@@ -174,6 +180,38 @@ func (m *GroupGetResponse) GetGroup() *storagepb.Group {
 	return nil
 }
 
+type GroupDeleteRequest struct {
+	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+}
+
+func (m *GroupDeleteRequest) Reset()                    { *m = GroupDeleteRequest{} }
+func (m *GroupDeleteRequest) String() string            { return proto.CompactTextString(m) }
+func (*GroupDeleteRequest) ProtoMessage()               {}
+func (*GroupDeleteRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+
+func (m *GroupDeleteRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type GroupDeleteResponse struct {
+}
+
+func (m *GroupDeleteResponse) Reset()                    { *m = GroupDeleteResponse{} }
+func (m *GroupDeleteResponse) String() string            { return proto.CompactTextString(m) }
+func (*GroupDeleteResponse) ProtoMessage()               {}
+func (*GroupDeleteResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+
+type GroupListRequest struct {
+}
+
+func (m *GroupListRequest) Reset()                    { *m = GroupListRequest{} }
+func (m *GroupListRequest) String() string            { return proto.CompactTextString(m) }
+func (*GroupListRequest) ProtoMessage()               {}
+func (*GroupListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+
 type GroupListResponse struct {
 	Groups []*storagepb.Group `protobuf:"bytes,1,rep,name=groups" json:"groups,omitempty"`
 }
@@ -181,7 +219,7 @@ type GroupListResponse struct {
 func (m *GroupListResponse) Reset()                    { *m = GroupListResponse{} }
 func (m *GroupListResponse) String() string            { return proto.CompactTextString(m) }
 func (*GroupListResponse) ProtoMessage()               {}
-func (*GroupListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*GroupListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
 func (m *GroupListResponse) GetGroups() []*storagepb.Group {
 	if m != nil {
@@ -197,7 +235,7 @@ type ProfilePutRequest struct {
 func (m *ProfilePutRequest) Reset()                    { *m = ProfilePutRequest{} }
 func (m *ProfilePutRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProfilePutRequest) ProtoMessage()               {}
-func (*ProfilePutRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*ProfilePutRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *ProfilePutRequest) GetProfile() *storagepb.Profile {
 	if m != nil {
@@ -212,7 +250,7 @@ type ProfilePutResponse struct {
 func (m *ProfilePutResponse) Reset()                    { *m = ProfilePutResponse{} }
 func (m *ProfilePutResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProfilePutResponse) ProtoMessage()               {}
-func (*ProfilePutResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*ProfilePutResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 type ProfileGetRequest struct {
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -221,7 +259,7 @@ type ProfileGetRequest struct {
 func (m *ProfileGetRequest) Reset()                    { *m = ProfileGetRequest{} }
 func (m *ProfileGetRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProfileGetRequest) ProtoMessage()               {}
-func (*ProfileGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*ProfileGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *ProfileGetRequest) GetId() string {
 	if m != nil {
@@ -237,7 +275,7 @@ type ProfileGetResponse struct {
 func (m *ProfileGetResponse) Reset()                    { *m = ProfileGetResponse{} }
 func (m *ProfileGetResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProfileGetResponse) ProtoMessage()               {}
-func (*ProfileGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*ProfileGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *ProfileGetResponse) GetProfile() *storagepb.Profile {
 	if m != nil {
@@ -246,13 +284,37 @@ func (m *ProfileGetResponse) GetProfile() *storagepb.Profile {
 	return nil
 }
 
+type ProfileDeleteRequest struct {
+	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+}
+
+func (m *ProfileDeleteRequest) Reset()                    { *m = ProfileDeleteRequest{} }
+func (m *ProfileDeleteRequest) String() string            { return proto.CompactTextString(m) }
+func (*ProfileDeleteRequest) ProtoMessage()               {}
+func (*ProfileDeleteRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+
+func (m *ProfileDeleteRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type ProfileDeleteResponse struct {
+}
+
+func (m *ProfileDeleteResponse) Reset()                    { *m = ProfileDeleteResponse{} }
+func (m *ProfileDeleteResponse) String() string            { return proto.CompactTextString(m) }
+func (*ProfileDeleteResponse) ProtoMessage()               {}
+func (*ProfileDeleteResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+
 type ProfileListRequest struct {
 }
 
 func (m *ProfileListRequest) Reset()                    { *m = ProfileListRequest{} }
 func (m *ProfileListRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProfileListRequest) ProtoMessage()               {}
-func (*ProfileListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*ProfileListRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 type ProfileListResponse struct {
 	Profiles []*storagepb.Profile `protobuf:"bytes,1,rep,name=profiles" json:"profiles,omitempty"`
@@ -261,7 +323,7 @@ type ProfileListResponse struct {
 func (m *ProfileListResponse) Reset()                    { *m = ProfileListResponse{} }
 func (m *ProfileListResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProfileListResponse) ProtoMessage()               {}
-func (*ProfileListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*ProfileListResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
 func (m *ProfileListResponse) GetProfiles() []*storagepb.Profile {
 	if m != nil {
@@ -278,7 +340,7 @@ type IgnitionPutRequest struct {
 func (m *IgnitionPutRequest) Reset()                    { *m = IgnitionPutRequest{} }
 func (m *IgnitionPutRequest) String() string            { return proto.CompactTextString(m) }
 func (*IgnitionPutRequest) ProtoMessage()               {}
-func (*IgnitionPutRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*IgnitionPutRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
 func (m *IgnitionPutRequest) GetName() string {
 	if m != nil {
@@ -300,7 +362,151 @@ type IgnitionPutResponse struct {
 func (m *IgnitionPutResponse) Reset()                    { *m = IgnitionPutResponse{} }
 func (m *IgnitionPutResponse) String() string            { return proto.CompactTextString(m) }
 func (*IgnitionPutResponse) ProtoMessage()               {}
-func (*IgnitionPutResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*IgnitionPutResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+
+type IgnitionGetRequest struct {
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *IgnitionGetRequest) Reset()                    { *m = IgnitionGetRequest{} }
+func (m *IgnitionGetRequest) String() string            { return proto.CompactTextString(m) }
+func (*IgnitionGetRequest) ProtoMessage()               {}
+func (*IgnitionGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+
+func (m *IgnitionGetRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type IgnitionGetResponse struct {
+	Config []byte `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+}
+
+func (m *IgnitionGetResponse) Reset()                    { *m = IgnitionGetResponse{} }
+func (m *IgnitionGetResponse) String() string            { return proto.CompactTextString(m) }
+func (*IgnitionGetResponse) ProtoMessage()               {}
+func (*IgnitionGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+
+func (m *IgnitionGetResponse) GetConfig() []byte {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type IgnitionDeleteRequest struct {
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *IgnitionDeleteRequest) Reset()                    { *m = IgnitionDeleteRequest{} }
+func (m *IgnitionDeleteRequest) String() string            { return proto.CompactTextString(m) }
+func (*IgnitionDeleteRequest) ProtoMessage()               {}
+func (*IgnitionDeleteRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
+
+func (m *IgnitionDeleteRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type IgnitionDeleteResponse struct {
+}
+
+func (m *IgnitionDeleteResponse) Reset()                    { *m = IgnitionDeleteResponse{} }
+func (m *IgnitionDeleteResponse) String() string            { return proto.CompactTextString(m) }
+func (*IgnitionDeleteResponse) ProtoMessage()               {}
+func (*IgnitionDeleteResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+
+type GenericPutRequest struct {
+	Name   string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Config []byte `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+}
+
+func (m *GenericPutRequest) Reset()                    { *m = GenericPutRequest{} }
+func (m *GenericPutRequest) String() string            { return proto.CompactTextString(m) }
+func (*GenericPutRequest) ProtoMessage()               {}
+func (*GenericPutRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+
+func (m *GenericPutRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *GenericPutRequest) GetConfig() []byte {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type GenericPutResponse struct {
+}
+
+func (m *GenericPutResponse) Reset()                    { *m = GenericPutResponse{} }
+func (m *GenericPutResponse) String() string            { return proto.CompactTextString(m) }
+func (*GenericPutResponse) ProtoMessage()               {}
+func (*GenericPutResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
+
+type GenericGetRequest struct {
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *GenericGetRequest) Reset()                    { *m = GenericGetRequest{} }
+func (m *GenericGetRequest) String() string            { return proto.CompactTextString(m) }
+func (*GenericGetRequest) ProtoMessage()               {}
+func (*GenericGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+
+func (m *GenericGetRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type GenericGetResponse struct {
+	Config []byte `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+}
+
+func (m *GenericGetResponse) Reset()                    { *m = GenericGetResponse{} }
+func (m *GenericGetResponse) String() string            { return proto.CompactTextString(m) }
+func (*GenericGetResponse) ProtoMessage()               {}
+func (*GenericGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+
+func (m *GenericGetResponse) GetConfig() []byte {
+	if m != nil {
+		return m.Config
+	}
+	return nil
+}
+
+type GenericDeleteRequest struct {
+	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+}
+
+func (m *GenericDeleteRequest) Reset()                    { *m = GenericDeleteRequest{} }
+func (m *GenericDeleteRequest) String() string            { return proto.CompactTextString(m) }
+func (*GenericDeleteRequest) ProtoMessage()               {}
+func (*GenericDeleteRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+
+func (m *GenericDeleteRequest) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+type GenericDeleteResponse struct {
+}
+
+func (m *GenericDeleteResponse) Reset()                    { *m = GenericDeleteResponse{} }
+func (m *GenericDeleteResponse) String() string            { return proto.CompactTextString(m) }
+func (*GenericDeleteResponse) ProtoMessage()               {}
+func (*GenericDeleteResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
 
 func init() {
 	proto.RegisterType((*SelectGroupRequest)(nil), "serverpb.SelectGroupRequest")
@@ -310,49 +516,69 @@ func init() {
 	proto.RegisterType((*GroupPutRequest)(nil), "serverpb.GroupPutRequest")
 	proto.RegisterType((*GroupPutResponse)(nil), "serverpb.GroupPutResponse")
 	proto.RegisterType((*GroupGetRequest)(nil), "serverpb.GroupGetRequest")
-	proto.RegisterType((*GroupListRequest)(nil), "serverpb.GroupListRequest")
 	proto.RegisterType((*GroupGetResponse)(nil), "serverpb.GroupGetResponse")
+	proto.RegisterType((*GroupDeleteRequest)(nil), "serverpb.GroupDeleteRequest")
+	proto.RegisterType((*GroupDeleteResponse)(nil), "serverpb.GroupDeleteResponse")
+	proto.RegisterType((*GroupListRequest)(nil), "serverpb.GroupListRequest")
 	proto.RegisterType((*GroupListResponse)(nil), "serverpb.GroupListResponse")
 	proto.RegisterType((*ProfilePutRequest)(nil), "serverpb.ProfilePutRequest")
 	proto.RegisterType((*ProfilePutResponse)(nil), "serverpb.ProfilePutResponse")
 	proto.RegisterType((*ProfileGetRequest)(nil), "serverpb.ProfileGetRequest")
 	proto.RegisterType((*ProfileGetResponse)(nil), "serverpb.ProfileGetResponse")
+	proto.RegisterType((*ProfileDeleteRequest)(nil), "serverpb.ProfileDeleteRequest")
+	proto.RegisterType((*ProfileDeleteResponse)(nil), "serverpb.ProfileDeleteResponse")
 	proto.RegisterType((*ProfileListRequest)(nil), "serverpb.ProfileListRequest")
 	proto.RegisterType((*ProfileListResponse)(nil), "serverpb.ProfileListResponse")
 	proto.RegisterType((*IgnitionPutRequest)(nil), "serverpb.IgnitionPutRequest")
 	proto.RegisterType((*IgnitionPutResponse)(nil), "serverpb.IgnitionPutResponse")
+	proto.RegisterType((*IgnitionGetRequest)(nil), "serverpb.IgnitionGetRequest")
+	proto.RegisterType((*IgnitionGetResponse)(nil), "serverpb.IgnitionGetResponse")
+	proto.RegisterType((*IgnitionDeleteRequest)(nil), "serverpb.IgnitionDeleteRequest")
+	proto.RegisterType((*IgnitionDeleteResponse)(nil), "serverpb.IgnitionDeleteResponse")
+	proto.RegisterType((*GenericPutRequest)(nil), "serverpb.GenericPutRequest")
+	proto.RegisterType((*GenericPutResponse)(nil), "serverpb.GenericPutResponse")
+	proto.RegisterType((*GenericGetRequest)(nil), "serverpb.GenericGetRequest")
+	proto.RegisterType((*GenericGetResponse)(nil), "serverpb.GenericGetResponse")
+	proto.RegisterType((*GenericDeleteRequest)(nil), "serverpb.GenericDeleteRequest")
+	proto.RegisterType((*GenericDeleteResponse)(nil), "serverpb.GenericDeleteResponse")
 }
 
 func init() { proto.RegisterFile("messages.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 436 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x54, 0x5d, 0x6b, 0xd4, 0x40,
-	0x14, 0x25, 0xa9, 0x8d, 0xf5, 0xae, 0xd4, 0xed, 0xec, 0x56, 0x96, 0x3e, 0xd5, 0x11, 0x24, 0x88,
-	0x4c, 0xa1, 0xbe, 0xd8, 0x42, 0xa1, 0x56, 0x96, 0x22, 0xf4, 0xa1, 0xc4, 0x5f, 0x90, 0xa4, 0xb7,
-	0xe9, 0x60, 0x92, 0x89, 0x33, 0x93, 0x62, 0x7f, 0x86, 0x0f, 0xfe, 0x5f, 0xe9, 0x7c, 0xa4, 0x93,
-	0xad, 0x88, 0x2b, 0x3e, 0xe5, 0xce, 0xbd, 0xe7, 0x9c, 0x9b, 0x73, 0x26, 0x04, 0xb6, 0x1b, 0x54,
-	0x2a, 0xaf, 0x50, 0xb1, 0x4e, 0x0a, 0x2d, 0xc8, 0x96, 0x42, 0x79, 0x8b, 0xb2, 0x2b, 0xf6, 0x3e,
-	0x55, 0x5c, 0xdf, 0xf4, 0x05, 0x2b, 0x45, 0x73, 0x50, 0x0a, 0x89, 0x42, 0x1d, 0x34, 0xb9, 0x2e,
-	0x6f, 0x0a, 0xf1, 0xfd, 0xa1, 0x50, 0x5a, 0xc8, 0xbc, 0x42, 0xff, 0xec, 0x0a, 0x5f, 0x59, 0x39,
-	0xfa, 0x23, 0x02, 0xf2, 0x05, 0x6b, 0x2c, 0xf5, 0xb9, 0x14, 0x7d, 0x97, 0xe1, 0xb7, 0x1e, 0x95,
-	0x26, 0xa7, 0x90, 0xd4, 0x79, 0x81, 0xb5, 0x5a, 0x44, 0xfb, 0x1b, 0xe9, 0xe4, 0x30, 0x65, 0x7e,
-	0x2d, 0x7b, 0x8c, 0x66, 0x17, 0x06, 0xba, 0x6c, 0xb5, 0xbc, 0xcb, 0x1c, 0x6f, 0xef, 0x08, 0x26,
-	0x41, 0x9b, 0x4c, 0x61, 0xe3, 0x2b, 0xde, 0x2d, 0xa2, 0xfd, 0x28, 0x7d, 0x96, 0xdd, 0x97, 0x64,
-	0x0e, 0x9b, 0xb7, 0x79, 0xdd, 0xe3, 0x22, 0x36, 0x3d, 0x7b, 0x38, 0x8e, 0x3f, 0x44, 0xf4, 0x04,
-	0x66, 0xa3, 0x25, 0xaa, 0x13, 0xad, 0x42, 0xf2, 0x06, 0x36, 0xab, 0xfb, 0x86, 0x11, 0x99, 0x1c,
-	0x4e, 0xd9, 0xe0, 0x89, 0x59, 0xa0, 0x1d, 0xd3, 0x9f, 0x11, 0xcc, 0x2d, 0xff, 0x52, 0x8a, 0x6b,
-	0x5e, 0xa3, 0x37, 0x75, 0xb6, 0x62, 0xea, 0xed, 0xaa, 0xa9, 0x31, 0xfe, 0x7f, 0xdb, 0x5a, 0xc2,
-	0xee, 0xca, 0x1a, 0x67, 0xec, 0x1d, 0x3c, 0xed, 0x6c, 0xcb, 0x59, 0x23, 0x81, 0x35, 0x0f, 0xf6,
-	0x10, 0x7a, 0x04, 0x2f, 0x8c, 0xdd, 0xcb, 0x5e, 0x7b, 0x63, 0x7f, 0x9b, 0x0c, 0x81, 0xe9, 0x03,
-	0xd5, 0x2e, 0xa7, 0xaf, 0x9c, 0xdc, 0x39, 0x0e, 0x72, 0xdb, 0x10, 0xf3, 0x2b, 0xe7, 0x29, 0xe6,
-	0x57, 0x03, 0xed, 0x82, 0x2b, 0x8f, 0xa1, 0xc7, 0xae, 0x67, 0x68, 0x6b, 0x5e, 0xd0, 0x09, 0xec,
-	0x04, 0x7a, 0x8e, 0x9c, 0x42, 0x62, 0xa6, 0xfe, 0x72, 0x1e, 0xb3, 0xdd, 0x9c, 0x7e, 0x84, 0x1d,
-	0x17, 0x4a, 0x10, 0xc1, 0x7a, 0x19, 0xce, 0x81, 0x84, 0x12, 0x2e, 0x8a, 0xd7, 0x83, 0xf0, 0x1f,
-	0xc2, 0x38, 0x1b, 0xa8, 0xa1, 0xf5, 0x7f, 0x5d, 0x1f, 0x46, 0xba, 0x84, 0xd9, 0xa8, 0xeb, 0xa4,
-	0x19, 0x6c, 0x39, 0x9e, 0x8f, 0xe6, 0x77, 0xda, 0x03, 0x86, 0x9e, 0x02, 0xf9, 0x5c, 0xb5, 0x5c,
-	0x73, 0xd1, 0x06, 0xf9, 0x10, 0x78, 0xd2, 0xe6, 0x0d, 0x3a, 0x23, 0xa6, 0x26, 0x2f, 0x21, 0x29,
-	0x45, 0x7b, 0xcd, 0x2b, 0xf3, 0xad, 0x3e, 0xcf, 0xdc, 0x89, 0xee, 0xc2, 0x6c, 0xa4, 0x60, 0x5f,
-	0xa4, 0x48, 0xcc, 0x1f, 0xe3, 0xfd, 0xaf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x28, 0xea, 0x61, 0x11,
-	0x92, 0x04, 0x00, 0x00,
+	// 538 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xac, 0x55, 0x6f, 0x4f, 0xd3, 0x40,
+	0x18, 0x4f, 0x87, 0x4c, 0x7c, 0x30, 0xb8, 0xdd, 0x3a, 0x58, 0x78, 0x85, 0xa7, 0xc1, 0x05, 0xb1,
+	0x24, 0xf8, 0x46, 0x48, 0x88, 0x88, 0x2e, 0x8b, 0x09, 0x2f, 0xc8, 0xfc, 0x04, 0x6d, 0x79, 0x28,
+	0x8d, 0x5d, 0xaf, 0xf6, 0x6e, 0x44, 0x3e, 0x86, 0x2f, 0xfc, 0xbe, 0x66, 0xd7, 0xe7, 0xda, 0x6b,
+	0x99, 0xc0, 0x8c, 0xaf, 0x76, 0x7d, 0xfa, 0x7b, 0x7e, 0xff, 0x6e, 0xcb, 0x60, 0x63, 0x8a, 0x52,
+	0xfa, 0x11, 0x4a, 0x2f, 0xcb, 0x85, 0x12, 0x6c, 0x4d, 0x62, 0x7e, 0x83, 0x79, 0x16, 0x6c, 0x7f,
+	0x8e, 0x62, 0x75, 0x3d, 0x0b, 0xbc, 0x50, 0x4c, 0x0f, 0x42, 0x91, 0xa3, 0x90, 0x07, 0x53, 0x5f,
+	0x85, 0xd7, 0x81, 0xf8, 0x59, 0x1d, 0xa4, 0x12, 0xb9, 0x1f, 0xa1, 0xf9, 0xcc, 0x02, 0x73, 0x2a,
+	0xe8, 0xf8, 0x2f, 0x07, 0xd8, 0x37, 0x4c, 0x30, 0x54, 0xe3, 0x5c, 0xcc, 0xb2, 0x09, 0xfe, 0x98,
+	0xa1, 0x54, 0xec, 0x14, 0xda, 0x89, 0x1f, 0x60, 0x22, 0x07, 0xce, 0xce, 0xca, 0x70, 0xfd, 0x70,
+	0xe8, 0x19, 0x59, 0xef, 0x2e, 0xda, 0x3b, 0xd7, 0xd0, 0x51, 0xaa, 0xf2, 0xdb, 0x09, 0xed, 0x6d,
+	0x1f, 0xc1, 0xba, 0x35, 0x66, 0x1d, 0x58, 0xf9, 0x8e, 0xb7, 0x03, 0x67, 0xc7, 0x19, 0x3e, 0x9b,
+	0xcc, 0x8f, 0xcc, 0x85, 0xd5, 0x1b, 0x3f, 0x99, 0xe1, 0xa0, 0xa5, 0x67, 0xc5, 0xc3, 0x71, 0xeb,
+	0x83, 0xc3, 0x4f, 0xa0, 0x57, 0x13, 0x91, 0x99, 0x48, 0x25, 0xb2, 0x5d, 0x58, 0x8d, 0xe6, 0x03,
+	0x4d, 0xb2, 0x7e, 0xd8, 0xf1, 0xca, 0x4c, 0x5e, 0x01, 0x2c, 0x5e, 0xf3, 0xdf, 0x0e, 0xb8, 0xc5,
+	0xfe, 0x45, 0x2e, 0xae, 0xe2, 0x04, 0x4d, 0xa8, 0xb3, 0x46, 0xa8, 0xbd, 0x66, 0xa8, 0x3a, 0xfe,
+	0x7f, 0xc7, 0x1a, 0x41, 0xbf, 0x21, 0x43, 0xc1, 0xf6, 0xe1, 0x69, 0x56, 0x8c, 0x28, 0x1a, 0xb3,
+	0xa2, 0x19, 0xb0, 0x81, 0xf0, 0x23, 0x78, 0xa1, 0xe3, 0x5e, 0xcc, 0x94, 0x09, 0xf6, 0xd8, 0x66,
+	0x18, 0x74, 0xaa, 0xd5, 0x42, 0x9c, 0xbf, 0x24, 0xba, 0x31, 0x96, 0x74, 0x1b, 0xd0, 0x8a, 0x2f,
+	0x29, 0x53, 0x2b, 0xbe, 0xe4, 0xc7, 0xb4, 0xa6, 0x21, 0x4b, 0x5e, 0xc6, 0x6b, 0x60, 0xfa, 0xf9,
+	0x0b, 0x26, 0xa8, 0xf0, 0x6f, 0x0a, 0x7d, 0xe8, 0xd5, 0x50, 0xe4, 0xcd, 0xf8, 0x3d, 0x8f, 0xa5,
+	0x31, 0xc7, 0x4f, 0xa0, 0x6b, 0xcd, 0xc8, 0xcd, 0x10, 0xda, 0x5a, 0xce, 0xdc, 0xec, 0x5d, 0x3b,
+	0xf4, 0x9e, 0x7f, 0x82, 0x2e, 0x35, 0x6a, 0xf5, 0xb7, 0xdc, 0x05, 0xb8, 0xc0, 0x6c, 0x0a, 0xf2,
+	0xfa, 0xaa, 0x24, 0xbe, 0xa7, 0xc9, 0xb3, 0x72, 0xd5, 0xee, 0x72, 0x39, 0xf9, 0x5d, 0x70, 0x69,
+	0x76, 0x7f, 0xa7, 0x5b, 0xd0, 0x6f, 0xe0, 0xc8, 0x69, 0xe5, 0xdf, 0xee, 0x75, 0x04, 0xbd, 0xda,
+	0x94, 0xbc, 0x79, 0xb0, 0x46, 0xc2, 0xa6, 0xdb, 0x45, 0xe6, 0x4a, 0x0c, 0x3f, 0x05, 0xf6, 0x35,
+	0x4a, 0x63, 0x15, 0x8b, 0xd4, 0x2a, 0x98, 0xc1, 0x93, 0xd4, 0x9f, 0x22, 0xb9, 0xd3, 0x67, 0xb6,
+	0x09, 0xed, 0x50, 0xa4, 0x57, 0x71, 0xa4, 0x7f, 0x29, 0xcf, 0x27, 0xf4, 0x34, 0xff, 0x2e, 0xd4,
+	0x18, 0xc8, 0xf5, 0xb0, 0x22, 0xb6, 0x0a, 0x5e, 0x40, 0xcc, 0xdf, 0x55, 0x04, 0x76, 0xcb, 0x95,
+	0x9e, 0x53, 0xd3, 0x7b, 0x0b, 0x7d, 0x03, 0xaf, 0x17, 0xba, 0x88, 0x7b, 0x00, 0x9b, 0x4d, 0x30,
+	0xf9, 0xfb, 0x08, 0xdd, 0x31, 0xa6, 0x98, 0xc7, 0xe1, 0x3f, 0xe6, 0x76, 0x81, 0xd9, 0x04, 0x44,
+	0xfb, 0xa6, 0xa4, 0x7d, 0x20, 0xf5, 0x7e, 0xb9, 0xfe, 0x98, 0xd0, 0x7b, 0xe0, 0x12, 0xfa, 0xe1,
+	0xcc, 0x5b, 0xd0, 0x6f, 0x60, 0x0b, 0xf2, 0xa0, 0xad, 0xff, 0x42, 0xde, 0xff, 0x09, 0x00, 0x00,
+	0xff, 0xff, 0x8d, 0x61, 0x17, 0x92, 0xa3, 0x06, 0x00, 0x00,
 }

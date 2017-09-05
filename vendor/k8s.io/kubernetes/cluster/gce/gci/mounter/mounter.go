@@ -63,17 +63,17 @@ func main() {
 // MountInChroot is to run mount within chroot with the passing root directory
 func mountInChroot(rootfsPath string, args []string) error {
 	if _, err := os.Stat(rootfsPath); os.IsNotExist(err) {
-		return fmt.Errorf("Path <%s> does not exist.\n", rootfsPath)
+		return fmt.Errorf("path <%s> does not exist", rootfsPath)
 	}
 	args = append([]string{rootfsPath, mountCmd}, args...)
 	output, err := exec.Command(chrootCmd, args...).CombinedOutput()
 	if err == nil {
-		return err
+		return nil
 	}
 
 	if !strings.EqualFold(string(output), nfsRPCBindErrMsg) {
 		// Mount failed but not because of RPC bind error
-		return fmt.Errorf("Mount failed: %v\nMounting command: %s\nMounting arguments: %v\nOutput: %s\n", err, chrootCmd, args, string(output))
+		return fmt.Errorf("mount failed: %v\nMounting command: %s\nMounting arguments: %v\nOutput: %s", err, chrootCmd, args, string(output))
 	}
 
 	// Mount failed because it is NFS V3 and we need to run rpcBind

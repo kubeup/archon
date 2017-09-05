@@ -1,12 +1,12 @@
 # Getting started with rkt
 
-In this tutorial, we'll run `matchbox` on your Linux machine with `rkt` and `CNI` to network boot and provision a cluster of QEMU/KVM CoreOS machines locally. You'll be able to create Kubernetes clustes, etcd3 clusters, and test network setups.
+In this tutorial, we'll run `matchbox` on your Linux machine with `rkt` and `CNI` to network boot and provision a cluster of QEMU/KVM Container Linux machines locally. You'll be able to create Kubernetes clustes, etcd3 clusters, and test network setups.
 
 *Note*: To provision physical machines, see [network setup](network-setup.md) and [deployment](deployment.md).
 
 ## Requirements
 
-Install [rkt](https://coreos.com/rkt/docs/latest/distributions.html) 1.8 or higher ([example script](https://github.com/dghubble/phoenix/blob/master/fedora/sources.sh)) and setup rkt [privilege separation](https://coreos.com/rkt/docs/latest/trying-out-rkt.html).
+Install [rkt](https://coreos.com/rkt/docs/latest/distributions.html) 1.12.0 or higher ([example script](https://github.com/dghubble/phoenix/blob/master/fedora/sources.sh)) and setup rkt [privilege separation](https://coreos.com/rkt/docs/latest/trying-out-rkt.html).
 
 Next, install the package dependencies.
 
@@ -27,11 +27,13 @@ $ git clone https://github.com/coreos/matchbox.git
 $ cd matchbox
 ```
 
-Download CoreOS image assets referenced by the `etcd` [example](../examples) to `examples/assets`.
+Download CoreOS Container Linux image assets referenced by the `etcd3` [example](../examples) to `examples/assets`.
 
 ```sh
-$ ./scripts/get-coreos stable 1235.9.0 ./examples/assets
+$ ./scripts/get-coreos stable 1409.7.0 ./examples/assets
 ```
+
+## Network
 
 Define the `metal0` virtual bridge with [CNI](https://github.com/appc/cni).
 
@@ -57,11 +59,10 @@ On Fedora, add the `metal0` interface to the trusted zone in your firewall confi
 
 ```sh
 $ sudo firewall-cmd --add-interface=metal0 --zone=trusted
+$ sudo firewall-cmd --add-interface=metal0 --zone=trusted --permanent
 ```
 
-After a recent update, you may see a warning that NetworkManager controls the interface. Work-around this using the firewall-config GUI to add `metal0` to the trusted zone.
-
-For development convenience, add `/etc/hosts` entries for nodes so they may be referenced by name as you would in production.
+For development convenience, you may wish to add `/etc/hosts` entries for nodes to refer to them by name.
 
 ```
 # /etc/hosts
@@ -71,32 +72,21 @@ For development convenience, add `/etc/hosts` entries for nodes so they may be r
 172.18.0.23 node3.example.com
 ```
 
-Trust the needed ACIs.
-
 ## Containers
 
-Run the `matchbox` and `dnsmasq` services on the `metal0` bridge. `dnsmasq` will run DHCP, DNS, and TFTP services to create a suitable network boot environment. `matchbox` will serve provisioning configs to machines on the network which attempt to PXE boot.
+Run the `matchbox` and `dnsmasq` services on the `metal0` bridge. `dnsmasq` will run DHCP, DNS, and TFTP services to create a suitable network boot environment. `matchbox` will serve configs to machinesas they PXE boot.
 
-Trust the needed ACIs.
-
-```sh
-$ sudo rkt trust --prefix quay.io/coreos/matchbox
-$ sudo rkt trust --prefix quay.io/coreos/alpine-sh
-$ sudo rkt trust --prefix coreos.com/dnsmasq
-```
-
-The `devnet` wrapper script can quickly rkt run `matchbox` and `dnsmasq` in systemd transient units. Create can take the name of any example cluster in [examples](../examples).
+The `devnet` convenience script can rkt run these services in systemd transient units and accepts the name of any example cluster in [examples](../examples).
 
 ```sh
-$ sudo ./scripts/devnet create etcd3
+$ export CONTAINER_RUNTIME=rkt
+$ sudo -E ./scripts/devnet create etcd3
 ```
 
-Inspect the journal logs or check the status of the systemd services.
+Inspect the journal logs.
 
 ```
-# quick status
-$ sudo ./scripts/devnet status
-# tail logs
+$ sudo -E ./scripts/devnet status
 $ journalctl -f -u dev-matchbox
 $ journalctl -f -u dev-dnsmasq
 ```
@@ -109,13 +99,23 @@ Take a look at the [etcd3 groups](../examples/groups/etcd3) to get an idea of ho
 
 ### Manual
 
-If you prefer to start the containers yourself, instead of using `devnet`:
+If you prefer to start the containers yourself, instead of using `devnet`,
 
+```sh
+sudo rkt run --net=metal0:IP=172.18.0.2 \
+  --mount volume=data,target=/var/lib/matchbox \
+  --volume data,kind=host,source=$PWD/examples \
+  --mount volume=groups,target=/var/lib/matchbox/groups \
+  --volume groups,kind=host,source=$PWD/examples/groups/etcd3 \
+  quay.io/coreos/matchbox:v0.6.1 -- -address=0.0.0.0:8080 -log-level=debug
 ```
-# matchbox with etcd3 example
-$ sudo rkt run --net=metal0:IP=172.18.0.2 --mount volume=data,target=/var/lib/matchbox --volume data,kind=host,source=$PWD/examples --mount volume=groups,target=/var/lib/matchbox/groups --volume groups,kind=host,source=$PWD/examples/groups/etcd3 quay.io/coreos/matchbox:latest -- -address=0.0.0.0:8080 -log-level=debug
-# dnsmasq
-$ sudo rkt run coreos.com/dnsmasq:v0.3.0 --net=metal0:IP=172.18.0.3 --mount volume=config,target=/etc/dnsmasq.conf --volume config,kind=host,source=$PWD/contrib/dnsmasq/metal0.conf
+```sh
+sudo rkt run --net=metal0:IP=172.18.0.3 \
+  --dns=host \
+  --mount volume=config,target=/etc/dnsmasq.conf \
+  --volume config,kind=host,source=$PWD/contrib/dnsmasq/metal0.conf \
+  quay.io/coreos/dnsmasq:v0.4.1 \
+  --caps-retain=CAP_NET_ADMIN,CAP_NET_BIND_SERVICE,CAP_SETGID,CAP_SETUID,CAP_NET_RAW
 ```
 
 If you get an error about the IP assignment, stop old pods and run garbage collection.
@@ -158,7 +158,6 @@ The example profile added autologin so you can verify that etcd3 works between n
 
 ```sh
 $ systemctl status etcd-member
-$ ETCDCTL_API=3
 $ etcdctl set /message hello
 $ etcdctl get /message
 ```
@@ -168,7 +167,7 @@ $ etcdctl get /message
 Clean up the systemd units running `matchbox` and `dnsmasq`.
 
 ```sh
-$ sudo ./scripts/devnet destroy
+$ sudo -E ./scripts/devnet destroy
 ```
 
 Clean up VM machines.
@@ -181,4 +180,4 @@ Press ^] three times to stop any rkt pod.
 
 ## Going further
 
-Learn more about [matchbox](matchbox.md) or explore the other [example](../examples) clusters. Try the [k8s example](kubernetes.md) to produce a TLS-authenticated Kubernetes cluster you can access locally with `kubectl`.
+Learn more about [matchbox](matchbox.md) or explore the other [example](../examples) clusters. Try the [k8s example](bootkube.md) to produce a TLS-authenticated Kubernetes cluster you can access locally with `kubectl`.

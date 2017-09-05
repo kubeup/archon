@@ -36,6 +36,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/rbac"
 	rbacapiv1alpha1 "k8s.io/kubernetes/pkg/apis/rbac/v1alpha1"
 	rbacapiv1beta1 "k8s.io/kubernetes/pkg/apis/rbac/v1beta1"
+	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/core/internalversion"
 	rbacclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/rbac/internalversion"
 	"k8s.io/kubernetes/pkg/client/retry"
 	"k8s.io/kubernetes/pkg/registry/rbac/clusterrole"
@@ -55,6 +56,8 @@ import (
 	"k8s.io/kubernetes/plugin/pkg/auth/authorizer/rbac/bootstrappolicy"
 )
 
+const PostStartHookName = "rbac/bootstrap-roles"
+
 type RESTStorageProvider struct {
 	Authorizer authorizer.Authorizer
 }
@@ -63,6 +66,8 @@ var _ genericapiserver.PostStartHookProvider = RESTStorageProvider{}
 
 func (p RESTStorageProvider) NewRESTStorage(apiResourceConfigSource serverstorage.APIResourceConfigSource, restOptionsGetter generic.RESTOptionsGetter) (genericapiserver.APIGroupInfo, bool) {
 	apiGroupInfo := genericapiserver.NewDefaultAPIGroupInfo(rbac.GroupName, api.Registry, api.Scheme, api.ParameterCodec, api.Codecs)
+	// If you add a version here, be sure to add an entry in `k8s.io/kubernetes/cmd/kube-apiserver/app/aggregator.go with specific priorities.
+	// TODO refactor the plumbing to provide the information in the APIGroupInfo
 
 	if apiResourceConfigSource.AnyResourcesForVersionEnabled(rbacapiv1alpha1.SchemeGroupVersion) {
 		apiGroupInfo.VersionedResourcesStorageMap[rbacapiv1alpha1.SchemeGroupVersion.Version] = p.storage(rbacapiv1alpha1.SchemeGroupVersion, apiResourceConfigSource, restOptionsGetter)
@@ -123,13 +128,20 @@ func (p RESTStorageProvider) storage(version schema.GroupVersion, apiResourceCon
 }
 
 func (p RESTStorageProvider) PostStartHook() (string, genericapiserver.PostStartHookFunc, error) {
-	return "rbac/bootstrap-roles", PostStartHook, nil
+	return PostStartHookName, PostStartHook, nil
 }
 
 func PostStartHook(hookContext genericapiserver.PostStartHookContext) error {
 	// intializing roles is really important.  On some e2e runs, we've seen cases where etcd is down when the server
 	// starts, the roles don't initialize, and nothing works.
 	err := wait.Poll(1*time.Second, 30*time.Second, func() (done bool, err error) {
+
+		coreclientset, err := coreclient.NewForConfig(hookContext.LoopbackClientConfig)
+		if err != nil {
+			utilruntime.HandleError(fmt.Errorf("unable to initialize client: %v", err))
+			return false, nil
+		}
+
 		clientset, err := rbacclient.NewForConfig(hookContext.LoopbackClientConfig)
 		if err != nil {
 			utilruntime.HandleError(fmt.Errorf("unable to initialize client: %v", err))
@@ -208,7 +220,7 @@ func PostStartHook(hookContext genericapiserver.PostStartHookContext) error {
 			for _, role := range roles {
 				opts := reconciliation.ReconcileRoleOptions{
 					Role:    reconciliation.RoleRuleOwner{Role: &role},
-					Client:  reconciliation.RoleModifier{Client: clientset},
+					Client:  reconciliation.RoleModifier{Client: clientset, NamespaceClient: coreclientset.Namespaces()},
 					Confirm: true,
 				}
 				err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
@@ -238,7 +250,7 @@ func PostStartHook(hookContext genericapiserver.PostStartHookContext) error {
 			for _, roleBinding := range roleBindings {
 				opts := reconciliation.ReconcileRoleBindingOptions{
 					RoleBinding: reconciliation.RoleBindingAdapter{RoleBinding: &roleBinding},
-					Client:      reconciliation.RoleBindingClientAdapter{Client: clientset},
+					Client:      reconciliation.RoleBindingClientAdapter{Client: clientset, NamespaceClient: coreclientset.Namespaces()},
 					Confirm:     true,
 				}
 				err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {

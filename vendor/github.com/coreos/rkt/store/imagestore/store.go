@@ -78,7 +78,9 @@ type ACINotFoundError struct {
 }
 
 func (e ACINotFoundError) Error() string {
-	return fmt.Sprintf("cannot find aci satisfying name: %q and labels: %s in the local store", e.name, labelsToString(e.labels))
+	return fmt.Sprintf(
+		"cannot find aci satisfying name: %q and labels: %q in the local store",
+		e.name, e.labels)
 }
 
 // StoreRemovalError defines an error removing a non transactional store (like
@@ -482,13 +484,12 @@ func (s *Store) WriteACI(r io.ReadSeeker, fetchInfo ACIFetchInfo) (string, error
 	// Save aciinfo
 	if err = s.db.Do(func(tx *sql.Tx) error {
 		aciinfo := &ACIInfo{
-			BlobKey:         key,
-			Name:            im.Name.String(),
-			ImportTime:      time.Now(),
-			LastUsed:        time.Now(),
-			Latest:          fetchInfo.Latest,
-			Size:            sz,
-			InsecureOptions: fetchInfo.InsecureOptions,
+			BlobKey:    key,
+			Name:       im.Name.String(),
+			ImportTime: time.Now(),
+			LastUsed:   time.Now(),
+			Latest:     fetchInfo.Latest,
+			Size:       sz,
 		}
 		return WriteACIInfo(tx, aciinfo)
 	}); err != nil {
@@ -549,17 +550,23 @@ func (s *Store) RemoveACI(key string) error {
 	return nil
 }
 
-// GetRemote tries to retrieve a remote with the given ACIURL. found will be
-// false if remote doesn't exist.
-func (s *Store) GetRemote(aciURL string) (*Remote, bool, error) {
+// GetRemote tries to retrieve a remote with the given ACIURL.
+// If remote doesn't exist, it returns ErrRemoteNotFound error.
+func (s *Store) GetRemote(aciURL string) (*Remote, error) {
 	var remote *Remote
-	found := false
+
 	err := s.db.Do(func(tx *sql.Tx) error {
 		var err error
-		remote, found, err = GetRemote(tx, aciURL)
+
+		remote, err = GetRemote(tx, aciURL)
+
 		return err
 	})
-	return remote, found, err
+	if err != nil {
+		return nil, err
+	}
+
+	return remote, nil
 }
 
 // WriteRemote adds or updates the provided Remote.
@@ -742,6 +749,12 @@ func (s *Store) Dump(hex bool) {
 // store the data matching the hash.
 func (s *Store) HashToKey(h hash.Hash) string {
 	return hashToKey(h)
+}
+
+// HasFullKey returns whether the image with the given key exists on the disk by
+// checking if the image manifest kv store contains the key.
+func (s *Store) HasFullKey(key string) bool {
+	return s.stores[imageManifestType].Has(key)
 }
 
 func hashToKey(h hash.Hash) string {

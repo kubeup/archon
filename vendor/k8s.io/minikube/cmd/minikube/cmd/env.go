@@ -32,6 +32,7 @@ import (
 	"github.com/spf13/cobra"
 	cmdUtil "k8s.io/minikube/cmd/util"
 	"k8s.io/minikube/pkg/minikube/cluster"
+	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
 	"k8s.io/minikube/pkg/minikube/machine"
 )
@@ -160,7 +161,7 @@ func shellCfgSet(api libmachine.API) (*ShellConfig, error) {
 	}
 
 	if noProxy {
-		host, err := api.Load(constants.MachineName)
+		host, err := api.Load(config.GetMachineName())
 		if err != nil {
 			return nil, errors.Wrap(err, "Error getting IP")
 		}
@@ -177,7 +178,7 @@ func shellCfgSet(api libmachine.API) (*ShellConfig, error) {
 		case noProxyValue == "":
 			noProxyValue = ip
 		case strings.Contains(noProxyValue, ip):
-		//ip already in no_proxy list, nothing to do
+		// ip already in no_proxy list, nothing to do
 		default:
 			noProxyValue = fmt.Sprintf("%s,%s", noProxyValue, ip)
 		}
@@ -281,16 +282,25 @@ func (EnvNoProxyGetter) GetNoProxyVar() (string, string) {
 // envCmd represents the docker-env command
 var dockerEnvCmd = &cobra.Command{
 	Use:   "docker-env",
-	Short: "sets up docker env variables; similar to '$(docker-machine env)'",
-	Long:  `sets up docker env variables; similar to '$(docker-machine env)'`,
+	Short: "Sets up docker env variables; similar to '$(docker-machine env)'",
+	Long:  `Sets up docker env variables; similar to '$(docker-machine env)'.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		api, err := machine.NewAPIClient(clientType)
+		api, err := machine.NewAPIClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting client: %s\n", err)
 			os.Exit(1)
 		}
 		defer api.Close()
+		host, err := cluster.CheckIfApiExistsAndLoad(api)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting host: %s\n", err)
+			os.Exit(1)
+		}
+		if host.Driver.DriverName() == "none" {
+			fmt.Println(`'none' driver does not support 'minikube docker-env' command`)
+			os.Exit(0)
+		}
 
 		var shellCfg *ShellConfig
 

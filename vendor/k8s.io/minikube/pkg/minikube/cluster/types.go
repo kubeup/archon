@@ -25,6 +25,7 @@ type MachineConfig struct {
 	CPUs                int
 	DiskSize            int
 	VMDriver            string
+	XhyveDiskDriver     string   // Only used by the xhyve driver
 	DockerEnv           []string // Each entry is formatted as KEY=VALUE.
 	InsecureRegistry    []string
 	RegistryMirror      []string
@@ -32,6 +33,7 @@ type MachineConfig struct {
 	HypervVirtualSwitch string
 	KvmNetwork          string // Only used by the KVM driver
 	Downloader          util.ISODownloader
+	DockerOpt           []string // Each entry is formatted as KEY=VALUE.
 }
 
 // KubernetesConfig contains the parameters used to configure the VM Kubernetes.
@@ -39,6 +41,7 @@ type KubernetesConfig struct {
 	KubernetesVersion string
 	NodeIP            string
 	APIServerName     string
+	DNSDomain         string
 	ContainerRuntime  string
 	NetworkPlugin     string
 	FeatureGates      string

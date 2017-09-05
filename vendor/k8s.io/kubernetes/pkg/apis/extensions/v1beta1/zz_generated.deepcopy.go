@@ -176,6 +176,9 @@ func DeepCopy_v1beta1_DaemonSet(in interface{}, out interface{}, c *conversion.C
 		if err := DeepCopy_v1beta1_DaemonSetSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
 		}
+		if err := DeepCopy_v1beta1_DaemonSetStatus(&in.Status, &out.Status, c); err != nil {
+			return err
+		}
 		return nil
 	}
 }
@@ -211,11 +214,18 @@ func DeepCopy_v1beta1_DaemonSetSpec(in interface{}, out interface{}, c *conversi
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api_v1.DeepCopy_v1_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api_v1.PodTemplateSpec)
 		}
 		if err := DeepCopy_v1beta1_DaemonSetUpdateStrategy(&in.UpdateStrategy, &out.UpdateStrategy, c); err != nil {
 			return err
+		}
+		if in.RevisionHistoryLimit != nil {
+			in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
+			*out = new(int32)
+			**out = **in
 		}
 		return nil
 	}
@@ -226,6 +236,11 @@ func DeepCopy_v1beta1_DaemonSetStatus(in interface{}, out interface{}, c *conver
 		in := in.(*DaemonSetStatus)
 		out := out.(*DaemonSetStatus)
 		*out = *in
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
+		}
 		return nil
 	}
 }
@@ -271,8 +286,16 @@ func DeepCopy_v1beta1_DeploymentCondition(in interface{}, out interface{}, c *co
 		in := in.(*DeploymentCondition)
 		out := out.(*DeploymentCondition)
 		*out = *in
-		out.LastUpdateTime = in.LastUpdateTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastUpdateTime); err != nil {
+			return err
+		} else {
+			out.LastUpdateTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -329,8 +352,10 @@ func DeepCopy_v1beta1_DeploymentSpec(in interface{}, out interface{}, c *convers
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api_v1.DeepCopy_v1_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api_v1.PodTemplateSpec)
 		}
 		if err := DeepCopy_v1beta1_DeploymentStrategy(&in.Strategy, &out.Strategy, c); err != nil {
 			return err
@@ -367,6 +392,11 @@ func DeepCopy_v1beta1_DeploymentStatus(in interface{}, out interface{}, c *conve
 					return err
 				}
 			}
+		}
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
 		}
 		return nil
 	}
@@ -555,8 +585,10 @@ func DeepCopy_v1beta1_IngressStatus(in interface{}, out interface{}, c *conversi
 		in := in.(*IngressStatus)
 		out := out.(*IngressStatus)
 		*out = *in
-		if err := api_v1.DeepCopy_v1_LoadBalancerStatus(&in.LoadBalancer, &out.LoadBalancer, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.LoadBalancer); err != nil {
 			return err
+		} else {
+			out.LoadBalancer = *newVal.(*api_v1.LoadBalancerStatus)
 		}
 		return nil
 	}
@@ -811,7 +843,11 @@ func DeepCopy_v1beta1_ReplicaSetCondition(in interface{}, out interface{}, c *co
 		in := in.(*ReplicaSetCondition)
 		out := out.(*ReplicaSetCondition)
 		*out = *in
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -852,8 +888,10 @@ func DeepCopy_v1beta1_ReplicaSetSpec(in interface{}, out interface{}, c *convers
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api_v1.DeepCopy_v1_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api_v1.PodTemplateSpec)
 		}
 		return nil
 	}

@@ -211,46 +211,46 @@ var _ = Describe("Project", func() {
 		})
 	})
 
-	Describe("GetProjectClusters", func() {
-		It("GetAll returns cluster", func() {
+	Describe("GetProjectServices", func() {
+		It("GetAll returns service", func() {
 			if isIntegrationTest() {
-				Skip("Skipping cluster test on integration mode. Need to set extendedProperties to use real IPs and masks")
+				Skip("Skipping service test on integration mode. Need to set extendedProperties to use real IPs and masks")
 			}
-			mockTask := createMockTask("CREATE_CLUSTER", "COMPLETED")
+			mockTask := createMockTask("CREATE_SERVICE", "COMPLETED")
 			server.SetResponseJson(200, mockTask)
 
-			clusterSpec := &ClusterCreateSpec{
-				Name:               randomString(10, "go-sdk-cluster-"),
+			serviceSpec := &ServiceCreateSpec{
+				Name:               randomString(10, "go-sdk-service-"),
 				Type:               "KUBERNETES",
 				WorkerCount:        50,
 				BatchSizeWorker:    5,
 				ExtendedProperties: map[string]string{},
 			}
 
-			task, err := client.Projects.CreateCluster(projID, clusterSpec)
+			task, err := client.Projects.CreateService(projID, serviceSpec)
 			task, err = client.Tasks.Wait(task.ID)
 			GinkgoT().Log(err)
 			Expect(err).Should(BeNil())
 
-			mockCluster := Cluster{Name: clusterSpec.Name}
-			server.SetResponseJson(200, createMockClustersPage(mockCluster))
-			clusterList, err := client.Projects.GetClusters(projID)
+			mockService := Service{Name: serviceSpec.Name}
+			server.SetResponseJson(200, createMockServicesPage(mockService))
+			serviceList, err := client.Projects.GetServices(projID)
 			GinkgoT().Log(err)
 			Expect(err).Should(BeNil())
-			Expect(clusterList).ShouldNot(BeNil())
+			Expect(serviceList).ShouldNot(BeNil())
 
 			var found bool
-			for _, cluster := range clusterList.Items {
-				if cluster.Name == clusterSpec.Name && cluster.ID == task.Entity.ID {
+			for _, service := range serviceList.Items {
+				if service.Name == serviceSpec.Name && service.ID == task.Entity.ID {
 					found = true
 					break
 				}
 			}
 			Expect(found).Should(BeTrue())
 
-			mockTask = createMockTask("DELETE_CLUSTER", "COMPLETED")
+			mockTask = createMockTask("DELETE_SERVICE", "COMPLETED")
 			server.SetResponseJson(200, mockTask)
-			task, err = client.Clusters.Delete(task.Entity.ID)
+			task, err = client.Services.Delete(task.Entity.ID)
 			task, err = client.Tasks.Wait(task.ID)
 
 			GinkgoT().Log(err)

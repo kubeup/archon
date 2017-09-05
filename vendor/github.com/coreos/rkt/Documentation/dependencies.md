@@ -54,11 +54,11 @@ For the most part the codebase is self-contained (e.g. all dependencies are vend
 * patch
 * tar
 * xz
-* [build dependencies for kernel](https://www.kernel.org/doc/Documentation/Changes)
+* [build dependencies for kernel][kernel-build-deps]
   * bc
   * binutils
   * openssl
-* build dependencies for lkvm
+* build dependencies for lkvm and/or qemu
 
 ### Specific dependencies for the src flavor
 
@@ -88,3 +88,5 @@ For the most part the codebase is self-contained (e.g. all dependencies are vend
   * systemd-shutdown
   * systemd
   * systemd-journald
+
+[kernel-build-deps]: https://www.kernel.org/doc/Documentation/Changes

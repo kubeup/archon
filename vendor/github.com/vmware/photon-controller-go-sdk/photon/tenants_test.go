@@ -127,6 +127,12 @@ var _ = Describe("Tenant", func() {
 			server.SetResponseJson(200, mockTenantsPage)
 			tenants, err := client.Tenants.GetAll()
 
+			mockTenantPage := createMockTenantPage()
+			server.SetResponseJson(200, mockTenantPage)
+			mockTenant, err := client.Tenants.Get("TestTenant")
+			Expect(mockTenant.Name).Should(Equal("TestTenant"))
+			Expect(mockTenant.ID).Should(Equal("12345"))
+
 			GinkgoT().Log(err)
 			Expect(err).Should(BeNil())
 			Expect(tenants).ShouldNot(BeNil())

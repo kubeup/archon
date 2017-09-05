@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -141,20 +134,26 @@ func (s *SimpleAllocatorRing) Rebalance() {
 	var device *SimpleDevice
 	for i := 0; len(zones) != 0; i++ {
 		zone := i % len(zones)
-		node := i % len(zones[zone])
+		nodes := zones[zone]
+		node := i % len(nodes)
+		devices := nodes[node]
 
 		// pop device
-		device, zones[zone][node] = zones[zone][node][len(zones[zone][node])-1], zones[zone][node][:len(zones[zone][node])-1]
+		device = devices[len(devices)-1]
+		devices = devices[:len(devices)-1]
+		nodes[node] = devices
+
 		list = append(list, *device)
 
-		// delete node
-		if len(zones[zone][node]) == 0 {
-			zones[zone] = append(zones[zone][:node], zones[zone][node+1:]...)
+		if len(devices) == 0 {
+			// delete node
+			nodes = append(nodes[:node], nodes[node+1:]...)
+			zones[zone] = nodes
+		}
 
+		if len(nodes) == 0 {
 			// delete zone
-			if len(zones[zone]) == 0 {
-				zones = append(zones[:zone], zones[zone+1:]...)
-			}
+			zones = append(zones[:zone], zones[zone+1:]...)
 		}
 	}
 

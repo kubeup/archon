@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
+	"strconv"
 
 	"github.com/pkg/errors"
 )
@@ -134,4 +136,27 @@ func (m *MemoryAsset) GetLength() int {
 
 func (m *MemoryAsset) Read(p []byte) (int, error) {
 	return m.reader.Read(p)
+}
+
+func CopyFileLocal(f CopyableFile) error {
+	os.MkdirAll(f.GetTargetDir(), os.ModePerm)
+	targetPath := filepath.Join(f.GetTargetDir(), f.GetTargetName())
+	os.Remove(targetPath)
+	target, err := os.Create(targetPath)
+	defer target.Close()
+
+	perms, err := strconv.Atoi(f.GetPermissions())
+	if err != nil {
+		return errors.Wrap(err, "Error converting permissions to integer")
+	}
+	target.Chmod(os.FileMode(perms))
+	if err != nil {
+		return errors.Wrap(err, "Error changing file permissions")
+	}
+
+	_, err = io.Copy(target, f)
+	if err != nil {
+		return errors.Wrap(err, "Error copying file to target location, do you have the correct permissions?")
+	}
+	return nil
 }

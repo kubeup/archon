@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -23,8 +16,6 @@ import (
 	"time"
 
 	"github.com/boltdb/bolt"
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/heketi/heketi/executors"
 	"github.com/heketi/heketi/executors/kubeexec"
@@ -61,6 +52,7 @@ type App struct {
 	xo *mockexec.MockExecutor
 }
 
+// Use for tests only
 func NewApp(configIo io.Reader) *App {
 	app := &App{}
 
@@ -151,6 +143,13 @@ func NewApp(configIo io.Reader) *App {
 				return err
 			}
 
+			// Handle Upgrade Changes
+			err = app.Upgrade(tx)
+			if err != nil {
+				logger.LogError("Unable to Upgrade Changes")
+				return err
+			}
+
 			return nil
 
 		})
@@ -196,6 +195,16 @@ func (a *App) setLogLevel(level string) {
 	case "debug":
 		logger.SetLevel(utils.LEVEL_DEBUG)
 	}
+}
+
+// Upgrade Path to update all the values for new API entries
+func (a *App) Upgrade(tx *bolt.Tx) error {
+	err := AddVolumeIdInBrickEntry(tx)
+	if err != nil {
+		logger.LogError("VolumeId add to BrickEntry failed")
+		return err
+	}
+	return nil
 }
 
 func (a *App) setAdvSettings() {
@@ -298,6 +307,11 @@ func (a *App) SetRoutes(router *mux.Router) error {
 			Method:      "POST",
 			Pattern:     "/devices/{id:[A-Fa-f0-9]+}/state",
 			HandlerFunc: a.DeviceSetState},
+		rest.Route{
+			Name:        "DeviceRemove",
+			Method:      "POST",
+			Pattern:     "/devices/{id:[A-Fa-f0-9]+}/remove",
+			HandlerFunc: a.DeviceRemove},
 
 		// Volume
 		rest.Route{
@@ -359,26 +373,6 @@ func (a *App) Close() {
 	logger.Info("Closed")
 }
 
-// Middleware function
-func (a *App) Auth(w http.ResponseWriter, r *http.Request, next http.HandlerFunc) {
-
-	// Value saved by the JWT middleware.
-	data := context.Get(r, "jwt")
-
-	// Need to change from interface{} to the jwt.Token type
-	token := data.(*jwt.Token)
-	claims := token.Claims.(jwt.MapClaims)
-
-	// Check access
-	if "user" == claims["iss"] && r.URL.Path != "/volumes" {
-		http.Error(w, "Administrator access required", http.StatusUnauthorized)
-		return
-	}
-
-	// Everything is clean
-	next(w, r)
-}
-
 func (a *App) Backup(w http.ResponseWriter, r *http.Request) {
 	err := a.db.View(func(tx *bolt.Tx) error {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -395,4 +389,39 @@ func (a *App) Backup(w http.ResponseWriter, r *http.Request) {
 func (a *App) NotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Warning("Invalid path or request %v", r.URL.Path)
 	http.Error(w, "Invalid path or request", http.StatusNotFound)
+}
+
+func AddVolumeIdInBrickEntry(tx *bolt.Tx) error {
+	clusters, err := ClusterList(tx)
+	if err != nil {
+		return err
+	}
+	for _, cluster := range clusters {
+		clusterEntry, err := NewClusterEntryFromId(tx, cluster)
+		if err != nil {
+			return err
+		}
+		for _, volume := range clusterEntry.Info.Volumes {
+			volumeEntry, err := NewVolumeEntryFromId(tx, volume)
+			if err != nil {
+				return err
+			}
+			for _, brick := range volumeEntry.Bricks {
+				brickEntry, err := NewBrickEntryFromId(tx, brick)
+				if err != nil {
+					return err
+				}
+				if brickEntry.Info.VolumeId == "" {
+					brickEntry.Info.VolumeId = volume
+					err = brickEntry.Save(tx)
+					if err != nil {
+						return err
+					}
+				} else {
+					break
+				}
+			}
+		}
+	}
+	return nil
 }

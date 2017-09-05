@@ -32,9 +32,7 @@ var _ = Describe("Deployment", func() {
 		deploymentSpec = &DeploymentCreateSpec{
 			ImageDatastores:         []string{randomString(10, "go-sdk-deployment-")},
 			UseImageDatastoreForVms: true,
-			Auth: &AuthInfo{
-				Enabled: false,
-			},
+			Auth: &AuthInfo{},
 		}
 	})
 
@@ -61,7 +59,7 @@ var _ = Describe("Deployment", func() {
 			mockDeployment := Deployment{
 				ImageDatastores:         deploymentSpec.ImageDatastores,
 				UseImageDatastoreForVms: deploymentSpec.UseImageDatastoreForVms,
-				Auth:                 &AuthInfo{Enabled: false},
+				Auth:                 &AuthInfo{},
 				NetworkConfiguration: &NetworkConfiguration{Enabled: false},
 			}
 			server.SetResponseJson(200, mockDeployment)
@@ -435,6 +433,22 @@ var _ = Describe("Deployment", func() {
 		})
 	})
 
+	Describe("SyncHostsConfig", func() {
+		It("Sync Hosts Config succeeds", func() {
+			mockTask := createMockTask("SYNC_HOSTS_CONFIG", "COMPLETED")
+			server.SetResponseJson(200, mockTask)
+
+			task, err := client.Deployments.SyncHostsConfig("deploymentId")
+			task, err = client.Tasks.Wait(task.ID)
+
+			GinkgoT().Log(err)
+			Expect(err).Should(BeNil())
+			Expect(task).ShouldNot(BeNil())
+			Expect(task.Operation).Should(Equal("SYNC_HOSTS_CONFIG"))
+			Expect(task.State).Should(Equal("COMPLETED"))
+		})
+	})
+
 	Describe("PauseSystemAndPauseBackgroundTasks", func() {
 		It("Pause System and Resume System succeeds", func() {
 			mockTask := createMockTask("PAUSE_SYSTEM", "COMPLETED")
@@ -489,36 +503,61 @@ var _ = Describe("Deployment", func() {
 		})
 	})
 
-	Describe("EnableAndDisableClusterType", func() {
-		It("Enable And Disable Cluster Type", func() {
-			clusterType := "SWARM"
-			clusterImageId := "testImageId"
-			clusterConfigSpec := &ClusterConfigurationSpec{
-				Type:    clusterType,
-				ImageID: clusterImageId,
+	Describe("EnableAndDisableServiceType", func() {
+		It("Enable And Disable Service Type", func() {
+			serviceType := "SWARM"
+			serviceImageId := "testImageId"
+			serviceConfigSpec := &ServiceConfigurationSpec{
+				Type:    serviceType,
+				ImageID: serviceImageId,
 			}
 
-			mockTask := createMockTask("CONFIGURE_CLUSTER", "COMPLETED")
+			mockTask := createMockTask("CONFIGURE_SERVICE", "COMPLETED")
 			server.SetResponseJson(200, mockTask)
-			enableTask, err := client.Deployments.EnableClusterType("deploymentId", clusterConfigSpec)
+			enableTask, err := client.Deployments.EnableServiceType("deploymentId", serviceConfigSpec)
 			enableTask, err = client.Tasks.Wait(enableTask.ID)
 
 			GinkgoT().Log(err)
 			Expect(err).Should(BeNil())
 			Expect(enableTask).ShouldNot(BeNil())
-			Expect(enableTask.Operation).Should(Equal("CONFIGURE_CLUSTER"))
+			Expect(enableTask.Operation).Should(Equal("CONFIGURE_SERVICE"))
 			Expect(enableTask.State).Should(Equal("COMPLETED"))
 
-			mockTask = createMockTask("DELETE_CLUSTER_CONFIGURATION", "COMPLETED")
+			mockTask = createMockTask("DELETE_SERVICE_CONFIGURATION", "COMPLETED")
 			server.SetResponseJson(200, mockTask)
-			disableTask, err := client.Deployments.DisableClusterType("deploymentId", clusterConfigSpec)
+			disableTask, err := client.Deployments.DisableServiceType("deploymentId", serviceConfigSpec)
 			disableTask, err = client.Tasks.Wait(disableTask.ID)
 
 			GinkgoT().Log(err)
 			Expect(err).Should(BeNil())
 			Expect(disableTask).ShouldNot(BeNil())
-			Expect(disableTask.Operation).Should(Equal("DELETE_CLUSTER_CONFIGURATION"))
+			Expect(disableTask.Operation).Should(Equal("DELETE_SERVICE_CONFIGURATION"))
 			Expect(disableTask.State).Should(Equal("COMPLETED"))
+		})
+	})
+
+	Describe("ConfigureNsx", func() {
+		It("Configure NSX", func() {
+			nsxAddress := "nsxAddress"
+			nsxUsername := "nsxUsername"
+			nsxPassword := "nsxPassword"
+
+			nsxConfigSpec := &NsxConfigurationSpec{
+				NsxAddress:  nsxAddress,
+				NsxUsername: nsxUsername,
+				NsxPassword: nsxPassword,
+			}
+
+			mockTask := createMockTask("CONFIGURE_NSX", "COMPLETED")
+			server.SetResponseJson(200, mockTask)
+			enableTask, err := client.Deployments.ConfigureNsx("deploymentId", nsxConfigSpec)
+			enableTask, err = client.Tasks.Wait(enableTask.ID)
+
+			GinkgoT().Log(err)
+			Expect(err).Should(BeNil())
+			Expect(enableTask).ShouldNot(BeNil())
+			Expect(enableTask.Operation).Should(Equal("CONFIGURE_NSX"))
+			Expect(enableTask.State).Should(Equal("COMPLETED"))
 		})
 	})
 })

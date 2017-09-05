@@ -10,34 +10,35 @@ var _ = Describe("JWTToken", func() {
 		Context("parsing token details", func() {
 			It("parses tokens", func() {
 				expected := &JWTToken{
-					TokenId:    "CfPby7BAlaOI3Uj_TEq_UJOJmYXJiVOYuCYAXPw2l2U",
+					TokenId:    "LTW1jD-LccorfMJN-SUELdAwUKO8lHTHwGL2kGNVc5g",
 					Algorithm:  "RS256",
-					Subject:    "ec-admin@esxcloud",
-					Audience:   []string{"ec-admin@esxcloud", "rs_esxcloud"},
-					Groups:     []string{"esxcloud\\ESXCloudAdmins", "esxcloud\\Everyone"},
-					Issuer:     "https://10.146.64.238/openidconnect/esxcloud",
-					IssuedAt:   1461795927,
-					Expires:    1461803127,
-					Scope:      "openid offline_access rs_esxcloud at_groups",
+					Subject:    "administrator@photon.com",
+					Audience:   []string{"administrator@photon.com", "rs_photon_platform"},
+					Groups:     []string{"photon.com\\Users", "photon.com\\Administrators", "photon.com\\CAAdmins", "photon.com\\Everyone"},
+					Issuer:     "https://10.118.108.208/openidconnect/photon.com",
+					IssuedAt:   1488478342,
+					Expires:    1488478642,
+					Scope:      "rs_photon_platform at_groups openid offline_access",
 					TokenType:  "Bearer",
 					TokenClass: "access_token",
-					Tenant:     "esxcloud",
+					Tenant:     "photon.com",
 				}
 				resp := ParseTokenDetails(
-					"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJlYy1hZG1pbkBlc3hjbG91ZCIsImF1ZCI6WyJlYy1hZG1pbkB" +
-						"lc3hjbG91ZCIsInJzX2VzeGNsb3VkIl0sInNjb3BlIjoib3BlbmlkIG9mZmxpbmVfYWNjZXNzIHJzX2VzeGNsb3VkIGF0X" +
-						"2dyb3VwcyIsImlzcyI6Imh0dHBzOlwvXC8xMC4xNDYuNjQuMjM4XC9vcGVuaWRjb25uZWN0XC9lc3hjbG91ZCIsImdyb3V" +
-						"wcyI6WyJlc3hjbG91ZFxcRVNYQ2xvdWRBZG1pbnMiLCJlc3hjbG91ZFxcRXZlcnlvbmUiXSwidG9rZW5fY2xhc3MiOiJhY" +
-						"2Nlc3NfdG9rZW4iLCJ0b2tlbl90eXBlIjoiQmVhcmVyIiwiZXhwIjoxNDYxODAzMTI3LCJpYXQiOjE0NjE3OTU5MjcsInR" +
-						"lbmFudCI6ImVzeGNsb3VkIiwianRpIjoiQ2ZQYnk3QkFsYU9JM1VqX1RFcV9VSk9KbVlYSmlWT1l1Q1lBWFB3MmwyVSJ9." +
-						"QOpb-8L8if1kEHPEQvsGe_Z8v_gdlPDpjWcu8LxMnAxZELQx6YBn7UM2MO83Qgo-0bqu2ysbcSpjz0mP4pf48z_DyKlMCa" +
-						"B6ViStwavIx7lM1TENrt5nURpjqxlzQY0CxjyYIWxoYQIUbn7c5MXe-vt-OTXAg8bGkwphltj7xUak90mQlZGSBrHFCT_Q" +
-						"PGwxRTNsRwWq45tF7LgKr49L4z5PnkLQ3LpC8jI7x1SUFBiYcJgi76pGNlD4qihpmKhGJK0WpspEAvXhtsGwBVavGxeXzL" +
-						"-PBTYz7Zs1EjD4Isar-91pq-HeTVfhd_KBBqktaQq0WO48Vu0KtHHRv_Us90-Qs53gsY0CnrxHV8qyNR27LyaIMWhG24hq" +
-						"TyBsZVgT-gzs9_-QdLqtkXNgr4Oiqoy9Gi8LAmARGFCgTXOS7uPqZ6_ut71WPhwwoUIuXVUG8vvuRD6_UIIGXyPjBM0sfg" +
-						"X5rMeo45bYO51mNjqAysz7FBwMetkZUqKg6pxWmTmO_xnH5D55I1P2zd_VBo5be-hr7jjTqqDAGkGMU0PM8IajpnWe24wu" +
-						"lPzQqRr5-HlQx50B0nwhYFJVCd_3KW6qCw-MmfGB-1aX-GVG2wa_vUKzc4gDDn65-z0rP_gYtrB9q8oNR-hPY4v18DQEdY" +
-						"bsuoJoqriXk1A0zkeoX13kFXY")
+					"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbmlzdHJhdG9yQHBob3Rvbi5jb20iLCJhdWQiOlsiYWRta" +
+						"W5pc3RyYXRvckBwaG90b24uY29tIiwicnNfcGhvdG9uX3BsYXRmb3JtIl0sInNjb3BlIjoicnNfcGhvdG9uX3BsYXRmb3J" +
+						"tIGF0X2dyb3VwcyBvcGVuaWQgb2ZmbGluZV9hY2Nlc3MiLCJpc3MiOiJodHRwczpcL1wvMTAuMTE4LjEwOC4yMDhcL29wZ" +
+						"W5pZGNvbm5lY3RcL3Bob3Rvbi5jb20iLCJncm91cHMiOlsicGhvdG9uLmNvbVxcVXNlcnMiLCJwaG90b24uY29tXFxBZG1" +
+						"pbmlzdHJhdG9ycyIsInBob3Rvbi5jb21cXENBQWRtaW5zIiwicGhvdG9uLmNvbVxcRXZlcnlvbmUiXSwidG9rZW5fY2xhc" +
+						"3MiOiJhY2Nlc3NfdG9rZW4iLCJ0b2tlbl90eXBlIjoiQmVhcmVyIiwiZXhwIjoxNDg4NDc4NjQyLCJpYXQiOjE0ODg0Nzg" +
+						"zNDIsImp0aSI6IkxUVzFqRC1MY2NvcmZNSk4tU1VFTGRBd1VLTzhsSFRId0dMMmtHTlZjNWciLCJ0ZW5hbnQiOiJwaG90b" +
+						"24uY29tIn0.UFiruuobguHiVZZHnhCxkqw8k98RS6y2A9Dh_7LOclhvXxthUfae0JZvLVN7sUmeVss-aDFkxTRWUVMmHaj" +
+						"jDCERSI6oMBiWU2aFtcS0ZdJGEbOLbDNG2tOCyyIkI6IYaWmVEGCGjhn3bXGjxC5dvH4au0sYynxTjD97StqmaqoQ2OhWZ" +
+						"075vdIWyybwJlSgVk8WCjszjuH_4oe87hvIn79QnF37WBXZua_dhaeiAOzm752LFGr3kRp6BYIfp_z-NHBFPTEL93d4Wx0" +
+						"DOam7EUa65vOeoiRiLJjhjNsJ_nGhka_v9m5GMlhst_b1HqCUmLFmt6POFuQCf3UswNtEX7rcIfSlem5Z002TpzzrElPqP" +
+						"oxGHrw3vWAUPjHwucJ7CIp9AmF1Xsh-TfybxS66THbObt3HxE6Zb3pCFEgsZegjUb7CUDzOaicWexDF6Ft5Xv_ppH4-NHH" +
+						"fzdFlYvdrS0YATNtK4YjkacoAKYzdMH-F7usxDJjanS0b73BEXzBaTAzVCNPGflulyrE8j1iDcpazHWQMMq1NZ5_OBw7TF" +
+						"xLv5Te854cWEVMbIDOkQShUGLDiN52TtNMfdqFP-4M2lOcrmkShG4QXKQrYnlTy-b3tsMsukoihpKsp-yaW-DPs9J1hvlD" +
+						"wqbwm2H0GDj2tYC6X2EiVDofjJZ4YqpcUCoE")
 				Expect(resp).To(BeEquivalentTo(expected))
 			})
 		})
@@ -45,20 +46,21 @@ var _ = Describe("JWTToken", func() {
 		Context("parsing raw token details", func() {
 			It("parses raw tokens", func() {
 				resp, err := ParseRawTokenDetails(
-					"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJlYy1hZG1pbkBlc3hjbG91ZCIsImF1ZCI6WyJlYy1hZG1pbkB" +
-						"lc3hjbG91ZCIsInJzX2VzeGNsb3VkIl0sInNjb3BlIjoib3BlbmlkIG9mZmxpbmVfYWNjZXNzIHJzX2VzeGNsb3VkIGF0X" +
-						"2dyb3VwcyIsImlzcyI6Imh0dHBzOlwvXC8xMC4xNDYuNjQuMjM4XC9vcGVuaWRjb25uZWN0XC9lc3hjbG91ZCIsImdyb3V" +
-						"wcyI6WyJlc3hjbG91ZFxcRVNYQ2xvdWRBZG1pbnMiLCJlc3hjbG91ZFxcRXZlcnlvbmUiXSwidG9rZW5fY2xhc3MiOiJhY" +
-						"2Nlc3NfdG9rZW4iLCJ0b2tlbl90eXBlIjoiQmVhcmVyIiwiZXhwIjoxNDYxODAzMTI3LCJpYXQiOjE0NjE3OTU5MjcsInR" +
-						"lbmFudCI6ImVzeGNsb3VkIiwianRpIjoiQ2ZQYnk3QkFsYU9JM1VqX1RFcV9VSk9KbVlYSmlWT1l1Q1lBWFB3MmwyVSJ9." +
-						"QOpb-8L8if1kEHPEQvsGe_Z8v_gdlPDpjWcu8LxMnAxZELQx6YBn7UM2MO83Qgo-0bqu2ysbcSpjz0mP4pf48z_DyKlMCa" +
-						"B6ViStwavIx7lM1TENrt5nURpjqxlzQY0CxjyYIWxoYQIUbn7c5MXe-vt-OTXAg8bGkwphltj7xUak90mQlZGSBrHFCT_Q" +
-						"PGwxRTNsRwWq45tF7LgKr49L4z5PnkLQ3LpC8jI7x1SUFBiYcJgi76pGNlD4qihpmKhGJK0WpspEAvXhtsGwBVavGxeXzL" +
-						"-PBTYz7Zs1EjD4Isar-91pq-HeTVfhd_KBBqktaQq0WO48Vu0KtHHRv_Us90-Qs53gsY0CnrxHV8qyNR27LyaIMWhG24hq" +
-						"TyBsZVgT-gzs9_-QdLqtkXNgr4Oiqoy9Gi8LAmARGFCgTXOS7uPqZ6_ut71WPhwwoUIuXVUG8vvuRD6_UIIGXyPjBM0sfg" +
-						"X5rMeo45bYO51mNjqAysz7FBwMetkZUqKg6pxWmTmO_xnH5D55I1P2zd_VBo5be-hr7jjTqqDAGkGMU0PM8IajpnWe24wu" +
-						"lPzQqRr5-HlQx50B0nwhYFJVCd_3KW6qCw-MmfGB-1aX-GVG2wa_vUKzc4gDDn65-z0rP_gYtrB9q8oNR-hPY4v18DQEdY" +
-						"bsuoJoqriXk1A0zkeoX13kFXY")
+					"eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbmlzdHJhdG9yQHBob3Rvbi5jb20iLCJhdWQiOlsiYWRta" +
+						"W5pc3RyYXRvckBwaG90b24uY29tIiwicnNfcGhvdG9uX3BsYXRmb3JtIl0sInNjb3BlIjoicnNfcGhvdG9uX3BsYXRmb3J" +
+						"tIGF0X2dyb3VwcyBvcGVuaWQgb2ZmbGluZV9hY2Nlc3MiLCJpc3MiOiJodHRwczpcL1wvMTAuMTE4LjEwOC4yMDhcL29wZ" +
+						"W5pZGNvbm5lY3RcL3Bob3Rvbi5jb20iLCJncm91cHMiOlsicGhvdG9uLmNvbVxcVXNlcnMiLCJwaG90b24uY29tXFxBZG1" +
+						"pbmlzdHJhdG9ycyIsInBob3Rvbi5jb21cXENBQWRtaW5zIiwicGhvdG9uLmNvbVxcRXZlcnlvbmUiXSwidG9rZW5fY2xhc" +
+						"3MiOiJhY2Nlc3NfdG9rZW4iLCJ0b2tlbl90eXBlIjoiQmVhcmVyIiwiZXhwIjoxNDg4NDc4NjQyLCJpYXQiOjE0ODg0Nzg" +
+						"zNDIsImp0aSI6IkxUVzFqRC1MY2NvcmZNSk4tU1VFTGRBd1VLTzhsSFRId0dMMmtHTlZjNWciLCJ0ZW5hbnQiOiJwaG90b" +
+						"24uY29tIn0.UFiruuobguHiVZZHnhCxkqw8k98RS6y2A9Dh_7LOclhvXxthUfae0JZvLVN7sUmeVss-aDFkxTRWUVMmHaj" +
+						"jDCERSI6oMBiWU2aFtcS0ZdJGEbOLbDNG2tOCyyIkI6IYaWmVEGCGjhn3bXGjxC5dvH4au0sYynxTjD97StqmaqoQ2OhWZ" +
+						"075vdIWyybwJlSgVk8WCjszjuH_4oe87hvIn79QnF37WBXZua_dhaeiAOzm752LFGr3kRp6BYIfp_z-NHBFPTEL93d4Wx0" +
+						"DOam7EUa65vOeoiRiLJjhjNsJ_nGhka_v9m5GMlhst_b1HqCUmLFmt6POFuQCf3UswNtEX7rcIfSlem5Z002TpzzrElPqP" +
+						"oxGHrw3vWAUPjHwucJ7CIp9AmF1Xsh-TfybxS66THbObt3HxE6Zb3pCFEgsZegjUb7CUDzOaicWexDF6Ft5Xv_ppH4-NHH" +
+						"fzdFlYvdrS0YATNtK4YjkacoAKYzdMH-F7usxDJjanS0b73BEXzBaTAzVCNPGflulyrE8j1iDcpazHWQMMq1NZ5_OBw7TF" +
+						"xLv5Te854cWEVMbIDOkQShUGLDiN52TtNMfdqFP-4M2lOcrmkShG4QXKQrYnlTy-b3tsMsukoihpKsp-yaW-DPs9J1hvlD" +
+						"wqbwm2H0GDj2tYC6X2EiVDofjJZ4YqpcUCoE")
 				Expect(err).To(BeNil())
 				Expect(resp).ToNot(BeNil())
 				Expect(len(resp)).To(BeNumerically(">", 0))

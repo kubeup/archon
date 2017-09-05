@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/coreos/rkt/pkg/aci"
+	"github.com/coreos/rkt/pkg/aci/acitest"
 	"github.com/coreos/rkt/pkg/multicall"
 
 	"github.com/appc/spec/schema/types"
@@ -161,11 +162,10 @@ func TestGetImageManifest(t *testing.T) {
 	}
 	defer s.Close()
 
-	imj := `{
-			"acKind": "ImageManifest",
-			"acVersion": "0.7.4",
-			"name": "example.com/test01"
-		}`
+	imj, err := acitest.ImageManifestString(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	aci, err := aci.NewACI(dir, imj, nil)
 	if err != nil {
@@ -228,7 +228,7 @@ func TestGetAci(t *testing.T) {
 				{
 					`{
 						"acKind": "ImageManifest",
-						"acVersion": "0.7.4",
+						"acVersion": "0.8.10",
 						"name": "example.com/test01"
 					}`,
 					false,
@@ -236,7 +236,7 @@ func TestGetAci(t *testing.T) {
 				{
 					`{
 						"acKind": "ImageManifest",
-						"acVersion": "0.7.4",
+						"acVersion": "0.8.10",
 						"name": "example.com/test02",
 						"labels": [
 							{
@@ -250,7 +250,7 @@ func TestGetAci(t *testing.T) {
 				{
 					`{
 						"acKind": "ImageManifest",
-						"acVersion": "0.7.4",
+						"acVersion": "0.8.10",
 						"name": "example.com/test02",
 						"labels": [
 							{
@@ -356,11 +356,10 @@ func TestRemoveACI(t *testing.T) {
 	}
 	defer s.Close()
 
-	imj := `{
-                    "acKind": "ImageManifest",
-                    "acVersion": "0.7.4",
-                    "name": "example.com/test01"
-                }`
+	imj, err := acitest.ImageManifestString(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	aciFile, err := aci.NewACI(dir, imj, nil)
 	if err != nil {
@@ -386,12 +385,9 @@ func TestRemoveACI(t *testing.T) {
 	}
 
 	// Verify that no remote for the specified key exists
-	_, found, err := s.GetRemote(aciURL)
-	if err != nil {
+	_, err = s.GetRemote(aciURL)
+	if err != ErrRemoteNotFound {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if found {
-		t.Fatalf("expected to find no remote, but a remote was found")
 	}
 
 	// Try to remove a non-existent key
@@ -399,13 +395,6 @@ func TestRemoveACI(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-
-	// Simulate error removing from the
-	imj = `{
-                   "acKind": "ImageManifest",
-                   "acVersion": "0.7.4",
-                   "name": "example.com/test01"
-               }`
 
 	aciFile, err = aci.NewACI(dir, imj, nil)
 	if err != nil {
@@ -437,5 +426,4 @@ func TestRemoveACI(t *testing.T) {
 	if _, ok := err.(*StoreRemovalError); !ok {
 		t.Fatalf("expected StoreRemovalError got: %v", err)
 	}
-
 }

@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -19,6 +12,7 @@ package glusterfs
 import (
 	"bytes"
 	"encoding/gob"
+
 	"github.com/boltdb/bolt"
 	"github.com/heketi/heketi/executors"
 	"github.com/heketi/heketi/pkg/glusterfs/api"
@@ -43,7 +37,7 @@ func BrickList(tx *bolt.Tx) ([]string, error) {
 }
 
 func NewBrickEntry(size, tpsize, poolMetadataSize uint64,
-	deviceid, nodeid string, gid int64) *BrickEntry {
+	deviceid, nodeid string, gid int64, volumeid string) *BrickEntry {
 
 	godbc.Require(size > 0)
 	godbc.Require(tpsize > 0)
@@ -58,6 +52,7 @@ func NewBrickEntry(size, tpsize, poolMetadataSize uint64,
 	entry.Info.Size = size
 	entry.Info.NodeId = nodeid
 	entry.Info.DeviceId = deviceid
+	entry.Info.VolumeId = volumeid
 
 	godbc.Ensure(entry.Info.Id != "")
 	godbc.Ensure(entry.TpSize == tpsize)

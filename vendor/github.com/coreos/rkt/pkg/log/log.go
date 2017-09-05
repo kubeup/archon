@@ -111,9 +111,21 @@ func (l *Logger) Error(e error) {
 	l.Print(l.formatErr(e, ""))
 }
 
-// FatalE prints a string and error then calls os.Exit(1).
+// Errorf is a convenience function for formatting and printing errors.
+func (l *Logger) Errorf(format string, a ...interface{}) {
+	l.Print(l.formatErr(fmt.Errorf(format, a...), ""))
+}
+
+// FatalE prints a string and error then calls os.Exit(254).
 func (l *Logger) FatalE(msg string, e error) {
-	l.Fatal(l.formatErr(e, msg))
+	l.Print(l.formatErr(e, msg))
+	os.Exit(254)
+}
+
+// Fatalf prints an error then calls os.Exit(254).
+func (l *Logger) Fatalf(format string, a ...interface{}) {
+	l.Print(l.formatErr(fmt.Errorf(format, a...), ""))
+	os.Exit(254)
 }
 
 // PanicE prints a string and error then calls panic.

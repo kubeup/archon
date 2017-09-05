@@ -7,6 +7,7 @@ import (
 
 	"github.com/gophercloud/gophercloud/acceptance/clients"
 	networking "github.com/gophercloud/gophercloud/acceptance/openstack/networking/v2"
+	"github.com/gophercloud/gophercloud/acceptance/tools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 )
 
@@ -28,11 +29,11 @@ func TestSecurityGroupsList(t *testing.T) {
 	}
 
 	for _, group := range allGroups {
-		PrintSecurityGroup(t, &group)
+		tools.PrintResource(t, group)
 	}
 }
 
-func TestSecurityGroupsCreateDelete(t *testing.T) {
+func TestSecurityGroupsCreateUpdateDelete(t *testing.T) {
 	client, err := clients.NewNetworkV2Client()
 	if err != nil {
 		t.Fatalf("Unable to create a network client: %v", err)
@@ -50,7 +51,18 @@ func TestSecurityGroupsCreateDelete(t *testing.T) {
 	}
 	defer DeleteSecurityGroupRule(t, client, rule.ID)
 
-	PrintSecurityGroup(t, group)
+	tools.PrintResource(t, group)
+
+	updateOpts := groups.UpdateOpts{
+		Description: "A security group",
+	}
+
+	newGroup, err := groups.Update(client, group.ID, updateOpts).Extract()
+	if err != nil {
+		t.Fatalf("Unable to update security group: %v", err)
+	}
+
+	tools.PrintResource(t, newGroup)
 }
 
 func TestSecurityGroupsPort(t *testing.T) {
@@ -89,5 +101,5 @@ func TestSecurityGroupsPort(t *testing.T) {
 	}
 	defer networking.DeletePort(t, client, port.ID)
 
-	networking.PrintPort(t, port)
+	tools.PrintResource(t, port)
 }

@@ -24,6 +24,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/apps"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	appsclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/apps/internalversion"
 	extensionsclient "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset/typed/extensions/internalversion"
 	"k8s.io/kubernetes/pkg/controller/deployment/util"
 )
@@ -39,6 +40,8 @@ func StatusViewerFor(kind schema.GroupKind, c internalclientset.Interface) (Stat
 		return &DeploymentStatusViewer{c.Extensions()}, nil
 	case extensions.Kind("DaemonSet"):
 		return &DaemonSetStatusViewer{c.Extensions()}, nil
+	case apps.Kind("StatefulSet"):
+		return &StatefulSetStatusViewer{c.Apps()}, nil
 	}
 	return nil, fmt.Errorf("no status viewer has been implemented for %v", kind)
 }
@@ -49,6 +52,10 @@ type DeploymentStatusViewer struct {
 
 type DaemonSetStatusViewer struct {
 	c extensionsclient.DaemonSetsGetter
+}
+
+type StatefulSetStatusViewer struct {
+	c appsclient.StatefulSetsGetter
 }
 
 // Status returns a message describing deployment status, and a bool value indicating if the status is considered done
@@ -77,9 +84,8 @@ func (s *DeploymentStatusViewer) Status(namespace, name string, revision int64) 
 		if deployment.Status.Replicas > deployment.Status.UpdatedReplicas {
 			return fmt.Sprintf("Waiting for rollout to finish: %d old replicas are pending termination...\n", deployment.Status.Replicas-deployment.Status.UpdatedReplicas), false, nil
 		}
-		minRequired := deployment.Spec.Replicas - util.MaxUnavailableInternal(*deployment)
-		if deployment.Status.AvailableReplicas < minRequired {
-			return fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available (minimum required: %d)...\n", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas, minRequired), false, nil
+		if deployment.Status.AvailableReplicas < deployment.Status.UpdatedReplicas {
+			return fmt.Sprintf("Waiting for rollout to finish: %d of %d updated replicas are available...\n", deployment.Status.AvailableReplicas, deployment.Status.UpdatedReplicas), false, nil
 		}
 		return fmt.Sprintf("deployment %q successfully rolled out\n", name), true, nil
 	}
@@ -94,9 +100,12 @@ func (s *DaemonSetStatusViewer) Status(namespace, name string, revision int64) (
 	if err != nil {
 		return "", false, err
 	}
+	if daemon.Spec.UpdateStrategy.Type != extensions.RollingUpdateDaemonSetStrategyType {
+		return "", true, fmt.Errorf("Status is available only for RollingUpdate strategy type")
+	}
 	if daemon.Generation <= daemon.Status.ObservedGeneration {
 		if daemon.Status.UpdatedNumberScheduled < daemon.Status.DesiredNumberScheduled {
-			return fmt.Sprintf("Waiting for rollout to finish: %d out of %d new pod have been updated...\n", daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled), false, nil
+			return fmt.Sprintf("Waiting for rollout to finish: %d out of %d new pods have been updated...\n", daemon.Status.UpdatedNumberScheduled, daemon.Status.DesiredNumberScheduled), false, nil
 		}
 		if daemon.Status.NumberAvailable < daemon.Status.DesiredNumberScheduled {
 			return fmt.Sprintf("Waiting for rollout to finish: %d of %d updated pods are available...\n", daemon.Status.NumberAvailable, daemon.Status.DesiredNumberScheduled), false, nil
@@ -104,4 +113,35 @@ func (s *DaemonSetStatusViewer) Status(namespace, name string, revision int64) (
 		return fmt.Sprintf("daemon set %q successfully rolled out\n", name), true, nil
 	}
 	return fmt.Sprintf("Waiting for daemon set spec update to be observed...\n"), false, nil
+}
+
+// Status returns a message describing statefulset status, and a bool value indicating if the status is considered done
+func (s *StatefulSetStatusViewer) Status(namespace, name string, revision int64) (string, bool, error) {
+	sts, err := s.c.StatefulSets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", false, err
+	}
+	if sts.Spec.UpdateStrategy.Type == apps.OnDeleteStatefulSetStrategyType {
+		return "", true, fmt.Errorf("%s updateStrategy does not have a Status`", apps.OnDeleteStatefulSetStrategyType)
+	}
+	if sts.Status.ObservedGeneration == nil || sts.Generation > *sts.Status.ObservedGeneration {
+		return "Waiting for statefulset spec update to be observed...\n", false, nil
+	}
+	if sts.Status.ReadyReplicas < sts.Spec.Replicas {
+		return fmt.Sprintf("Waiting for %d pods to be ready...\n", sts.Spec.Replicas-sts.Status.ReadyReplicas), false, nil
+	}
+	if sts.Spec.UpdateStrategy.Type == apps.RollingUpdateStatefulSetStrategyType && sts.Spec.UpdateStrategy.RollingUpdate != nil {
+		if sts.Status.UpdatedReplicas < (sts.Spec.Replicas - sts.Spec.UpdateStrategy.RollingUpdate.Partition) {
+			return fmt.Sprintf("Waiting for partitioned roll out to finish: %d out of %d new pods have been updated...\n",
+				sts.Status.UpdatedReplicas, (sts.Spec.Replicas - sts.Spec.UpdateStrategy.RollingUpdate.Partition)), false, nil
+		}
+		return fmt.Sprintf("partitioned roll out complete: %d new pods have been updated...\n",
+			sts.Status.UpdatedReplicas), true, nil
+	}
+	if sts.Status.UpdateRevision != sts.Status.CurrentRevision {
+		return fmt.Sprintf("waiting for statefulset rolling update to complete %d pods at revision %s...\n",
+			sts.Status.UpdatedReplicas, sts.Status.UpdateRevision), false, nil
+	}
+	return fmt.Sprintf("statefulset rolling update complete %d pods at revision %s...\n", sts.Status.CurrentReplicas, sts.Status.CurrentRevision), true, nil
+
 }

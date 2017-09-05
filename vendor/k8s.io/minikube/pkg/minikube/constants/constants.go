@@ -27,13 +27,11 @@ import (
 	minikubeVersion "k8s.io/minikube/pkg/version"
 )
 
-// MachineName is the name to use for the VM.
-const MachineName = "minikube"
-
 // APIServerPort is the port that the API server should listen on.
 const (
-	APIServerPort = 8443
-	APIServerName = "minikubeCA"
+	APIServerPort    = 8443
+	APIServerName    = "minikubeCA"
+	ClusterDNSDomain = "cluster.local"
 )
 
 const MinikubeHome = "MINIKUBE_HOME"
@@ -63,12 +61,20 @@ const MinikubeContext = "minikube"
 // MinikubeEnvPrefix is the prefix for the environmental variables
 const MinikubeEnvPrefix = "MINIKUBE"
 
+// DefaultMachineName is the default name for the VM
+const DefaultMachineName = "minikube"
+
+// The name of the default storage class provisioner
+const DefaultStorageClassProvisioner = "standard"
+
 // MakeMiniPath is a utility to calculate a relative path to our directory.
 func MakeMiniPath(fileName ...string) string {
 	args := []string{GetMinipath()}
 	args = append(args, fileName...)
 	return filepath.Join(args...)
 }
+
+var MountProcessFileName = ".mount-process"
 
 // Only pass along these flags to localkube.
 var LogFlags = [...]string{
@@ -84,12 +90,14 @@ const (
 	DefaultDiskSize     = "20g"
 	MinimumDiskSizeMB   = 2000
 	DefaultVMDriver     = "virtualbox"
-	DefaultStatusFormat = "minikubeVM: {{.MinikubeStatus}}\n" +
-		"localkube: {{.LocalkubeStatus}}\n"
+	DefaultStatusFormat = "minikube: {{.MinikubeStatus}}\n" +
+		"localkube: {{.LocalkubeStatus}}\n" + "kubectl: {{.KubeconfigStatus}}\n"
 	DefaultAddonListFormat    = "- {{.AddonName}}: {{.AddonStatus}}\n"
 	DefaultConfigViewFormat   = "- {{.ConfigKey}}: {{.ConfigValue}}\n"
 	GithubMinikubeReleasesURL = "https://storage.googleapis.com/minikube/releases.json"
 	KubernetesVersionGCSURL   = "https://storage.googleapis.com/minikube/k8s_releases.json"
+	DefaultWait               = 20
+	DefaultInterval           = 6
 )
 
 var DefaultIsoUrl = fmt.Sprintf("https://storage.googleapis.com/%s/minikube-%s.iso", minikubeVersion.GetIsoPath(), minikubeVersion.GetIsoVersion())
@@ -123,6 +131,9 @@ const (
 )
 
 const (
-	DefaultUfsAddress  = ":5640"
-	DefaultUfsDebugLvl = 0
+	DefaultUfsPort       = "5640"
+	DefaultUfsDebugLvl   = 0
+	DefaultMountEndpoint = "/minikube-host"
 )
+
+const IsMinikubeChildProcess = "IS_MINIKUBE_CHILD_PROCESS"

@@ -1,7 +1,6 @@
-
 # matchbox
 
-`matchbox` is an HTTP and gRPC service that renders signed [Ignition configs](https://coreos.com/ignition/docs/latest/what-is-ignition.html), [cloud-configs](https://coreos.com/os/docs/latest/cloud-config.html), network boot configs, and metadata to machines to create CoreOS clusters. `matchbox` maintains **Group** definitions which match machines to *profiles* based on labels (e.g. MAC address, UUID, stage, region). A **Profile** is a named set of config templates (e.g. iPXE, GRUB, Ignition config, Cloud-Config, generic configs). The aim is to use CoreOS Linux's early-boot capabilities to provision CoreOS machines.
+`matchbox` is an HTTP and gRPC service that renders signed [Ignition configs](https://coreos.com/ignition/docs/latest/what-is-ignition.html), [cloud-configs](https://coreos.com/os/docs/latest/cloud-config.html), network boot configs, and metadata to machines to create CoreOS Container Linux clusters. `matchbox` maintains **Group** definitions which match machines to *profiles* based on labels (e.g. MAC address, UUID, stage, region). A **Profile** is a named set of config templates (e.g. iPXE, GRUB, Ignition config, Cloud-Config, generic configs). The aim is to use Container Linux's early-boot capabilities to provision Container Linux machines.
 
 Network boot endpoints provide PXE, iPXE, GRUB support. `matchbox` can be deployed as a binary, as an [appc](https://github.com/appc/spec) container with rkt, or as a Docker container.
 
@@ -60,13 +59,13 @@ Profiles reference an Ignition config, Cloud-Config, and/or generic config by na
 ```json
 {
   "id": "etcd",
-  "name": "CoreOS with etcd2",
+  "name": "Container Linux with etcd2",
   "cloud_id": "",
   "ignition_id": "etcd.yaml",
   "generic_id": "some-service.cfg",
   "boot": {
-    "kernel": "/assets/coreos/1235.9.0/coreos_production_pxe.vmlinuz",
-    "initrd": ["/assets/coreos/1235.9.0/coreos_production_pxe_image.cpio.gz"],
+    "kernel": "/assets/coreos/1409.7.0/coreos_production_pxe.vmlinuz",
+    "initrd": ["/assets/coreos/1409.7.0/coreos_production_pxe_image.cpio.gz"],
     "args": [
       "coreos.config.url=http://matchbox.foo:8080/ignition?uuid=${uuid}&mac=${mac:hexhyp}",
       "coreos.first_boot=yes",
@@ -76,7 +75,7 @@ Profiles reference an Ignition config, Cloud-Config, and/or generic config by na
 }
 ```
 
-The `"boot"` settings will be used to render configs to network boot programs such as iPXE, GRUB, or Pixiecore. You may reference remote kernel and initrd assets or [local assets](#assets).
+The `"boot"` settings will be used to render configs to network boot programs such as iPXE or GRUB. You may reference remote kernel and initrd assets or [local assets](#assets).
 
 To use Ignition, set the `coreos.config.url` kernel option to reference the `matchbox` [Ignition endpoint](api.md#ignition-config), which will render the `ignition_id` file. Be sure to add the `coreos.first_boot` option as well.
 
@@ -130,16 +129,16 @@ Group selectors can use any key/value pairs you find useful. However, several la
 
 ### Config templates
 
-Profiles can reference various templated configs. Ignition JSON configs can be generated from [Fuze config](https://github.com/coreos/fuze/blob/master/doc/configuration.md) template files. Cloud-Config templates files can be used to render a script or Cloud-Config. Generic template files can be used to render arbitrary untyped configs (experimental). Each template may contain [Go template](https://golang.org/pkg/text/template/) elements which will be rendered with machine group metadata, selectors, and query params.
+Profiles can reference various templated configs. Ignition JSON configs can be generated from [Container Linux Config](https://github.com/coreos/container-linux-config-transpiler/blob/master/doc/configuration.md) template files. Cloud-Config templates files can be used to render a script or Cloud-Config. Generic template files can be used to render arbitrary untyped configs (experimental). Each template may contain [Go template](https://golang.org/pkg/text/template/) elements which will be rendered with machine group metadata, selectors, and query params.
 
 For details and examples:
 
-* [Ignition Config](ignition.md)
+* [Container Linux Config](container-linux-config.md)
 * [Cloud-Config](cloud-config.md)
 
 #### Variables
 
-Within Ignition/Fuze templates, Cloud-Config templates, or generic templates, you can use group metadata, selectors, or request-scoped query params. For example, a request `/generic?mac=52-54-00-89-d8-10&foo=some-param&bar=b` would match the `node1.json` machine group shown above. If the group's profile ("etcd") referenced a generic template, the following variables could be used.
+Within Container Linux Config templates, Cloud-Config templates, or generic templates, you can use group metadata, selectors, or request-scoped query params. For example, a request `/generic?mac=52-54-00-89-d8-10&foo=some-param&bar=b` would match the `node1.json` machine group shown above. If the group's profile ("etcd") referenced a generic template, the following variables could be used.
 
 <!-- {% raw %} -->
 ```
@@ -174,7 +173,7 @@ matchbox.foo/assets/
 
 For example, a `Profile` might refer to a local asset `/assets/coreos/VERSION/coreos_production_pxe.vmlinuz` instead of `http://stable.release.core-os.net/amd64-usr/VERSION/coreos_production_pxe.vmlinuz`.
 
-See the [get-coreos](../scripts/README.md#get-coreos) script to quickly download, verify, and place CoreOS assets.
+See the [get-coreos](../scripts/README.md#get-coreos) script to quickly download, verify, and place Container Linux assets.
 
 ## Network
 

@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v2/volumes"
 	"github.com/gophercloud/gophercloud/pagination"
 	th "github.com/gophercloud/gophercloud/testhelper"
 	"github.com/gophercloud/gophercloud/testhelper/client"
 )
 
-func TestList(t *testing.T) {
+func TestListWithExtensions(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
 
@@ -34,7 +34,7 @@ func TestList(t *testing.T) {
 				Attachments: []volumes.Attachment{{
 					ServerID:     "83ec2e3b-4321-422b-8706-a84185f52a0a",
 					AttachmentID: "05551600-a936-4d4a-ba42-79a037c1-c91a",
-					AttachedAt:   gophercloud.JSONRFC3339MilliNoZ(time.Date(2016, 8, 6, 14, 48, 20, 0, time.UTC)),
+					AttachedAt:   time.Date(2016, 8, 6, 14, 48, 20, 0, time.UTC),
 					HostName:     "foobar",
 					VolumeID:     "d6cacb1a-8b59-4c88-ad90-d70ebb82bb75",
 					Device:       "/dev/vdc",
@@ -43,7 +43,7 @@ func TestList(t *testing.T) {
 				AvailabilityZone:   "nova",
 				Bootable:           "false",
 				ConsistencyGroupID: "",
-				CreatedAt:          gophercloud.JSONRFC3339MilliNoZ(time.Date(2015, 9, 17, 3, 35, 3, 0, time.UTC)),
+				CreatedAt:          time.Date(2015, 9, 17, 3, 35, 3, 0, time.UTC),
 				Description:        "",
 				Encrypted:          false,
 				Metadata:           map[string]string{"foo": "bar"},
@@ -66,7 +66,7 @@ func TestList(t *testing.T) {
 				AvailabilityZone:   "nova",
 				Bootable:           "false",
 				ConsistencyGroupID: "",
-				CreatedAt:          gophercloud.JSONRFC3339MilliNoZ(time.Date(2015, 9, 17, 3, 32, 29, 0, time.UTC)),
+				CreatedAt:          time.Date(2015, 9, 17, 3, 32, 29, 0, time.UTC),
 				Description:        "",
 				Encrypted:          false,
 				Metadata:           map[string]string{},
@@ -94,6 +94,27 @@ func TestList(t *testing.T) {
 	}
 }
 
+func TestListAllWithExtensions(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockListResponse(t)
+
+	type VolumeWithExt struct {
+		volumes.Volume
+		volumetenants.VolumeExt
+	}
+
+	allPages, err := volumes.List(client.ServiceClient(), &volumes.ListOpts{}).AllPages()
+	th.AssertNoErr(t, err)
+
+	var actual []VolumeWithExt
+	err = volumes.ExtractVolumesInto(allPages, &actual)
+	th.AssertNoErr(t, err)
+	th.AssertEquals(t, 2, len(actual))
+	th.AssertEquals(t, "304dc00909ac4d0da6c62d816bcb3459", actual[0].TenantID)
+}
+
 func TestListAll(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
@@ -112,7 +133,7 @@ func TestListAll(t *testing.T) {
 			Attachments: []volumes.Attachment{{
 				ServerID:     "83ec2e3b-4321-422b-8706-a84185f52a0a",
 				AttachmentID: "05551600-a936-4d4a-ba42-79a037c1-c91a",
-				AttachedAt:   gophercloud.JSONRFC3339MilliNoZ(time.Date(2016, 8, 6, 14, 48, 20, 0, time.UTC)),
+				AttachedAt:   time.Date(2016, 8, 6, 14, 48, 20, 0, time.UTC),
 				HostName:     "foobar",
 				VolumeID:     "d6cacb1a-8b59-4c88-ad90-d70ebb82bb75",
 				Device:       "/dev/vdc",
@@ -121,7 +142,7 @@ func TestListAll(t *testing.T) {
 			AvailabilityZone:   "nova",
 			Bootable:           "false",
 			ConsistencyGroupID: "",
-			CreatedAt:          gophercloud.JSONRFC3339MilliNoZ(time.Date(2015, 9, 17, 3, 35, 3, 0, time.UTC)),
+			CreatedAt:          time.Date(2015, 9, 17, 3, 35, 3, 0, time.UTC),
 			Description:        "",
 			Encrypted:          false,
 			Metadata:           map[string]string{"foo": "bar"},
@@ -144,7 +165,7 @@ func TestListAll(t *testing.T) {
 			AvailabilityZone:   "nova",
 			Bootable:           "false",
 			ConsistencyGroupID: "",
-			CreatedAt:          gophercloud.JSONRFC3339MilliNoZ(time.Date(2015, 9, 17, 3, 32, 29, 0, time.UTC)),
+			CreatedAt:          time.Date(2015, 9, 17, 3, 32, 29, 0, time.UTC),
 			Description:        "",
 			Encrypted:          false,
 			Metadata:           map[string]string{},
@@ -213,4 +234,24 @@ func TestUpdate(t *testing.T) {
 	v, err := volumes.Update(client.ServiceClient(), "d32019d3-bc6e-4319-9c1d-6722fc136a22", options).Extract()
 	th.AssertNoErr(t, err)
 	th.CheckEquals(t, "vol-002", v.Name)
+}
+
+func TestGetWithExtensions(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	MockGetResponse(t)
+
+	var s struct {
+		volumes.Volume
+		volumetenants.VolumeExt
+	}
+	err := volumes.Get(client.ServiceClient(), "d32019d3-bc6e-4319-9c1d-6722fc136a22").ExtractInto(&s)
+	th.AssertNoErr(t, err)
+	th.AssertEquals(t, "304dc00909ac4d0da6c62d816bcb3459", s.TenantID)
+
+	err = volumes.Get(client.ServiceClient(), "d32019d3-bc6e-4319-9c1d-6722fc136a22").ExtractInto(s)
+	if err == nil {
+		t.Errorf("Expected error when providing non-pointer struct")
+	}
 }

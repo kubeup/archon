@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -123,6 +116,20 @@ func TestNoneDurability(t *testing.T) {
 
 	// Gen 6
 	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 32)
+	tests.Assert(t, brick_size == 3200*1024)
+	tests.Assert(t, 1 == r.BricksInSet())
+
+	// Gen 7
+	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 64)
+	tests.Assert(t, brick_size == 1600*1024)
+	tests.Assert(t, 1 == r.BricksInSet())
+
+	// Gen 8
+	sets, brick_size, err = gen()
 	tests.Assert(t, err == ErrMinimumBrickSize)
 	tests.Assert(t, sets == 0)
 	tests.Assert(t, brick_size == 0)
@@ -159,6 +166,20 @@ func TestDisperseDurability(t *testing.T) {
 	tests.Assert(t, 8+3 == r.BricksInSet())
 
 	// Gen 4
+	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 8)
+	tests.Assert(t, brick_size == uint64(25*GB/8))
+	tests.Assert(t, 8+3 == r.BricksInSet())
+
+	// Gen 5
+	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 16)
+	tests.Assert(t, brick_size == uint64(12800*1024/8))
+	tests.Assert(t, 8+3 == r.BricksInSet())
+
+	// Gen 6
 	sets, brick_size, err = gen()
 	tests.Assert(t, err == ErrMinimumBrickSize)
 	tests.Assert(t, 8+3 == r.BricksInSet())
@@ -221,6 +242,20 @@ func TestReplicaDurabilityGenerator(t *testing.T) {
 	tests.Assert(t, 2 == r.BricksInSet())
 
 	// Gen 6
+	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 32, sets)
+	tests.Assert(t, brick_size == 3200*1024)
+	tests.Assert(t, 2 == r.BricksInSet())
+
+	// Gen 7
+	sets, brick_size, err = gen()
+	tests.Assert(t, err == nil, err)
+	tests.Assert(t, sets == 64, sets)
+	tests.Assert(t, brick_size == 1600*1024)
+	tests.Assert(t, 2 == r.BricksInSet())
+
+	// Gen 8
 	sets, brick_size, err = gen()
 	tests.Assert(t, err == ErrMinimumBrickSize)
 	tests.Assert(t, sets == 0)

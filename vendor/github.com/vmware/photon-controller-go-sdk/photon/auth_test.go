@@ -52,18 +52,6 @@ var _ = Describe("Auth", func() {
 	})
 
 	Describe("GetTokensByPassword", func() {
-		Context("when auth is not enabled", func() {
-			BeforeEach(func() {
-				server.SetResponseJson(200, createMockAuthInfo(nil))
-			})
-
-			It("returns error", func() {
-				tokens, err := client.Auth.GetTokensByPassword("username", "password")
-				Expect(err).Should(MatchError(SdkError{Message: "Authentication not enabled on this endpoint"}))
-				Expect(tokens).Should(BeNil())
-			})
-		})
-
 		Context("when auth is enabled", func() {
 			BeforeEach(func() {
 				server.SetResponseJson(200, createMockAuthInfo(authServer))
@@ -88,18 +76,6 @@ var _ = Describe("Auth", func() {
 	})
 
 	Describe("GetTokensByRefreshToken", func() {
-		Context("when auth is not enabled", func() {
-			BeforeEach(func() {
-				server.SetResponseJson(200, createMockAuthInfo(nil))
-			})
-
-			It("returns error", func() {
-				tokens, err := client.Auth.GetTokensByRefreshToken("refresh_token")
-				Expect(err).Should(MatchError(SdkError{Message: "Authentication not enabled on this endpoint"}))
-				Expect(tokens).Should(BeNil())
-			})
-		})
-
 		Context("when auth is enabled", func() {
 			BeforeEach(func() {
 				server.SetResponseJson(200, createMockAuthInfo(authServer))

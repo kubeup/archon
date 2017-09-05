@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumes"
 	"github.com/gophercloud/gophercloud/pagination"
 	th "github.com/gophercloud/gophercloud/testhelper"
@@ -98,7 +97,7 @@ func TestGet(t *testing.T) {
 		},
 		AvailabilityZone: "us-east1",
 		Bootable:         "false",
-		CreatedAt:        gophercloud.JSONRFC3339MilliNoZ(time.Date(2012, 2, 14, 20, 53, 07, 0, time.UTC)),
+		CreatedAt:        time.Date(2012, 2, 14, 20, 53, 07, 0, time.UTC),
 		Description:      "Another volume.",
 		VolumeType:       "289da7f8-6440-407c-9fb4-7db01ec49164",
 		SnapshotID:       "",
@@ -119,7 +118,10 @@ func TestCreate(t *testing.T) {
 
 	MockCreateResponse(t)
 
-	options := &volumes.CreateOpts{Size: 75}
+	options := &volumes.CreateOpts{
+		Size:             75,
+		AvailabilityZone: "us-east1",
+	}
 	n, err := volumes.Create(client.ServiceClient(), options).Extract()
 	th.AssertNoErr(t, err)
 

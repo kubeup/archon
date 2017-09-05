@@ -40,7 +40,7 @@ func TestGC(t *testing.T) {
 
 	// Abort prepare.
 	cmd := fmt.Sprintf("%s --insecure-options=image prepare %s %s", ctx.Cmd(), imagePath, imagePath)
-	spawnAndWaitOrFail(t, cmd, 1)
+	spawnAndWaitOrFail(t, cmd, 254)
 
 	gcCmd := fmt.Sprintf("%s gc --mark-only=true --expire-prepared=0 --grace-period=0", ctx.Cmd())
 	spawnAndWaitOrFail(t, gcCmd, 0)
@@ -55,7 +55,7 @@ func TestGC(t *testing.T) {
 
 	pods = podsRemaining(t, ctx)
 	if len(pods) != 0 {
-		t.Fatalf("no pods should exist rkt's data directory, but found: %v", pods)
+		t.Fatalf("no pods should exist in rkt data directory, but found: %s", pods)
 	}
 }
 
@@ -80,8 +80,8 @@ func podsRemaining(t *testing.T, ctx *testutils.RktRunCtx) []os.FileInfo {
 }
 
 func TestGCAfterUnmount(t *testing.T) {
-	if !common.SupportsOverlay() {
-		t.Skip("Overlay fs not supported.")
+	if err := common.SupportsOverlay(); err != nil {
+		t.Skipf("Overlay fs not supported: %v", err)
 	}
 
 	ctx := testutils.NewRktRunCtx()
@@ -107,7 +107,7 @@ func TestGCAfterUnmount(t *testing.T) {
 			t.Fatalf("pods should still be present in rkt's data directory")
 		}
 
-		gcCmd := fmt.Sprintf("%s gc --mark-only=false --expire-prepared=0 --grace-period=0", ctx.Cmd())
+		gcCmd := fmt.Sprintf("%s gc --debug --mark-only=false --expire-prepared=0 --grace-period=0", ctx.Cmd())
 		// check we don't get any output (an error) after "executing net-plugin..."
 		runRktAndCheckRegexOutput(t, gcCmd, `executing net-plugin .*\n\z`)
 

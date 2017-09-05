@@ -38,13 +38,11 @@ import (
 
 	"net/url"
 
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	kubeadmapi "k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm"
 	kubeadmconstants "k8s.io/kubernetes/cmd/kubeadm/app/constants"
 	"k8s.io/kubernetes/pkg/api/validation"
 	authzmodes "k8s.io/kubernetes/pkg/kubeapiserver/authorizer/modes"
 	"k8s.io/kubernetes/pkg/util/initsystem"
-	"k8s.io/kubernetes/pkg/util/node"
 	"k8s.io/kubernetes/test/e2e_node/system"
 )
 
@@ -268,21 +266,22 @@ func (ipc InPathCheck) Check() (warnings, errors []error) {
 
 // HostnameCheck checks if hostname match dns sub domain regex.
 // If hostname doesn't match this regex, kubelet will not launch static pods like kube-apiserver/kube-controller-manager and so on.
-type HostnameCheck struct{}
+type HostnameCheck struct {
+	nodeName string
+}
 
 func (hc HostnameCheck) Check() (warnings, errors []error) {
 	errors = []error{}
 	warnings = []error{}
-	hostname := node.GetHostname("")
-	for _, msg := range validation.ValidateNodeName(hostname, false) {
-		errors = append(errors, fmt.Errorf("hostname \"%s\" %s", hostname, msg))
+	for _, msg := range validation.ValidateNodeName(hc.nodeName, false) {
+		errors = append(errors, fmt.Errorf("hostname \"%s\" %s", hc.nodeName, msg))
 	}
-	addr, err := net.LookupHost(hostname)
+	addr, err := net.LookupHost(hc.nodeName)
 	if addr == nil {
-		warnings = append(warnings, fmt.Errorf("hostname \"%s\" could not be reached", hostname))
+		warnings = append(warnings, fmt.Errorf("hostname \"%s\" could not be reached", hc.nodeName))
 	}
 	if err != nil {
-		warnings = append(warnings, fmt.Errorf("hostname \"%s\" %s", hostname, err))
+		warnings = append(warnings, fmt.Errorf("hostname \"%s\" %s", hc.nodeName, err))
 	}
 	return warnings, errors
 }
@@ -323,6 +322,7 @@ func (sysver SystemVerificationCheck) Check() (warnings, errors []error) {
 	reporter := &system.StreamReporter{WriteStream: bufw}
 
 	var errs []error
+	var warns []error
 	// All the validators we'd like to run:
 	var validators = []system.Validator{
 		&system.OSValidator{Reporter: reporter},
@@ -333,17 +333,22 @@ func (sysver SystemVerificationCheck) Check() (warnings, errors []error) {
 
 	// Run all validators
 	for _, v := range validators {
-		errs = append(errs, v.Validate(system.DefaultSysSpec))
+		warn, err := v.Validate(system.DefaultSysSpec)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if warn != nil {
+			warns = append(warns, warn)
+		}
 	}
 
-	err := utilerrors.NewAggregate(errs)
-	if err != nil {
+	if len(errs) != 0 {
 		// Only print the output from the system verification check if the check failed
 		fmt.Println("[preflight] The system verification failed. Printing the output from the verification:")
 		bufw.Flush()
-		return nil, []error{err}
+		return warns, errs
 	}
-	return nil, nil
+	return warns, nil
 }
 
 type etcdVersionResponse struct {
@@ -483,7 +488,7 @@ func RunInitMasterChecks(cfg *kubeadmapi.MasterConfiguration) error {
 	checks := []Checker{
 		SystemVerificationCheck{},
 		IsRootCheck{},
-		HostnameCheck{},
+		HostnameCheck{nodeName: cfg.NodeName},
 		ServiceCheck{Service: "kubelet", CheckIfActive: false},
 		ServiceCheck{Service: "docker", CheckIfActive: true},
 		FirewalldCheck{ports: []int{int(cfg.API.BindPort), 10250}},
@@ -492,7 +497,7 @@ func RunInitMasterChecks(cfg *kubeadmapi.MasterConfiguration) error {
 		PortOpenCheck{port: 10251},
 		PortOpenCheck{port: 10252},
 		HTTPProxyCheck{Proto: "https", Host: cfg.API.AdvertiseAddress, Port: int(cfg.API.BindPort)},
-		DirAvailableCheck{Path: filepath.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, "manifests")},
+		DirAvailableCheck{Path: filepath.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, kubeadmconstants.ManifestsSubDirName)},
 		DirAvailableCheck{Path: "/var/lib/kubelet"},
 		FileContentCheck{Path: bridgenf, Content: []byte{'1'}},
 		InPathCheck{executable: "ip", mandatory: true},
@@ -510,7 +515,7 @@ func RunInitMasterChecks(cfg *kubeadmapi.MasterConfiguration) error {
 		// Only do etcd related checks when no external endpoints were specified
 		checks = append(checks,
 			PortOpenCheck{port: 2379},
-			DirAvailableCheck{Path: "/var/lib/etcd"},
+			DirAvailableCheck{Path: cfg.Etcd.DataDir},
 		)
 	} else {
 		// Only check etcd version when external endpoints are specified
@@ -520,11 +525,13 @@ func RunInitMasterChecks(cfg *kubeadmapi.MasterConfiguration) error {
 	}
 
 	// Check the config for authorization mode
-	switch cfg.AuthorizationMode {
-	case authzmodes.ModeABAC:
-		checks = append(checks, FileExistingCheck{Path: kubeadmconstants.AuthorizationPolicyPath})
-	case authzmodes.ModeWebhook:
-		checks = append(checks, FileExistingCheck{Path: kubeadmconstants.AuthorizationWebhookConfigPath})
+	for _, authzMode := range cfg.AuthorizationModes {
+		switch authzMode {
+		case authzmodes.ModeABAC:
+			checks = append(checks, FileExistingCheck{Path: kubeadmconstants.AuthorizationPolicyPath})
+		case authzmodes.ModeWebhook:
+			checks = append(checks, FileExistingCheck{Path: kubeadmconstants.AuthorizationWebhookConfigPath})
+		}
 	}
 
 	return RunChecks(checks, os.Stderr)
@@ -534,11 +541,11 @@ func RunJoinNodeChecks(cfg *kubeadmapi.NodeConfiguration) error {
 	checks := []Checker{
 		SystemVerificationCheck{},
 		IsRootCheck{},
-		HostnameCheck{},
+		HostnameCheck{nodeName: cfg.NodeName},
 		ServiceCheck{Service: "kubelet", CheckIfActive: false},
 		ServiceCheck{Service: "docker", CheckIfActive: true},
 		PortOpenCheck{port: 10250},
-		DirAvailableCheck{Path: filepath.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, "manifests")},
+		DirAvailableCheck{Path: filepath.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, kubeadmconstants.ManifestsSubDirName)},
 		DirAvailableCheck{Path: "/var/lib/kubelet"},
 		FileAvailableCheck{Path: cfg.CACertPath},
 		FileAvailableCheck{Path: filepath.Join(kubeadmapi.GlobalEnvParams.KubernetesDir, kubeadmconstants.KubeletKubeConfigFileName)},
@@ -572,7 +579,7 @@ func RunChecks(checks []Checker, ww io.Writer) error {
 	for _, c := range checks {
 		warnings, errs := c.Check()
 		for _, w := range warnings {
-			io.WriteString(ww, fmt.Sprintf("[preflight] WARNING: %s\n", w))
+			io.WriteString(ww, fmt.Sprintf("[preflight] WARNING: %v\n", w))
 		}
 		found = append(found, errs...)
 	}

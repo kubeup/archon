@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -42,17 +35,17 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check group id
 	switch {
 	case msg.Gid < 0:
 		http.Error(w, "Bad group id less than zero", http.StatusBadRequest)
+		logger.LogError("Bad group id less than zero")
 		return
 	case msg.Gid >= math.MaxInt32:
 		http.Error(w, "Bad group id equal or greater than 2**32", http.StatusBadRequest)
+		logger.LogError("Bad group id equal or greater than 2**32")
 		return
 	}
 
-	// Check durability type
 	switch msg.Durability.Type {
 	case api.DurabilityEC:
 	case api.DurabilityReplicate:
@@ -61,30 +54,31 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 		msg.Durability.Type = api.DurabilityDistributeOnly
 	default:
 		http.Error(w, "Unknown durability type", http.StatusBadRequest)
+		logger.LogError("Unknown durability type")
 		return
 	}
 
-	// Check the message has devices
 	if msg.Size < 1 {
 		http.Error(w, "Invalid volume size", http.StatusBadRequest)
+		logger.LogError("Invalid volume size")
 		return
 	}
 	if msg.Snapshot.Enable {
 		if msg.Snapshot.Factor < 1 || msg.Snapshot.Factor > VOLUME_CREATE_MAX_SNAPSHOT_FACTOR {
 			http.Error(w, "Invalid snapshot factor", http.StatusBadRequest)
+			logger.LogError("Invalid snapshot factor")
 			return
 		}
 	}
 
-	// Check replica values
 	if msg.Durability.Type == api.DurabilityReplicate {
 		if msg.Durability.Replicate.Replica > 3 {
 			http.Error(w, "Invalid replica value", http.StatusBadRequest)
+			logger.LogError("Invalid replica value")
 			return
 		}
 	}
 
-	// Check Disperse combinations
 	if msg.Durability.Type == api.DurabilityEC {
 		d := msg.Durability.Disperse
 		// Place here correct combinations
@@ -96,6 +90,7 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w,
 				fmt.Sprintf("Invalid dispersion combination: %v+%v", d.Data, d.Redundancy),
 				http.StatusBadRequest)
+			logger.LogError(fmt.Sprintf("Invalid dispersion combination: %v+%v", d.Data, d.Redundancy))
 			return
 		}
 	}
@@ -103,7 +98,6 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 	// Check that the clusters requested are available
 	err = a.db.View(func(tx *bolt.Tx) error {
 
-		// Check we have clusters
 		// :TODO: All we need to do is check for one instead of gathering all keys
 		clusters, err := ClusterList(tx)
 		if err != nil {
@@ -112,6 +106,7 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		if len(clusters) == 0 {
 			http.Error(w, fmt.Sprintf("No clusters configured"), http.StatusBadRequest)
+			logger.LogError("No clusters configured")
 			return ErrNotFound
 		}
 
@@ -120,6 +115,7 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 			_, err := NewClusterEntryFromId(tx, clusterid)
 			if err != nil {
 				http.Error(w, fmt.Sprintf("Cluster id %v not found", clusterid), http.StatusBadRequest)
+				logger.LogError(fmt.Sprintf("Cluster id %v not found", clusterid))
 				return err
 			}
 		}
@@ -130,7 +126,6 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a volume entry
 	vol := NewVolumeEntryFromRequest(&msg)
 
 	if uint64(msg.Size)*GB < vol.Durability.MinVolumeSize() {
@@ -138,6 +133,9 @@ func (a *App) VolumeCreate(w http.ResponseWriter, r *http.Request) {
 			"smaller than the minimum supported volume size (%v)",
 			msg.Size, vol.Durability.MinVolumeSize()),
 			http.StatusBadRequest)
+		logger.LogError(fmt.Sprintf("Requested volume size (%v GB) is "+
+			"smaller than the minimum supported volume size (%v)",
+			msg.Size, vol.Durability.MinVolumeSize()))
 		return
 	}
 
@@ -190,12 +188,9 @@ func (a *App) VolumeList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) VolumeInfo(w http.ResponseWriter, r *http.Request) {
-
-	// Get device id from URL
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	// Get device information
 	var info *api.VolumeInfoResponse
 	err := a.db.View(func(tx *bolt.Tx) error {
 		entry, err := NewVolumeEntryFromId(tx, id)
@@ -219,7 +214,6 @@ func (a *App) VolumeInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Write msg
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(info); err != nil {
@@ -229,15 +223,12 @@ func (a *App) VolumeInfo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) VolumeDelete(w http.ResponseWriter, r *http.Request) {
-	// Get the id from the URL
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	// Get volume entry
 	var volume *VolumeEntry
 	err := a.db.View(func(tx *bolt.Tx) error {
 
-		// Access volume entry
 		var err error
 		volume, err = NewVolumeEntryFromId(tx, id)
 		if err == ErrNotFound {
@@ -285,7 +276,6 @@ func (a *App) VolumeDelete(w http.ResponseWriter, r *http.Request) {
 func (a *App) VolumeExpand(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("In VolumeExpand")
 
-	// Get the id from the URL
 	vars := mux.Vars(r)
 	id := vars["id"]
 
@@ -297,18 +287,15 @@ func (a *App) VolumeExpand(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Debug("Msg: %v", msg)
 
-	// Check the message
 	if msg.Size < 1 {
 		http.Error(w, "Invalid volume size", http.StatusBadRequest)
 		return
 	}
 	logger.Debug("Size: %v", msg.Size)
 
-	// Get volume entry
 	var volume *VolumeEntry
 	err = a.db.View(func(tx *bolt.Tx) error {
 
-		// Access volume entry
 		var err error
 		volume, err = NewVolumeEntryFromId(tx, id)
 		if err == ErrNotFound {
@@ -326,7 +313,7 @@ func (a *App) VolumeExpand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Expand device in an asynchronous function
+	// Expand volume in an asynchronous function
 	a.asyncManager.AsyncHttpRedirectFunc(w, r, func() (string, error) {
 
 		logger.Info("Expanding volume %v", volume.Info.Id)
@@ -338,7 +325,6 @@ func (a *App) VolumeExpand(w http.ResponseWriter, r *http.Request) {
 
 		logger.Info("Expanded volume %v", volume.Info.Id)
 
-		// Done
 		return "/volumes/" + volume.Info.Id, nil
 	})
 

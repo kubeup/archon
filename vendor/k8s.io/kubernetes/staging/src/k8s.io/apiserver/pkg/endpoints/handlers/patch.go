@@ -81,32 +81,34 @@ func patchObjectJSON(
 // NOTE: Both <originalObject> and <objToUpdate> are supposed to be versioned.
 func strategicPatchObject(
 	codec runtime.Codec,
+	defaulter runtime.ObjectDefaulter,
 	originalObject runtime.Object,
 	patchJS []byte,
 	objToUpdate runtime.Object,
 	versionedObj runtime.Object,
-) (originalObjMap map[string]interface{}, patchMap map[string]interface{}, retErr error) {
-	originalObjMap = make(map[string]interface{})
+) error {
+	originalObjMap := make(map[string]interface{})
 	if err := unstructured.DefaultConverter.ToUnstructured(originalObject, &originalObjMap); err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	patchMap = make(map[string]interface{})
+	patchMap := make(map[string]interface{})
 	if err := json.Unmarshal(patchJS, &patchMap); err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	if err := applyPatchToObject(codec, originalObjMap, patchMap, objToUpdate, versionedObj); err != nil {
-		return nil, nil, err
+	if err := applyPatchToObject(codec, defaulter, originalObjMap, patchMap, objToUpdate, versionedObj); err != nil {
+		return err
 	}
-	return
+	return nil
 }
 
 // applyPatchToObject applies a strategic merge patch of <patchMap> to
-// <originalMap> and stores the result in <objToUpdate>, though it operates
-// on versioned map[string]interface{} representations.
+// <originalMap> and stores the result in <objToUpdate>.
+// NOTE: <objToUpdate> must be a versioned object.
 func applyPatchToObject(
 	codec runtime.Codec,
+	defaulter runtime.ObjectDefaulter,
 	originalMap map[string]interface{},
 	patchMap map[string]interface{},
 	objToUpdate runtime.Object,
@@ -117,5 +119,12 @@ func applyPatchToObject(
 		return err
 	}
 
-	return unstructured.DefaultConverter.FromUnstructured(patchedObjMap, objToUpdate)
+	// Rather than serialize the patched map to JSON, then decode it to an object, we go directly from a map to an object
+	if err := unstructured.DefaultConverter.FromUnstructured(patchedObjMap, objToUpdate); err != nil {
+		return err
+	}
+	// Decoding from JSON to a versioned object would apply defaults, so we do the same here
+	defaulter.Default(objToUpdate)
+
+	return nil
 }

@@ -19,6 +19,7 @@ limitations under the License.
 package integration
 
 import (
+	"strings"
 	"testing"
 
 	"k8s.io/minikube/test/integration/util"
@@ -31,14 +32,19 @@ func TestFunctional(t *testing.T) {
 		T:          t}
 	minikubeRunner.EnsureRunning()
 
-	t.Run("DNS", testClusterDNS)
-	t.Run("EnvVars", testClusterEnv)
-	t.Run("Logs", testClusterLogs)
-	t.Run("SSH", testClusterSSH)
-	t.Run("Systemd", testVMSystemd)
+	// This one is not parallel, and ensures the cluster comes up
+	// before we run any other tests.
 	t.Run("Status", testClusterStatus)
+	t.Run("DNS", testClusterDNS)
+	t.Run("Logs", testClusterLogs)
 	t.Run("Addons", testAddons)
 	t.Run("Dashboard", testDashboard)
 	t.Run("ServicesList", testServicesList)
 	t.Run("Provisioning", testProvisioning)
+
+	if !strings.Contains(*args, "--vm-driver=none") {
+		t.Run("EnvVars", testClusterEnv)
+		t.Run("SSH", testClusterSSH)
+		// t.Run("Mounting", testMounting)
+	}
 }

@@ -22,12 +22,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
@@ -168,7 +174,7 @@ func PromptUserForAccept(r io.Reader) bool {
 		} else if response == "n" || response == "no" {
 			return false
 		} else {
-			fmt.Println("Invalid response, error reporting remains disabled.  Must be in form [Y/n]")
+			fmt.Println("Invalid response, error reporting remains disabled. Must be in form [Y/n]")
 			return false
 		}
 	case <-time.After(30 * time.Second):
@@ -177,6 +183,10 @@ func PromptUserForAccept(r io.Reader) bool {
 }
 
 func MaybePrintKubectlDownloadMsg(goos string, out io.Writer) {
+	if !viper.GetBool(config.WantKubectlDownloadMsg) {
+		return
+	}
+
 	verb := "run"
 	installInstructions := "curl -Lo kubectl https://storage.googleapis.com/kubernetes-release/release/%s/bin/%s/%s/kubectl && chmod +x kubectl && sudo mv kubectl /usr/local/bin/"
 	if goos == "windows" {
@@ -186,16 +196,14 @@ https://storage.googleapis.com/kubernetes-release/release/%s/bin/%s/%s/kubectl.e
 Add kubectl to your system PATH`
 	}
 
-	var err error
-	if goos == "windows" {
+	_, err := lookPath("kubectl")
+	if err != nil && goos == "windows" {
 		_, err = lookPath("kubectl.exe")
-	} else {
-		_, err = lookPath("kubectl")
 	}
 	if err != nil {
 		fmt.Fprintf(out,
 			`========================================
-kubectl could not be found on your path.  kubectl is a requirement for using minikube
+kubectl could not be found on your path. kubectl is a requirement for using minikube
 To install kubectl, please %s the following:
 
 %s
@@ -207,4 +215,66 @@ minikube config set WantKubectlDownloadMsg false
 `,
 			verb, fmt.Sprintf(installInstructions, constants.DefaultKubernetesVersion, goos, runtime.GOARCH))
 	}
+}
+
+// Ask the kernel for a free open port that is ready to use
+func GetPort() (string, error) {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		return "", errors.Errorf("Error accessing port %d", addr.Port)
+	}
+	defer l.Close()
+	return strconv.Itoa(l.Addr().(*net.TCPAddr).Port), nil
+}
+
+func KillMountProcess() error {
+	out, err := ioutil.ReadFile(filepath.Join(constants.GetMinipath(), constants.MountProcessFileName))
+	if err != nil {
+		return nil // no mount process to kill
+	}
+	pid, err := strconv.Atoi(string(out))
+	if err != nil {
+		return errors.Wrap(err, "error converting mount string to pid")
+	}
+	mountProc, err := os.FindProcess(pid)
+	if err != nil {
+		return errors.Wrap(err, "error converting mount string to pid")
+	}
+	return mountProc.Kill()
+}
+
+func MaybeChownDirRecursiveToMinikubeUser(dir string) error {
+	if os.Getenv("CHANGE_MINIKUBE_NONE_USER") != "" && os.Getenv("SUDO_USER") != "" {
+		username := os.Getenv("SUDO_USER")
+		usr, err := user.Lookup(username)
+		if err != nil {
+			return errors.Wrap(err, "Error looking up user")
+		}
+		uid, err := strconv.Atoi(usr.Uid)
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing uid for user: %s", username)
+		}
+		gid, err := strconv.Atoi(usr.Gid)
+		if err != nil {
+			return errors.Wrapf(err, "Error parsing gid for user: %s", username)
+		}
+		if err := ChownR(dir, uid, gid); err != nil {
+			return errors.Wrapf(err, "Error changing ownership for: %s", dir)
+		}
+	}
+	return nil
+}
+
+func ChownR(path string, uid, gid int) error {
+	return filepath.Walk(path, func(name string, info os.FileInfo, err error) error {
+		if err == nil {
+			err = os.Chown(name, uid, gid)
+		}
+		return err
+	})
 }

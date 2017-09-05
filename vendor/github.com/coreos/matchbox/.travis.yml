@@ -4,7 +4,7 @@ services:
   - docker
 go:
   - 1.7.4
-  - 1.8
+  - 1.8.3
   - tip
 matrix:
   allow_failures:
@@ -15,10 +15,10 @@ script:
   - make test
 deploy:
   provider: script
-  script: scripts/travis-docker-push
+  script: scripts/dev/travis-docker-push
   skip_cleanup: true
   on:
     branch: master
-    go: '1.8'
+    go: '1.8.3'
 notifications:
   email: change

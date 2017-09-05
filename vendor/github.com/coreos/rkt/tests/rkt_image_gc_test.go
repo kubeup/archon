@@ -34,7 +34,7 @@ func TestImageGCTreeStore(t *testing.T) {
 
 	expectedTreeStores := 2
 	// If overlayfs is not supported only the stage1 image is rendered in the treeStore
-	if !common.SupportsOverlay() {
+	if common.SupportsOverlay() != nil {
 		expectedTreeStores = 1
 	}
 
@@ -46,9 +46,7 @@ func TestImageGCTreeStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Cannot exec: %v", err)
 	}
-	if err := child.Wait(); err != nil {
-		t.Fatalf("rkt didn't terminate correctly: %v", err)
-	}
+	waitOrFail(t, child, 0)
 
 	treeStoreIDs, err := getTreeStoreIDs(ctx)
 	if err != nil {

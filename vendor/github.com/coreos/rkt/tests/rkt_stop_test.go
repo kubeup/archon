@@ -31,7 +31,7 @@ func TestRktStop(t *testing.T) {
 	ctx := testutils.NewRktRunCtx()
 	defer ctx.Cleanup()
 
-	tmpDir := createTempDirOrPanic("rkt-TestRktStop-")
+	tmpDir := mustTempDir("rkt-TestRktStop-")
 	defer os.RemoveAll(tmpDir)
 
 	// Define tests
@@ -90,12 +90,14 @@ func TestRktStop(t *testing.T) {
 
 		runCmd := fmt.Sprintf("%s %s %s", ctx.Cmd(), tt.cmd, args)
 		t.Logf("Running test #%d, %s", i, runCmd)
-		spawnOrFail(t, runCmd)
+		exitStatus := 0
+		// Issue stop command, and wait for it to complete
+		spawnAndWaitOrFail(t, runCmd, exitStatus)
 
 		// Make sure the pod is stopped
 		var podInfo *podInfo
 		exitedSuccessfully := false
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 30; i++ {
 			time.Sleep(500 * time.Millisecond)
 			podInfo = getPodInfo(t, ctx, podUUID)
 			if podInfo.state == "exited" {
@@ -107,10 +109,10 @@ func TestRktStop(t *testing.T) {
 			t.Fatalf("Expected pod %q to be exited, but it is %q", podUUID, podInfo.state)
 		}
 
+		exitStatus = 0
 		if tt.expectKill {
-			child.Wait()
-		} else {
-			waitOrFail(t, child, 0)
+			exitStatus = -1
 		}
+		waitOrFail(t, child, exitStatus)
 	}
 }

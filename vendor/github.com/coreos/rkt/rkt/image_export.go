@@ -28,7 +28,7 @@ var (
 	cmdImageExport = &cobra.Command{
 		Use:   "export IMAGE OUTPUT_ACI_FILE",
 		Short: "Export a stored image to an ACI file",
-		Long: `IMAGE should be a string referencing an image: either a hash or an image name.
+		Long: `IMAGE should be a string referencing an image: either an ID or an image name.
 
 Note that images must be fetched prior to running export and that this command
 always returns uncompressed ACIs`,
@@ -45,25 +45,25 @@ func init() {
 func runImageExport(cmd *cobra.Command, args []string) (exit int) {
 	if len(args) != 2 {
 		cmd.Usage()
-		return 1
+		return 254
 	}
 
 	s, err := imagestore.NewStore(storeDir())
 	if err != nil {
 		stderr.PrintE("cannot open store", err)
-		return 1
+		return 254
 	}
 
 	key, err := getStoreKeyFromAppOrHash(s, args[0])
 	if err != nil {
 		stderr.Error(err)
-		return 1
+		return 254
 	}
 
 	aci, err := s.ReadStream(key)
 	if err != nil {
 		stderr.PrintE("error reading image", err)
-		return 1
+		return 254
 	}
 	defer aci.Close()
 
@@ -80,7 +80,7 @@ func runImageExport(cmd *cobra.Command, args []string) (exit int) {
 		} else {
 			stderr.PrintE(fmt.Sprintf("unable to open output ACI file %s", args[1]), err)
 		}
-		return 1
+		return 254
 	}
 	defer func() {
 		err := f.Close()
@@ -93,7 +93,7 @@ func runImageExport(cmd *cobra.Command, args []string) (exit int) {
 	_, err = io.Copy(f, aci)
 	if err != nil {
 		stderr.PrintE("error writing to output ACI file", err)
-		return 1
+		return 254
 	}
 
 	return 0

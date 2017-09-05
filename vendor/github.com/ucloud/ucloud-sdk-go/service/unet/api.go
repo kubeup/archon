@@ -68,7 +68,7 @@ type DescribeEIPParams struct {
 
 	Region string
 	EIPIds []string
-	OffSet int
+	Offset int
 	Limit  int
 }
 

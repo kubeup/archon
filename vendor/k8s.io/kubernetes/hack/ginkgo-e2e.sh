@@ -29,6 +29,11 @@ e2e_test=$(kube::util::find-binary "e2e.test")
 # --- Setup some env vars.
 
 GINKGO_PARALLEL=${GINKGO_PARALLEL:-n} # set to 'y' to run tests in parallel
+CLOUD_CONFIG=${CLOUD_CONFIG:-""}
+
+# If 'y', Ginkgo's reporter will not print out in color when tests are run
+# in parallel
+GINKGO_NO_COLOR=${GINKGO_NO_COLOR:-n}
 
 # If 'y', will rerun failed tests once to give them a second chance.
 GINKGO_TOLERATE_FLAKES=${GINKGO_TOLERATE_FLAKES:-n}
@@ -71,8 +76,6 @@ fi
 
 if [[ -n "${NODE_INSTANCE_PREFIX:-}" ]]; then
   NODE_INSTANCE_GROUP="${NODE_INSTANCE_PREFIX}-group"
-else
-  NODE_INSTANCE_GROUP=""
 fi
 
 if [[ "${KUBERNETES_PROVIDER}" == "gce" ]]; then
@@ -88,9 +91,19 @@ if [[ "${KUBERNETES_PROVIDER}" == "gce" ]]; then
   done
 fi
 
-if [[ "${KUBERNETES_PROVIDER}" == "gke" ]]; then
+# TODO(kubernetes/test-infra#3330): Allow NODE_INSTANCE_GROUP to be
+# set before we get here, which eliminates any cluster/gke use if
+# KUBERNETES_CONFORMANCE_PROVIDER is set to "gke".
+if [[ -z "${NODE_INSTANCE_GROUP:-}" ]] && [[ "${KUBERNETES_PROVIDER}" == "gke" ]]; then
   detect-node-instance-groups
   NODE_INSTANCE_GROUP=$(kube::util::join , "${NODE_INSTANCE_GROUPS[@]}")
+fi
+
+if [[ "${KUBERNETES_PROVIDER}" == "azure" ]]; then
+    if [[ ${CLOUD_CONFIG} == "" ]]; then
+        echo "Missing azure cloud config"
+        exit 1
+    fi
 fi
 
 ginkgo_args=()
@@ -104,9 +117,17 @@ elif [[ ${GINKGO_PARALLEL} =~ ^[yY]$ ]]; then
   ginkgo_args+=("--nodes=25")
 fi
 
+if [[ "${GINKGO_UNTIL_IT_FAILS:-}" == true ]]; then
+ginkgo_args+=("--untilItFails=true")
+fi
+
 FLAKE_ATTEMPTS=1
 if [[ "${GINKGO_TOLERATE_FLAKES}" == "y" ]]; then
   FLAKE_ATTEMPTS=2
+fi
+
+if [[ "${GINKGO_NO_COLOR}" == "y" ]]; then
+  ginkgo_args+=("--noColor")
 fi
 
 # The --host setting is used only when providing --auth_config
@@ -121,9 +142,11 @@ export PATH=$(dirname "${e2e_test}"):"${PATH}"
   --provider="${KUBERNETES_PROVIDER}" \
   --gce-project="${PROJECT:-}" \
   --gce-zone="${ZONE:-}" \
+  --gce-multizone="${MULTIZONE:-false}" \
   --gke-cluster="${CLUSTER_NAME:-}" \
   --kube-master="${KUBE_MASTER:-}" \
   --cluster-tag="${CLUSTER_ID:-}" \
+  --cloud-config-file="${CLOUD_CONFIG:-}" \
   --repo-root="${KUBE_ROOT}" \
   --node-instance-group="${NODE_INSTANCE_GROUP:-}" \
   --prefix="${KUBE_GCE_INSTANCE_PREFIX:-e2e}" \

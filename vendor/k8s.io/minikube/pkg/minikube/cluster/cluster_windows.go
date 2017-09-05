@@ -18,19 +18,21 @@ package cluster
 
 import (
 	"fmt"
-	"net"
-	"regexp"
-	"strings"
+	"os"
+	"os/exec"
+	"path/filepath"
 
 	"github.com/docker/machine/drivers/hyperv"
 	"github.com/docker/machine/libmachine/drivers"
-	"github.com/docker/machine/libmachine/host"
+	"github.com/golang/glog"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/windows/registry"
+	cfg "k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
 )
 
 func createHypervHost(config MachineConfig) drivers.Driver {
-	d := hyperv.NewDriver(constants.MachineName, constants.GetMinipath())
+	d := hyperv.NewDriver(cfg.GetMachineName(), constants.GetMinipath())
 	d.Boot2DockerURL = config.Downloader.GetISOFileURI(config.MinikubeISO)
 	d.VSwitch = config.HypervVirtualSwitch
 	d.MemSize = config.Memory
@@ -40,40 +42,54 @@ func createHypervHost(config MachineConfig) drivers.Driver {
 	return d
 }
 
-func getVMHostIP(host *host.Host) (net.IP, error) {
-	switch host.DriverName {
-	case "virtualbox":
-		return net.ParseIP("10.0.2.2"), nil
-	case "hyperv":
-		re := regexp.MustCompile("\"VSwitch\": \"(.*?)\",")
-		hypervVirtualSwitch := re.FindStringSubmatch(string(host.RawDriver))[1]
-		ip, err := getWindowsHostIpFromHyperV(hypervVirtualSwitch)
-		if err != nil {
-			return []byte{}, errors.Wrap(err, "Error getting 9p mount command")
+func detectVBoxManageCmd() string {
+	cmd := "VBoxManage"
+	if p := os.Getenv("VBOX_INSTALL_PATH"); p != "" {
+		if path, err := exec.LookPath(filepath.Join(p, cmd)); err == nil {
+			return path
 		}
-		return ip, nil
-	default:
-		return []byte{}, errors.New("Error, attempted to get host ip address for unsupported driver")
 	}
+
+	if p := os.Getenv("VBOX_MSI_INSTALL_PATH"); p != "" {
+		if path, err := exec.LookPath(filepath.Join(p, cmd)); err == nil {
+			return path
+		}
+	}
+
+	// Look in default installation path for VirtualBox version > 5
+	if path, err := exec.LookPath(filepath.Join("C:\\Program Files\\Oracle\\VirtualBox", cmd)); err == nil {
+		return path
+	}
+
+	// Look in windows registry
+	if p, err := findVBoxInstallDirInRegistry(); err == nil {
+		if path, err := exec.LookPath(filepath.Join(p, cmd)); err == nil {
+			return path
+		}
+	}
+
+	if path, err := exec.LookPath(cmd); err == nil {
+		return path
+	}
+	return cmd
 }
 
-func getWindowsHostIpFromHyperV(hypervVirtualSwitch string) (net.IP, error) {
-	virtualSwitchTemplate := "vEthernet (%s)"
-
-	i, _ := net.InterfaceByName(fmt.Sprintf(virtualSwitchTemplate, hypervVirtualSwitch))
-	addrs, _ := i.Addrs()
-	for _, a := range addrs {
-		switch a.(type) {
-		case *net.IPNet:
-			ip := a.String()
-			if strings.Contains(ip, ".") {
-				vmIP := net.ParseIP(strings.Split(ip, "/")[0])
-				if vmIP.String() == "" {
-					return nil, errors.Errorf("Error finding IPV4 address for virtual switch %s", hypervVirtualSwitch)
-				}
-				return vmIP, nil
-			}
-		}
+func findVBoxInstallDirInRegistry() (string, error) {
+	registryKey, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Oracle\VirtualBox`, registry.QUERY_VALUE)
+	if err != nil {
+		errorMessage := fmt.Sprintf("Can't find VirtualBox registry entries, is VirtualBox really installed properly? %s", err)
+		glog.Errorf(errorMessage)
+		return "", errors.New(errorMessage)
 	}
-	return nil, errors.Errorf("Error finding IPV4 address for virtual switch %s", hypervVirtualSwitch)
+
+	defer registryKey.Close()
+
+	installDir, _, err := registryKey.GetStringValue("InstallDir")
+	if err != nil {
+		errorMessage := fmt.Sprintf("Can't find InstallDir registry key within VirtualBox registries entries, is VirtualBox really installed properly? %s", err)
+		glog.Errorf(errorMessage)
+		return "", errors.New(errorMessage)
+	}
+
+	return installDir, nil
 }

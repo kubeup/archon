@@ -17,38 +17,58 @@
 package apps
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/appc/spec/schema"
 	"github.com/appc/spec/schema/types"
 )
 
-// AppImageType describes a type of an image reference. The reference
-// can either be guessed or be a hash, a URL, a path, or a name. The
-// first option means that the application will have to deduce the
-// actual type (one of the last four).
-type AppImageType int
+var (
+	ErrInvalidSeccompMode     = errors.New("invalid seccomp mode command-line override")
+	ErrInvalidSeccompOverride = errors.New("invalid seccomp command-line override")
+)
+
+// AppIO describes the type of an application stream at runtime (stdin/stdout/stderr).
+type AppIO string
+
+func (a AppIO) String() string {
+	return string(a)
+}
 
 const (
-	AppImageGuess AppImageType = iota // image type to be guessed
-	AppImageHash                      // image hash
-	AppImageURL                       // image URL with a scheme
-	AppImagePath                      // absolute or relative path
-	AppImageName                      // image name
+	AppIOInteractive AppIO = "interactive" // interactive I/O (parent terminal)
+	AppIOLog         AppIO = "log"         // log-only I/O
+	AppIONull        AppIO = "null"        // null I/O
+	AppIOStream      AppIO = "stream"      // attachable I/O
+	AppIOTTY         AppIO = "tty"         // I/O over TTY
 )
 
 type App struct {
-	Image       string                            // the image reference as supplied by the user on the cli
-	ImType      AppImageType                      // the type of the image reference (to be guessed, url, path or hash)
-	Args        []string                          // any arguments the user supplied for this app
-	Asc         string                            // signature file override for image verification (if fetching occurs)
-	Exec        string                            // exec override for image
-	Mounts      []schema.Mount                    // mounts for this app (superseding any mounts in rktApps.mounts of same MountPoint)
-	MemoryLimit *types.ResourceMemory             // memory isolator override
-	CPULimit    *types.ResourceCPU                // cpu isolator override
-	User, Group string                            // user, group overrides
-	CapsRetain  *types.LinuxCapabilitiesRetainSet // os/linux/capabilities-retain-set overrides
-	CapsRemove  *types.LinuxCapabilitiesRevokeSet // os/linux/capabilities-remove-set overrides
+	Name              string                            // the name of the app. If not set, the image's name will be used.
+	Image             string                            // the image reference as supplied by the user on the cli
+	Args              []string                          // any arguments the user supplied for this app
+	Asc               string                            // signature file override for image verification (if fetching occurs)
+	Exec              string                            // exec override for image
+	WorkingDir        string                            // working directory override for image
+	ReadOnlyRootFS    bool                              // read-only rootfs override.
+	Mounts            []schema.Mount                    // mounts for this app (superseding any mounts in rktApps.mounts of same MountPoint)
+	MemoryLimit       *types.ResourceMemory             // memory isolator override
+	CPULimit          *types.ResourceCPU                // cpu isolator override
+	CPUShares         *types.LinuxCPUShares             // cpu-shares isolator override
+	User, Group       string                            // user, group overrides
+	SupplementaryGIDs []int                             // supplementary gids override
+	CapsRetain        *types.LinuxCapabilitiesRetainSet // os/linux/capabilities-retain-set overrides
+	CapsRemove        *types.LinuxCapabilitiesRevokeSet // os/linux/capabilities-remove-set overrides
+	SeccompFilter     string                            // seccomp CLI overrides
+	OOMScoreAdj       *types.LinuxOOMScoreAdj           // oom-score-adj isolator override
+	UserAnnotations   map[string]string                 // the user annotations of the app.
+	UserLabels        map[string]string                 // the user labels of the app.
+	Environments      map[string]string                 // the environments of the app.
+	Stdin             AppIO                             // mode for stdin
+	Stdout            AppIO                             // mode for stdout
+	Stderr            AppIO                             // mode for stderr
 
 	// TODO(jonboulle): These images are partially-populated hashes, this should be clarified.
 	ImageID types.Hash // resolved image identifier
@@ -58,6 +78,33 @@ type Apps struct {
 	apps    []App
 	Mounts  []schema.Mount // global mounts applied to all apps
 	Volumes []types.Volume // volumes available to all apps
+}
+
+// SeccompFilter returns type, filter set and optional errno
+// for a seccomp filter override specified via CLI
+func (a *App) SeccompOverride() (mode string, errno string, set []string, e error) {
+	if a.SeccompFilter == "" {
+		return
+	}
+	for _, i := range strings.Split(a.SeccompFilter, ",") {
+		kv := strings.Split(i, "=")
+		if len(kv) == 2 {
+			switch kv[0] {
+			case "mode":
+				if kv[1] != "remove" && kv[1] != "retain" {
+					e = ErrInvalidSeccompMode
+				}
+				mode = kv[1]
+			case "errno":
+				errno = kv[1]
+			default:
+				e = ErrInvalidSeccompOverride
+			}
+		} else {
+			set = append(set, i)
+		}
+	}
+	return
 }
 
 // Reset creates a new slice for al.apps, needed by tests
@@ -92,6 +139,9 @@ func (al *Apps) Validate() error {
 
 	f := func(mnts []schema.Mount) error {
 		for _, m := range mnts {
+			if m.AppVolume != nil { // allow app-specific volumes
+				continue
+			}
 			if _, ok := vs[m.Volume]; !ok {
 				return fmt.Errorf("dangling mount point %q: volume %q not found", m.Path, m.Volume)
 			}

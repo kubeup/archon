@@ -9,18 +9,24 @@ main() {
   cleanup
   trap cleanup EXIT
 
-  ./scripts/get-kubectl
-  ./scripts/get-bootkube
+  ./scripts/dev/get-kubectl
+  ./scripts/dev/get-bootkube
   ./scripts/devnet create bootkube
   ./scripts/libvirt create
 
   echo "bootkube render"
-  ./bin/bootkube render --asset-dir=assets --api-servers=https://node1.example.com:443 --api-server-alt-names=DNS=node1.example.com
+  ./bin/bootkube render --asset-dir=assets --api-servers=https://node1.example.com:443 --api-server-alt-names=DNS=node1.example.com --etcd-servers=https://node1.example.com:2379
 
   for i in `seq 1 10`; do
     ssh node1.example.com -o ConnectTimeout=5 -- 'echo "Connected"' && break
     echo "Waiting for nodes to PXE boot..."
     sleep 10
+  done
+
+  echo "Add etcd certs to nodes"
+  for node in 'node1'; do
+    scp -r assets/tls/etcd-* assets/tls/etcd core@$node.example.com:/home/core/
+    ssh core@$node.example.com 'sudo mkdir -p /etc/ssl/etcd && sudo mv etcd-* etcd /etc/ssl/etcd/ && sudo chown -R etcd:etcd /etc/ssl/etcd && sudo chmod -R 500 /etc/ssl/etcd/'
   done
 
   echo "Add kubeconfig to nodes"
@@ -47,11 +53,11 @@ main() {
   done
   
   echo "Getting nodes..."
-  k8s get nodes
+  k8s get nodes || true
 
   sleep 10
   echo "Getting pods..."
-  k8s get pods --all-namespaces
+  k8s get pods --all-namespaces || true
 
   echo "bootkube cluster came up!"
   echo

@@ -31,14 +31,23 @@ import (
 var sshCmd = &cobra.Command{
 	Use:   "ssh",
 	Short: "Log into or run a command on a machine with SSH; similar to 'docker-machine ssh'",
-	Long:  "Log into or run a command on a machine with SSH; similar to 'docker-machine ssh'",
+	Long:  "Log into or run a command on a machine with SSH; similar to 'docker-machine ssh'.",
 	Run: func(cmd *cobra.Command, args []string) {
-		api, err := machine.NewAPIClient(clientType)
+		api, err := machine.NewAPIClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting client: %s\n", err)
 			os.Exit(1)
 		}
 		defer api.Close()
+		host, err := cluster.CheckIfApiExistsAndLoad(api)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting host: %s\n", err)
+			os.Exit(1)
+		}
+		if host.Driver.DriverName() == "none" {
+			fmt.Println(`'none' driver does not support 'minikube ssh' command`)
+			os.Exit(0)
+		}
 		err = cluster.CreateSSHShell(api, args)
 		if err != nil {
 			glog.Errorln(errors.Wrap(err, "Error attempting to ssh/run-ssh-command"))

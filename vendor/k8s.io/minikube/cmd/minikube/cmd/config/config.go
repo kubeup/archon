@@ -112,6 +112,10 @@ var settings = []Setting{
 		set:  SetBool,
 	},
 	{
+		name: config.MachineProfile,
+		set:  SetString,
+	},
+	{
 		name:        "dashboard",
 		set:         SetBool,
 		validations: []setFn{IsValidAddon},
@@ -119,6 +123,12 @@ var settings = []Setting{
 	},
 	{
 		name:        "addon-manager",
+		set:         SetBool,
+		validations: []setFn{IsValidAddon},
+		callbacks:   []setFn{EnableOrDisableAddon},
+	},
+	{
+		name:        "default-storageclass",
 		set:         SetBool,
 		validations: []setFn{IsValidAddon},
 		callbacks:   []setFn{EnableOrDisableAddon},
@@ -142,10 +152,22 @@ var settings = []Setting{
 		callbacks:   []setFn{EnableOrDisableAddon},
 	},
 	{
+		name:        "registry",
+		set:         SetBool,
+		validations: []setFn{IsValidAddon},
+		callbacks:   []setFn{EnableOrDisableAddon},
+	},
+	{
 		name:        "registry-creds",
 		set:         SetBool,
 		validations: []setFn{IsValidAddon},
 		callbacks:   []setFn{EnableOrDisableAddon},
+	},
+	{
+		name:        "default-storageclass",
+		set:         SetBool,
+		validations: []setFn{IsValidAddon},
+		callbacks:   []setFn{EnableOrDisableDefaultStorageClass},
 	},
 	{
 		name: "hyperv-virtual-switch",

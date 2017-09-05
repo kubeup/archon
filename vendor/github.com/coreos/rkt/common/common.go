@@ -18,6 +18,7 @@ package common
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -26,14 +27,18 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unsafe"
 
 	"github.com/appc/spec/aci"
 	"github.com/appc/spec/schema/types"
 	"github.com/hashicorp/errwrap"
+
+	"github.com/coreos/rkt/pkg/fileutil"
 )
 
 const (
 	sharedVolumesDir = "/sharedVolumes"
+	SharedVolumePerm = os.FileMode(0755)
 	stage1Dir        = "/stage1"
 	stage2Dir        = "/opt/stage2"
 	AppsInfoDir      = "/appsinfo"
@@ -64,12 +69,26 @@ const (
 	// Default perm bits for the regular directories
 	// within the stage1 directory.
 	DefaultRegularDirPerm = os.FileMode(0750)
+
+	// Enter command for crossing entrypoints.
+	CrossingEnterCmd = "RKT_STAGE1_ENTERCMD"
+	// Stage1 (PID) to enter, used by crossing entrypoints.
+	CrossingEnterPID = "RKT_STAGE1_ENTERPID"
+	// Stage2 (application name) to enter, optionally used by crossing entrypoints.
+	CrossingEnterApp = "RKT_STAGE1_ENTERAPP"
 )
 
 const (
 	FsMagicAUFS = 0x61756673 // https://goo.gl/CBwx43
 	FsMagicZFS  = 0x2FC12FC1 // https://goo.gl/xTvzO5
 )
+
+// ErrOverlayUnsupported is the error determining whether OverlayFS is supported.
+type ErrOverlayUnsupported string
+
+func (e ErrOverlayUnsupported) Error() string {
+	return string(e)
+}
 
 // Stage1ImagePath returns the path where the stage1 app image (unpacked ACI) is rooted,
 // (i.e. where its contents are extracted during stage0).
@@ -90,6 +109,41 @@ func Stage1ManifestPath(root string) string {
 // PodManifestPath returns the path in root to the Pod Manifest
 func PodManifestPath(root string) string {
 	return filepath.Join(root, "pod")
+}
+
+// PodCreatedPath returns the path in root to the Pod Created file used to
+// denote the time of creation.
+func PodCreatedPath(root string) string {
+	return filepath.Join(root, "pod-created")
+}
+
+// PodManifestLockPath returns the path in root to the Pod Manifest lock file.
+// This must be different from the PodManifestPath since mutations on the pod manifest file
+// happen by overwriting the original file.
+func PodManifestLockPath(root string) string {
+	return filepath.Join(root, "pod.lck")
+}
+
+// AppsStatusesPath returns the path of the status dir for all apps.
+func AppsStatusesPath(root string) string {
+	return filepath.Join(Stage1RootfsPath(root), "/rkt/status")
+}
+
+// AppStatusPath returns the path of the status file of an app.
+func AppStatusPath(root, appName string) string {
+	return filepath.Join(AppsStatusesPath(root), appName)
+}
+
+// AppCreatedPath returns the path of the ${appname}-created file, which is used to record
+// the creation timestamp of the app.
+func AppCreatedPath(root, appName string) string {
+	return filepath.Join(AppsStatusesPath(root), fmt.Sprintf("%s-created", appName))
+}
+
+// AppStartedPath returns the path of the ${appname}-started file, which is used to record
+// the start timestamp of the app.
+func AppStartedPath(root, appName string) string {
+	return filepath.Join(AppsStatusesPath(root), fmt.Sprintf("%s-started", appName))
 }
 
 // AppsPath returns the path where the apps within a pod live.
@@ -147,6 +201,23 @@ func SharedVolumesPath(root string) string {
 	return filepath.Join(root, sharedVolumesDir)
 }
 
+// CreateSharedVolumesPath ensures the sharedVolumePath for the pod root passed
+// in exists. It returns the shared volume path or an error.
+func CreateSharedVolumesPath(root string) (string, error) {
+	sharedVolPath := SharedVolumesPath(root)
+
+	if err := os.MkdirAll(sharedVolPath, SharedVolumePerm); err != nil {
+		return "", errwrap.Wrap(errors.New("could not create shared volumes directory"), err)
+	}
+	// In case it already existed and we didn't make it, ensure permissions are
+	// what the caller expects them to be.
+	if err := os.Chmod(sharedVolPath, SharedVolumePerm); err != nil {
+		return "", errwrap.Wrap(fmt.Errorf("could not change permissions of %q", sharedVolPath), err)
+	}
+
+	return sharedVolPath, nil
+}
+
 // MetadataServicePublicURL returns the public URL used to host the metadata service
 func MetadataServicePublicURL(ip net.IP, token string) string {
 	return fmt.Sprintf("http://%v:%v/%v", ip, MetadataServicePort, token)
@@ -161,26 +232,6 @@ func GetRktLockFD() (int, error) {
 		return int(fd), nil
 	}
 	return -1, fmt.Errorf("%v env var is not set", EnvLockFd)
-}
-
-// SupportsOverlay returns whether the system supports overlay filesystem
-func SupportsOverlay() bool {
-	exec.Command("modprobe", "overlay").Run()
-
-	f, err := os.Open("/proc/filesystems")
-	if err != nil {
-		fmt.Println("error opening /proc/filesystems")
-		return false
-	}
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-	for s.Scan() {
-		if s.Text() == "nodev\toverlay" {
-			return true
-		}
-	}
-	return false
 }
 
 // SupportsUserNS returns whether the kernel has CONFIG_USER_NS set
@@ -302,12 +353,7 @@ func LookupPath(bin string, paths string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("unable to find absolute path for %s", binPath)
 		}
-		d, err := os.Stat(binAbsPath)
-		if err != nil {
-			continue
-		}
-		// Check the executable bit, inspired by os.exec.LookPath()
-		if m := d.Mode(); !m.IsDir() && m&0111 != 0 {
+		if fileutil.IsExecutable(binAbsPath) {
 			return binAbsPath, nil
 		}
 	}
@@ -330,21 +376,86 @@ func SystemdVersion(systemdBinaryPath string) (int, error) {
 	return version, nil
 }
 
-// FSSupportsOverlay checks whether the filesystem under which
-// a specified path resides is compatible with OverlayFS
-func FSSupportsOverlay(path string) bool {
-	var data syscall.Statfs_t
-	err := syscall.Statfs(path, &data)
+// SupportsOverlay returns whether the operating system generally supports OverlayFS,
+// returning an instance of ErrOverlayUnsupported which encodes the reason.
+// It is sufficient to check for nil if the reason is not of interest.
+func SupportsOverlay() error {
+	// ignore exec.Command error, modprobe may not be present on the system,
+	// or the kernel module will fail to load.
+	// we'll find out by reading the side effect in /proc/filesystems
+	_ = exec.Command("modprobe", "overlay").Run()
+
+	f, err := os.Open("/proc/filesystems")
 	if err != nil {
-		return false
+		// don't use errwrap so consumers can type-check on ErrOverlayUnsupported
+		return ErrOverlayUnsupported(fmt.Sprintf("cannot open /proc/filesystems: %v", err))
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		if s.Text() == "nodev\toverlay" {
+			return nil
+		}
 	}
 
-	if data.Type == FsMagicAUFS ||
-		data.Type == FsMagicZFS {
-		return false
+	return ErrOverlayUnsupported("overlay entry not present in /proc/filesystems")
+}
+
+// PathSupportsOverlay checks whether the given path is compatible with OverlayFS.
+// This method also calls SupportsOverlay().
+//
+// It returns an instance of ErrOverlayUnsupported if OverlayFS is not supported
+// or any other error if determining overlay support failed.
+func PathSupportsOverlay(path string) error {
+	if err := SupportsOverlay(); err != nil {
+		// don't wrap since SupportsOverlay already returns ErrOverlayUnsupported
+		return err
 	}
 
-	return true
+	var data syscall.Statfs_t
+	if err := syscall.Statfs(path, &data); err != nil {
+		return errwrap.Wrap(fmt.Errorf("cannot statfs %q", path), err)
+	}
+
+	switch data.Type {
+	case FsMagicAUFS:
+		return ErrOverlayUnsupported("unsupported filesystem: aufs")
+	case FsMagicZFS:
+		return ErrOverlayUnsupported("unsupported filesystem: zfs")
+	}
+
+	dir, err := os.OpenFile(path, syscall.O_RDONLY|syscall.O_DIRECTORY, 0755)
+	if err != nil {
+		return errwrap.Wrap(fmt.Errorf("cannot open %q", dir), err)
+	}
+	defer dir.Close()
+
+	buf := make([]byte, 4096)
+	// ReadDirent forwards to the raw syscall getdents(3),
+	// passing the buffer size.
+	n, err := syscall.ReadDirent(int(dir.Fd()), buf)
+	if err != nil {
+		return errwrap.Wrap(fmt.Errorf("cannot read directory %q", dir), err)
+	}
+
+	offset := 0
+	for offset < n {
+		// offset overflow cannot happen, because Reclen
+		// is being maintained by getdents(3), considering the buffer size.
+		dirent := (*syscall.Dirent)(unsafe.Pointer(&buf[offset]))
+		offset += int(dirent.Reclen)
+
+		if dirent.Ino == 0 { // File absent in directory.
+			continue
+		}
+
+		if dirent.Type == syscall.DT_UNKNOWN {
+			return ErrOverlayUnsupported("unsupported filesystem: missing d_type support")
+		}
+	}
+
+	return nil
 }
 
 // RemoveEmptyLines removes empty lines from the given string
@@ -359,4 +470,19 @@ func RemoveEmptyLines(str string) []string {
 	}
 
 	return lines
+}
+
+// GetExitStatus converts an error to an exit status. If it wasn't an exit
+// status != 0 it returns the same error that it was called with
+func GetExitStatus(err error) (int, error) {
+	if err == nil {
+		return 0, nil
+	}
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		// the program has exited with an exit code != 0
+		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			return status.ExitStatus(), nil
+		}
+	}
+	return -1, err
 }

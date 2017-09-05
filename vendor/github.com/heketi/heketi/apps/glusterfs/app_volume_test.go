@@ -1,23 +1,17 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -175,9 +169,24 @@ func TestVolumeCreateSmallSize(t *testing.T) {
 	tmpfile := tests.Tempfile()
 	defer os.Remove(tmpfile)
 
-	// Create the app
-	app := NewTestApp(tmpfile)
+	os.Setenv("HEKETI_EXECUTOR", "mock")
+	defer os.Unsetenv("HEKETI_EXECUTOR")
+
+	data := []byte(`{
+		"glusterfs" : {
+			"db" : "` + tmpfile + `",
+			"brick_min_size_gb" : 4
+		}
+	}`)
+
+	bmin := BrickMinSize
+	defer func() {
+		BrickMinSize = bmin
+	}()
+
+	app := NewApp(bytes.NewReader(data))
 	defer app.Close()
+
 	router := mux.NewRouter()
 	app.SetRoutes(router)
 
@@ -1122,4 +1131,83 @@ func TestVolumeClusterResizeByAddingDevices(t *testing.T) {
 	tests.Assert(t, v != nil)
 	err = v.Create(app.db, app.executor, app.allocator)
 	tests.Assert(t, err == ErrNoSpace)
+}
+
+// Test for https://github.com/heketi/heketi/issues/382:
+//
+// A TopologyInfo request running concurrently to a
+// VolumeCreate request failed with "Id not found" due
+// to unsaved brick info.
+func TestVolumeCreateVsTopologyInfo(t *testing.T) {
+	tmpfile := tests.Tempfile()
+	defer os.Remove(tmpfile)
+
+	// Create the app
+	app := NewTestApp(tmpfile)
+	defer app.Close()
+	router := mux.NewRouter()
+	app.SetRoutes(router)
+
+	// Setup the server
+	ts := httptest.NewServer(router)
+	defer ts.Close()
+
+	// Create a cluster
+	err := setupSampleDbWithTopology(app,
+		1,    // clusters
+		10,   // nodes_per_cluster
+		10,   // devices_per_node,
+		5*TB, // disksize)
+	)
+	tests.Assert(t, err == nil)
+
+	// Create a client
+	c := client.NewClientNoAuth(ts.URL)
+	tests.Assert(t, c != nil)
+
+	// Start Several concurrent VolumeCreate and
+	// TopologyInfo requests so that there is a
+	// chance for a TopologyInfo request to hit
+	// the race of unsaved // brick data.
+	sg := utils.NewStatusGroup()
+	for i := 0; i < 20; i++ {
+		sg.Add(1)
+		go func() {
+			defer sg.Done()
+
+			volumeReq := &api.VolumeCreateRequest{}
+			volumeReq.Size = 10
+
+			volume, err := c.VolumeCreate(volumeReq)
+			sg.Err(err)
+			if err != nil {
+				return
+			}
+
+			if volume.Id == "" {
+				sg.Err(errors.New("Empty volume Id."))
+				return
+			}
+
+			if volume.Size != volumeReq.Size {
+				sg.Err(fmt.Errorf("Unexpected Volume size "+
+					"[%d] instead of [%d].",
+					volume.Size, volumeReq.Size))
+			}
+		}()
+
+		sg.Add(1)
+		go func() {
+			defer sg.Done()
+
+			_, err := c.TopologyInfo()
+			if err != nil {
+				err = fmt.Errorf("TopologyInfo failed: %s", err)
+			}
+			sg.Err(err)
+		}()
+	}
+
+	err = sg.Result()
+	tests.Assert(t, err == nil, err)
 }

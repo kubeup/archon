@@ -128,7 +128,7 @@ func (a *Api) nodeMetrics(request *restful.Request, response *restful.Response) 
 	node := request.PathParameter("node-name")
 	m := a.getNodeMetrics(node)
 	if m == nil {
-		response.WriteError(http.StatusNotFound, fmt.Errorf("No metrics for ode %v", node))
+		response.WriteError(http.StatusNotFound, fmt.Errorf("No metrics for node %v", node))
 		return
 	}
 	response.WriteEntity(m)
@@ -209,8 +209,8 @@ func podMetricsInNamespaceList(a *Api, request *restful.Request, response *restf
 	}
 
 	res := v1alpha1.PodMetricsList{}
-	for _, pod := range pods.Items {
-		if m := a.getPodMetrics(&pod); m != nil {
+	for _, pod := range pods {
+		if m := a.getPodMetrics(pod); m != nil {
 			res.Items = append(res.Items, *m)
 		} else {
 			glog.Infof("No metrics for pod %s/%s", pod.Namespace, pod.Name)

@@ -1,8 +1,8 @@
-hash: 6dd4eb2d90cb8ac317ad1aeb1a1cd0ed0d29375f4fecddaf5ae168eb62f6bc4b
-updated: 2016-08-01T11:52:19.106454487-07:00
+hash: 5b01507338879a95e4f789cc14dac4aee0ae1ef7661da521a437621e207ba7fa
+updated: 2017-02-13T16:50:01.49078982Z
 imports:
 - name: github.com/appc/docker2aci
-  version: 90dfcf166a2967b926e77e4864fb616dc291c026
+  version: 4537ee8e3139455eac6092d47a224d8fa19bf08a
   subpackages:
   - lib
   - lib/common
@@ -12,15 +12,15 @@ imports:
   - lib/internal/docker
   - lib/internal/tarball
   - lib/internal/types
+  - lib/internal/typesV2
   - lib/internal/util
   - pkg/log
-  - lib/internal/typesV2
 - name: github.com/appc/goaci
   version: ba7b591f930783c0ab75f5bbfd6ff65c7bd011bf
   subpackages:
   - proj2aci
 - name: github.com/appc/spec
-  version: fd5e3d8f5d596c6fbd506e80b5e13ba8a97b704c
+  version: ba99d6b8ccbbed2942e53eb5395fddae113cdf8e
   subpackages:
   - ace
   - aci
@@ -33,6 +33,7 @@ imports:
   - schema/common
   - schema/lastditch
   - schema/types
+  - schema/types/resource
 - name: github.com/aws/aws-sdk-go
   version: 13a12060f716145019378a10e2806c174356b857
   subpackages:
@@ -50,25 +51,12 @@ imports:
   - pkg/invoke
   - pkg/ip
   - pkg/ipam
-  - pkg/ipam
   - pkg/ns
-  - pkg/skel
-  - pkg/testutils
   - pkg/skel
   - pkg/testutils
   - pkg/types
   - pkg/utils
-  - pkg/utils/sysctl
-  - plugins/ipam/dhcp
-  - plugins/ipam/host-local
-  - plugins/ipam/host-local/backend
-  - plugins/ipam/host-local/backend/disk
-  - plugins/main/bridge
-  - plugins/main/ipvlan
-  - plugins/main/macvlan
-  - plugins/main/ptp
-  - plugins/meta/flannel
-  - plugins/meta/tuning
+  - pkg/utils/hwaddr
   - pkg/utils/sysctl
   - plugins/ipam/dhcp
   - plugins/ipam/host-local
@@ -81,7 +69,7 @@ imports:
   - plugins/meta/flannel
   - plugins/meta/tuning
 - name: github.com/coreos/gexpect
-  version: ca42424d18c76d0d51a4cccd830d11878e9e5c17
+  version: 8d6e05eaaeb840725b2c2aba77483919659bb95e
 - name: github.com/coreos/go-iptables
   version: fbb73372b87f6e89951c2b6b31470c2c9d5cfae3
   subpackages:
@@ -91,9 +79,10 @@ imports:
   subpackages:
   - semver
 - name: github.com/coreos/go-systemd
-  version: d6c05a1dcbb5ac02b7653da4d99e5db340c20778
+  version: 48702e0da86bd25e76cfef347e2adeb434a0d0a6
   subpackages:
   - activation
+  - daemon
   - dbus
   - sdjournal
   - unit
@@ -165,15 +154,15 @@ imports:
   subpackages:
   - proto
 - name: github.com/golang/protobuf
-  version: c3cefd437628a0b7d31b34fe44b3a7a540e98527
+  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
   subpackages:
   - proto
   - protoc-gen-go
   - protoc-gen-go/descriptor
   - protoc-gen-go/generator
+  - protoc-gen-go/grpc
   - protoc-gen-go/internal/grpc
   - protoc-gen-go/plugin
-  - protoc-gen-go/grpc
 - name: github.com/google/btree
   version: f06e229e679911bb31a04e07ac891115822e37c3
 - name: github.com/gorilla/context
@@ -206,16 +195,29 @@ imports:
   version: 19b0b332c9e4516a6370a0456e6182c3b5036720
 - name: github.com/klauspost/pgzip
   version: 95e8170c5d4da28db9c64dfc9ec3138ea4466fd4
+- name: github.com/kr/pretty
+  version: cfb55aafdaf3ec08f0db22699ab822c50091b1c4
 - name: github.com/kr/pty
   version: f7ee69f31298ecbe5d2b349c711e2547a617d398
+- name: github.com/opencontainers/go-digest
+  version: 21dfd564fd89c944783d00d069f33e3e7123c448
+- name: github.com/opencontainers/image-spec
+  version: 6e820ec55259e89ccd7092f3131c63e8419a349b
+  subpackages:
+  - specs-go
+  - specs-go/v1
 - name: github.com/pborman/uuid
   version: cccd189d45f7ac3368a0d127efb7f4d08ae0b655
 - name: github.com/peterbourgon/diskv
   version: 937c5a91d7fb1477fa6d2bb71410b2ae7a0f2143
+- name: github.com/PuerkitoBio/purell
+  version: 0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4
+- name: github.com/PuerkitoBio/urlesc
+  version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/russross/blackfriday
   version: 300106c228d52c8941d4b3de6054a6062a86dda3
 - name: github.com/shirou/gopsutil
-  version: 22a03b5be3f384f558742929065778aa26471033
+  version: 1516eb9ddc5e61ba58874047a98f8b44b5e585e8
   subpackages:
   - cpu
   - host
@@ -237,7 +239,7 @@ imports:
 - name: github.com/StackExchange/wmi
   version: f3e2bae1e0cb5aef83e319133eabfee30013a4a5
 - name: github.com/syndtr/gocapability
-  version: 8e4cdcb3c22b40d5e330ade0b68cb2e2a3cf6f98
+  version: e7cb7fa329f456b3855136a2642b197bad7366ba
   subpackages:
   - capability
 - name: github.com/vishvananda/netlink
@@ -267,34 +269,39 @@ imports:
   - html/atom
   - http2
   - http2/hpack
+  - idna
   - internal/timeseries
-  - trace
   - lex/httplex
+  - trace
 - name: golang.org/x/sys
   version: b44883b474ffefa37335017174e397412b633a4f
   subpackages:
   - unix
+- name: golang.org/x/text
+  version: 06d6eba81293389cafdff7fca90d75592194b2d9
+  subpackages:
+  - transform
+  - unicode/norm
+  - width
 - name: golang.org/x/tools
   version: 27e692e6ec36d8f48be794f32553e1400c70dbf2
   subpackages:
   - go/vcs
 - name: google.golang.org/grpc
-  version: 02fca896ff5f50c6bbbee0860345a49344b37a03
+  version: 777daa17ff9b5daef1cfdf915088a2ada3332bf0
   subpackages:
   - codes
   - credentials
   - grpclog
+  - internal
   - metadata
   - naming
   - peer
+  - stats
+  - tap
   - transport
-  - internal
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
-- name: k8s.io/kubernetes
-  version: 9990f843cd62caa90445cf76b07d63ba7b5c86fd
-  subpackages:
-  - pkg/api/resource
-  - pkg/conversion
-  - third_party/forked/reflect
-testImports: []
+testImports:
+- name: github.com/kr/text
+  version: 7cafcd837844e784b526369c9bce262804aebc60

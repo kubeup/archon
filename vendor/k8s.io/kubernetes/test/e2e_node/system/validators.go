@@ -26,7 +26,7 @@ type Validator interface {
 	// Name is the name of the validator.
 	Name() string
 	// Validate is the validate function.
-	Validate(SysSpec) error
+	Validate(SysSpec) (error, error)
 }
 
 // Reporter is the interface for the reporters for the validators.
@@ -35,24 +35,28 @@ type Reporter interface {
 	Report(string, string, ValidationResultType) error
 }
 
-// Validate uses validators to validate the system.
-func Validate(spec SysSpec, validators []Validator) error {
+// Validate uses validators to validate the system and returns a warning or error.
+func Validate(spec SysSpec, validators []Validator) (error, error) {
 	var errs []error
+	var warns []error
 
 	for _, v := range validators {
 		glog.Infof("Validating %s...", v.Name())
-		errs = append(errs, v.Validate(spec))
+		warn, err := v.Validate(spec)
+		errs = append(errs, err)
+		warns = append(warns, warn)
 	}
-	return errors.NewAggregate(errs)
+	return errors.NewAggregate(warns), errors.NewAggregate(errs)
 }
 
-// ValidateDefault uses all default validators to validate the system and writes to stdout.
-func ValidateDefault(runtime string) error {
+// ValidateSpec uses all default validators to validate the system and writes to stdout.
+func ValidateSpec(spec SysSpec, runtime string) (error, error) {
 	// OS-level validators.
 	var osValidators = []Validator{
 		&OSValidator{Reporter: DefaultReporter},
 		&KernelValidator{Reporter: DefaultReporter},
 		&CgroupsValidator{Reporter: DefaultReporter},
+		&packageValidator{reporter: DefaultReporter},
 	}
 	// Docker-specific validators.
 	var dockerValidators = []Validator{
@@ -64,5 +68,5 @@ func ValidateDefault(runtime string) error {
 	case "docker":
 		validators = append(validators, dockerValidators...)
 	}
-	return Validate(DefaultSysSpec, validators)
+	return Validate(spec, validators)
 }

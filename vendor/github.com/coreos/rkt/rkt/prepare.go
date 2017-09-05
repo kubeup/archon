@@ -22,6 +22,7 @@ import (
 	"github.com/appc/spec/schema/types"
 	"github.com/coreos/rkt/common"
 	"github.com/coreos/rkt/pkg/lock"
+	pkgPod "github.com/coreos/rkt/pkg/pod"
 	"github.com/coreos/rkt/pkg/user"
 	"github.com/coreos/rkt/rkt/image"
 	"github.com/coreos/rkt/stage0"
@@ -60,21 +61,20 @@ func init() {
 	cmdPrepare.Flags().BoolVar(&flagInheritEnv, "inherit-env", false, "inherit all environment variables not set by apps")
 	cmdPrepare.Flags().BoolVar(&flagNoOverlay, "no-overlay", false, "disable overlay filesystem")
 	cmdPrepare.Flags().BoolVar(&flagPrivateUsers, "private-users", false, "run within user namespaces.")
-	cmdPrepare.Flags().Var(&flagExplicitEnv, "set-env", "environment variable to set for apps in the form name=value")
+	cmdPrepare.Flags().Var(&flagExplicitEnv, "set-env", "environment variable to set for all the apps in the form key=value, this will be overriden by --environment")
 	cmdPrepare.Flags().Var(&flagEnvFromFile, "set-env-file", "the path to an environment variables file")
 	cmdPrepare.Flags().BoolVar(&flagStoreOnly, "store-only", false, "use only available images in the store (do not discover or download from remote URLs)")
+	cmdPrepare.Flags().MarkDeprecated("store-only", "please use --pull-policy=never")
 	cmdPrepare.Flags().BoolVar(&flagNoStore, "no-store", false, "fetch images ignoring the local store")
+	cmdPrepare.Flags().MarkDeprecated("no-store", "please use --pull-policy=update")
+	cmdPrepare.Flags().StringVar(&flagPullPolicy, "pull-policy", image.PullPolicyNew, "when to pull an image")
 	cmdPrepare.Flags().StringVar(&flagPodManifest, "pod-manifest", "", "the path to the pod manifest. If it's non-empty, then only '--quiet' and '--no-overlay' will have effect")
 	cmdPrepare.Flags().Var((*appsVolume)(&rktApps), "volume", "volumes to make available in the pod")
 
 	// per-app flags
-	cmdPrepare.Flags().Var((*appExec)(&rktApps), "exec", "override the exec command for the preceding image")
-	cmdPrepare.Flags().Var((*appMount)(&rktApps), "mount", "mount point binding a volume to a path within an app")
 	cmdPrepare.Flags().Var((*appAsc)(&rktApps), "signature", "local signature file to use in validating the preceding image")
-	cmdPrepare.Flags().Var((*appUser)(&rktApps), "user", "user override for the preceding image (example: '--user=user')")
-	cmdPrepare.Flags().Var((*appGroup)(&rktApps), "group", "group override for the preceding image (example: '--group=group')")
-	cmdPrepare.Flags().Var((*appCapsRetain)(&rktApps), "cap-retain", "capability to retain (example: '--cap-retain=CAP_SYS_ADMIN')")
-	cmdPrepare.Flags().Var((*appCapsRemove)(&rktApps), "cap-remove", "capability to remove (example: '--cap-remove=CAP_MKNOD')")
+	addAppFlags(cmdPrepare)
+	addIsolatorFlags(cmdPrepare, true)
 
 	// Disable interspersed flags to stop parsing after the first non flag
 	// argument. This is need to permit to correctly handle
@@ -89,64 +89,70 @@ func runPrepare(cmd *cobra.Command, args []string) (exit int) {
 	if flagQuiet {
 		if os.Stdout, err = os.Open("/dev/null"); err != nil {
 			stderr.PrintE("unable to open /dev/null", err)
-			return 1
+			return 254
 		}
 	}
 
 	if flagStoreOnly && flagNoStore {
 		stderr.Print("both --store-only and --no-store specified")
-		return 1
+		return 254
+	}
+	if flagStoreOnly {
+		flagPullPolicy = image.PullPolicyNever
+	}
+	if flagNoStore {
+		flagPullPolicy = image.PullPolicyUpdate
 	}
 
 	if flagPrivateUsers {
 		if !common.SupportsUserNS() {
 			stderr.Print("--private-users is not supported, kernel compiled without user namespace support")
-			return 1
+			return 254
 		}
 		privateUsers.SetRandomUidRange(user.DefaultRangeCount)
 	}
 
 	if err = parseApps(&rktApps, args, cmd.Flags(), true); err != nil {
 		stderr.PrintE("error parsing app image arguments", err)
-		return 1
+		return 254
 	}
 
-	if len(flagPodManifest) > 0 && (len(flagPorts) > 0 || flagStoreOnly || flagNoStore ||
-		flagInheritEnv || !flagExplicitEnv.IsEmpty() || !flagEnvFromFile.IsEmpty() ||
-		(*appsVolume)(&rktApps).String() != "" || (*appMount)(&rktApps).String() != "" || (*appExec)(&rktApps).String() != "" ||
-		(*appUser)(&rktApps).String() != "" || (*appGroup)(&rktApps).String() != "" ||
-		(*appCapsRetain)(&rktApps).String() != "" || (*appCapsRemove)(&rktApps).String() != "") {
+	if len(flagPodManifest) > 0 && (rktApps.Count() > 0 ||
+		(*appsVolume)(&rktApps).String() != "" || (*appMount)(&rktApps).String() != "" ||
+		len(flagPorts) > 0 || flagPullPolicy == image.PullPolicyNever ||
+		flagPullPolicy == image.PullPolicyUpdate || flagInheritEnv ||
+		!flagExplicitEnv.IsEmpty() || !flagEnvFromFile.IsEmpty()) {
 		stderr.Print("conflicting flags set with --pod-manifest (see --help)")
-		return 1
+		return 254
 	}
 
 	if rktApps.Count() < 1 && len(flagPodManifest) == 0 {
 		stderr.Print("must provide at least one image or specify the pod manifest")
-		return 1
+		return 254
 	}
 
 	s, err := imagestore.NewStore(storeDir())
 	if err != nil {
 		stderr.PrintE("cannot open store", err)
-		return 1
+		return 254
 	}
 
 	ts, err := treestore.NewStore(treeStoreDir(), s)
 	if err != nil {
 		stderr.PrintE("cannot open treestore", err)
-		return 1
+		return 254
 	}
 
 	config, err := getConfig()
 	if err != nil {
 		stderr.PrintE("cannot get configuration", err)
-		return 1
+		return 254
 	}
 
 	s1img, err := getStage1Hash(s, ts, config)
 	if err != nil {
 		stderr.Error(err)
-		return 1
+		return 254
 	}
 
 	fn := &image.Finder{
@@ -159,32 +165,43 @@ func runPrepare(cmd *cobra.Command, args []string) (exit int) {
 		Debug:              globalFlags.Debug,
 		TrustKeysFromHTTPS: globalFlags.TrustKeysFromHTTPS,
 
-		StoreOnly: flagStoreOnly,
-		NoStore:   flagNoStore,
-		WithDeps:  true,
+		PullPolicy: flagPullPolicy,
+		WithDeps:   true,
 	}
 	if err := fn.FindImages(&rktApps); err != nil {
 		stderr.PrintE("error finding images", err)
-		return 1
+		return 254
 	}
 
-	p, err := newPod()
+	p, err := pkgPod.NewPod(getDataDir())
 	if err != nil {
 		stderr.PrintE("error creating new pod", err)
-		return 1
+		return 254
 	}
 
 	cfg := stage0.CommonConfig{
+		DataDir:     getDataDir(),
 		Store:       s,
 		TreeStore:   ts,
 		Stage1Image: *s1img,
-		UUID:        p.uuid,
+		UUID:        p.UUID,
 		Debug:       globalFlags.Debug,
+	}
+
+	ovlOk := true
+	if err := common.PathSupportsOverlay(getDataDir()); err != nil {
+		if oerr, ok := err.(common.ErrOverlayUnsupported); ok {
+			stderr.Printf("disabling overlay support: %q", oerr.Error())
+			ovlOk = false
+		} else {
+			stderr.PrintE("error determining overlay support", err)
+			return 254
+		}
 	}
 
 	pcfg := stage0.PrepareConfig{
 		CommonConfig:       &cfg,
-		UseOverlay:         !flagNoOverlay && common.SupportsOverlay() && common.FSSupportsOverlay(getDataDir()),
+		UseOverlay:         !flagNoOverlay && ovlOk,
 		PrivateUsers:       privateUsers,
 		SkipTreeStoreCheck: globalFlags.InsecureFlags.SkipOnDiskCheck(),
 	}
@@ -206,27 +223,27 @@ func runPrepare(cmd *cobra.Command, args []string) (exit int) {
 	keyLock, err := lock.SharedKeyLock(lockDir(), common.PrepareLock)
 	if err != nil {
 		stderr.PrintE("cannot get shared prepare lock", err)
-		return 1
+		return 254
 	}
-	if err = stage0.Prepare(pcfg, p.path(), p.uuid); err != nil {
+	if err = stage0.Prepare(pcfg, p.Path(), p.UUID); err != nil {
 		stderr.PrintE("error setting up stage0", err)
 		keyLock.Close()
-		return 1
+		return 254
 	}
 	keyLock.Close()
 
-	if err := p.sync(); err != nil {
+	if err := p.Sync(); err != nil {
 		stderr.PrintE("error syncing pod data", err)
-		return 1
+		return 254
 	}
 
-	if err := p.xToPrepared(); err != nil {
+	if err := p.ToPrepared(); err != nil {
 		stderr.PrintE("error transitioning to prepared", err)
-		return 1
+		return 254
 	}
 
 	os.Stdout = origStdout // restore output in case of --quiet
-	stdout.Printf("%s", p.uuid.String())
+	stdout.Printf("%s", p.UUID.String())
 
 	return 0
 }

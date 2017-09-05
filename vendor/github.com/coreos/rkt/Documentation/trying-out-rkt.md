@@ -20,9 +20,9 @@ rkt is written in Go and can be compiled for several CPU architectures. The rkt 
 To start running the latest version of rkt on amd64, grab the release directly from the rkt GitHub project:
 
 ```
-wget https://github.com/coreos/rkt/releases/download/v1.11.0/rkt-v1.11.0.tar.gz
-tar xzvf rkt-v1.11.0.tar.gz
-cd rkt-v1.11.0
+wget https://github.com/coreos/rkt/releases/download/v1.25.0/rkt-v1.25.0.tar.gz
+tar xzvf rkt-v1.25.0.tar.gz
+cd rkt-v1.25.0
 ./rkt help
 ```
 
@@ -90,13 +90,13 @@ vagrant ssh -c 'ip address'
 
 In this example, the Vagrant machine has the IP address `172.28.128.3`.
 
-The following command starts an `nginx` container, for simplicity using [*host networking*][host-network] to make the pod directly accessible on the host's network address and ports. Signature validation isn't supported for Docker registries and images, so `--insecure-options=image` switches off the signature check:
+The following command starts an [`nginx`][docker-nginx] container, for simplicity using [*host networking*][host-network] to make the pod directly accessible on the host's network address and ports. Signature validation isn't supported for Docker registries and images, so `--insecure-options=image` switches off the signature check:
 
 ```
 sudo rkt run --net=host --insecure-options=image docker://nginx
 ```
 
-The nginx container is now accessible on the host under http://172.28.128.3.
+The nginx container is now accessible on the host under `http://172.28.128.3`.
 
 In order to use containers with the default [*contained network*][contained-network], a route to the 172.16.28.0/24 container network must be configured from the host through the VM:
 
@@ -121,7 +121,7 @@ UUID		APP	IMAGE NAME					STATE	CREATED		STARTED		NETWORKS
 0c3ab969	nginx	registry-1.docker.io/library/nginx:latest	running	2 minutes ago	2 minutes ago	default:ip4=172.16.28.2
 ```
 
-The nginx container is now accessible on the host under http://172.16.28.2.
+In this example, the nginx container was assigned the IP address 172.16.28.2 (the address assigned on your system may vary). Since we established a route from the host to the `172.16.28.0/24` pod network the nginx container is now accessible on the host under `http://172.16.28.2`.
 
 Success! The rest of the guide can now be followed normally.
 
@@ -135,9 +135,9 @@ rkt supports running under SELinux mandatory access controls, but an SELinux pol
 
 ### Optional: Set up privilege separation
 
-To allow different subcommands to use the least necessary privilege, rkt recognizes a `rkt` group that has read-write access to the rkt data directory. This allows `rkt fetch`, which downloads and verifies images, to run as an unprivileged user who is a member of the `rkt` group.
+To allow different subcommands to use the least necessary privilege, rkt recognizes a `rkt` group that has read-write access to the rkt data directory. This allows [`rkt fetch`][rkt-fetch], which downloads and verifies images, to run as an unprivileged user who is a member of the `rkt` group.
 
-If you skip this section, you can still run `sudo rkt fetch` instead, but setting up a `rkt` group is a good basic security practice for production use. The rkt repo includes a `setup-data-dir.sh` script that can help set up the appropriate permissions for unprivileged execution of subcommands that manipulate the local store, but not the execution environment:
+If you skip this section, you can still run `sudo rkt fetch` instead, but setting up a `rkt` group is a good basic security practice for production use. The rkt repo includes a [`setup-data-dir.sh`][setup-data-dir] script that can help set up the appropriate permissions for unprivileged execution of subcommands that manipulate the local store, but not the execution environment:
 
 ```
 sudo groupadd rkt
@@ -180,7 +180,7 @@ The example below uses an [etcd][etcd] ACI constructed with `acbuild` by the etc
 
 rkt uses content addressable storage (CAS) to store an ACI on disk. In this example, an image is downloaded and added to the CAS. Downloading an image before running it is not strictly necessary &ndash; if an image is not present in the store, [rkt will attempt to retrieve it][aci-discovery] &ndash; but it illustrates how rkt works.
 
-Since rkt verifies signatures by default, the first step is to [trust][signguide-establishing-trust] the [CoreOS public key][coreos-pubkey] used to sign the image, using the `rkt trust` subcommand:
+Since rkt verifies signatures by default, the first step is to [trust][signguide-establishing-trust] the [CoreOS public key][coreos-pubkey] used to sign the image, using the [`rkt trust`][rkt-trust] subcommand:
 
 #### Trusting the signing key
 
@@ -199,7 +199,7 @@ For more information, see the [detailed, step-by-step guide for the signing proc
 
 #### Fetching the ACI
 
-Now that the CoreOS public key is trusted, fetch the ACI using `rkt fetch`. This step doesn't need root privileges if the rkt host has been [configured for privilege separation][id-privsep]:
+Now that the CoreOS public key is trusted, fetch the ACI using [`rkt fetch`][rkt-fetch]. This step doesn't need root privileges if the rkt host has been [configured for privilege separation][id-privsep]:
 
 ```
 $ rkt fetch coreos.com/etcd:v2.3.7
@@ -240,7 +240,7 @@ $ sha512sum etcd-v2.3.7-linux-amd64.tar
 
 ### Running an ACI with rkt
 
-After it has been retrieved and stored locally, an ACI can be run by pointing `rkt run` at either the original image reference (in this case, `coreos.com/etcd:v2.3.7`), the ACI hash, or the full URL of the ACI. Therefore the following three examples are equivalent:
+After it has been retrieved and stored locally, an ACI can be run by pointing [`rkt run`][rkt-run] at either the original image reference (in this case, `coreos.com/etcd:v2.3.7`), the ACI hash, or the full URL of the ACI. Therefore the following three examples are equivalent:
 
 #### Running the container by ACI name and version
 
@@ -275,7 +275,7 @@ As shown above, repeating the `^]` escape character three times kills the pod an
 The escape character `^]` is generated by `Ctrl-]` on a US keyboard. The required key combination will differ on other keyboard layouts. For example, the Swedish keyboard layout uses ```Ctrl-å``` on OS X, or ```Ctrl-^``` on Windows, to generate the ```^]``` escape character.
 
 
-[acbuild]: https://github.com/appc/acbuild
+[acbuild]: https://github.com/containers/build
 [aci-archives]: https://github.com/appc/spec/blob/master/spec/aci.md#image-archives
 [aci-discovery]: https://github.com/appc/spec/blob/master/spec/discovery.md
 [appc]: app-container.md
@@ -286,8 +286,9 @@ The escape character `^]` is generated by `Ctrl-]` on a US keyboard. The require
 [configdoc]: configuration.md
 [disable-selinux]: https://www.centos.org/docs/5/html/5.1/Deployment_Guide/sec-sel-enable-disable.html
 [distlist]: distributions.md
-[distro-pkg-help]: (https://github.com/coreos/rkt/issues?utf8=%E2%9C%93&q=is%3Aopen+is%3Aissue+label%3Aarea%2Fdistribution++label%3Adependency%2Fexternal)
+[distro-pkg-help]: https://github.com/coreos/rkt/issues?utf8=%E2%9C%93&q=is%3Aopen+is%3Aissue+label%3Aarea%2Fdistribution++label%3Adependency%2Fexternal
 [docker2aci]: https://github.com/appc/docker2aci
+[docker-nginx]: https://hub.docker.com/_/nginx/
 [etcd]: https://coreos.com/etcd/
 [getstart]: getting-started-guide.md
 [host-network]: networking/overview.md#host-mode
@@ -300,7 +301,11 @@ The escape character `^]` is generated by `Ctrl-]` on a US keyboard. The require
 [id-rkt-run-by-name]: #running-the-container-by-aci-name-and-version
 [id-vagrant-rkt]: #running-rkt-in-a-vagrant-virtual-machine
 [rktdocker]: running-docker-images.md
+[rkt-fetch]: subcommands/fetch.md
+[rkt-run]: subcommands/run.md
+[rkt-trust]: subcommands/trust.md
 [run-coreos]: https://coreos.com/os/docs/latest/#running-coreos
+[setup-data-dir]: https://github.com/coreos/rkt/blob/master/dist/scripts/setup-data-dir.sh
 [signguide]: signing-and-verification-guide.md
 [signguide-establishing-trust]: signing-and-verification-guide.md#establishing-trust
 [vagrant]: https://www.vagrantup.com/

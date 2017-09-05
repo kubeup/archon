@@ -46,6 +46,8 @@ var _ = Describe("Link", func() {
 		hostNetNS         ns.NetNS
 		containerNetNS    ns.NetNS
 		ifaceCounter      int = 0
+		hostVeth          net.Interface
+		containerVeth     net.Interface
 		hostVethName      string
 		containerVethName string
 
@@ -70,14 +72,14 @@ var _ = Describe("Link", func() {
 		_ = containerNetNS.Do(func(ns.NetNS) error {
 			defer GinkgoRecover()
 
-			hostVeth, containerVeth, err := ip.SetupVeth(fmt.Sprintf(ifaceFormatString, ifaceCounter), mtu, hostNetNS)
+			hostVeth, containerVeth, err = ip.SetupVeth(fmt.Sprintf(ifaceFormatString, ifaceCounter), mtu, hostNetNS)
 			if err != nil {
 				return err
 			}
 			Expect(err).NotTo(HaveOccurred())
 
-			hostVethName = hostVeth.Attrs().Name
-			containerVethName = containerVeth.Attrs().Name
+			hostVethName = hostVeth.Name
+			containerVethName = containerVeth.Name
 
 			return nil
 		})
@@ -94,8 +96,9 @@ var _ = Describe("Link", func() {
 		_ = containerNetNS.Do(func(ns.NetNS) error {
 			defer GinkgoRecover()
 
-			_, err := netlink.LinkByName(containerVethName)
+			containerVethFromName, err := netlink.LinkByName(containerVethName)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(containerVethFromName.Attrs().Index).To(Equal(containerVeth.Index))
 
 			return nil
 		})
@@ -103,8 +106,9 @@ var _ = Describe("Link", func() {
 		_ = hostNetNS.Do(func(ns.NetNS) error {
 			defer GinkgoRecover()
 
-			_, err := netlink.LinkByName(hostVethName)
+			hostVethFromName, err := netlink.LinkByName(hostVethName)
 			Expect(err).NotTo(HaveOccurred())
+			Expect(hostVethFromName.Attrs().Index).To(Equal(hostVeth.Index))
 
 			return nil
 		})
@@ -117,6 +121,20 @@ var _ = Describe("Link", func() {
 
 				_, _, err := ip.SetupVeth(containerVethName, mtu, hostNetNS)
 				Expect(err.Error()).To(Equal(fmt.Sprintf("container veth name provided (%s) already exists", containerVethName)))
+
+				return nil
+			})
+		})
+	})
+
+	Context("deleting an non-existent device", func() {
+		It("returns known error", func() {
+			_ = containerNetNS.Do(func(ns.NetNS) error {
+				defer GinkgoRecover()
+
+				// This string should match the expected error codes in the cmdDel functions of some of the plugins
+				_, err := ip.DelLinkByNameAddr("THIS_DONT_EXIST", netlink.FAMILY_V4)
+				Expect(err).To(Equal(ip.ErrLinkNotFound))
 
 				return nil
 			})
@@ -152,7 +170,7 @@ var _ = Describe("Link", func() {
 
 				hostVeth, _, err := ip.SetupVeth(containerVethName, mtu, hostNetNS)
 				Expect(err).NotTo(HaveOccurred())
-				hostVethName = hostVeth.Attrs().Name
+				hostVethName = hostVeth.Name
 				return nil
 			})
 

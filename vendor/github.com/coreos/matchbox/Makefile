@@ -1,6 +1,6 @@
 export CGO_ENABLED:=0
 
-VERSION=$(shell ./scripts/git-version)
+VERSION=$(shell ./scripts/dev/git-version)
 LD_FLAGS="-w -X github.com/coreos/matchbox/matchbox/version.Version=$(VERSION)"
 
 REPO=github.com/coreos/matchbox
@@ -9,17 +9,17 @@ QUAY_REPO=quay.io/coreos/matchbox
 
 all: build
 
-build: clean bin/matchbox bin/bootcmd
+build: clean bin/matchbox
 
 bin/%:
 	@go build -o bin/$* -v -ldflags $(LD_FLAGS) $(REPO)/cmd/$*
 
 test:
-	@./scripts/test
+	@./scripts/dev/test
 
 .PHONY: aci
 aci: clean build
-	@sudo ./scripts/build-aci
+	@sudo ./scripts/dev/build-aci
 
 .PHONY: docker-image
 docker-image:
@@ -40,13 +40,13 @@ vendor:
 
 .PHONY: codegen
 codegen: tools
-	@./scripts/codegen
+	@./scripts/dev/codegen
 
 .PHONY: tools
 tools: bin/protoc bin/protoc-gen-go
 
 bin/protoc:
-	@./scripts/get-protoc
+	@./scripts/dev/get-protoc
 
 bin/protoc-gen-go:
 	@go build -o bin/protoc-gen-go $(REPO)/vendor/github.com/golang/protobuf/protoc-gen-go
@@ -73,21 +73,12 @@ bin/darwin-amd64/matchbox: GOARGS = GOOS=darwin GOARCH=amd64
 bin/%/matchbox:
 	$(GOARGS) go build -o $@ -ldflags $(LD_FLAGS) -a $(REPO)/cmd/matchbox
 
-bin/linux-amd64/bootcmd: GOARGS = GOOS=linux GOARCH=amd64
-bin/linux-arm/bootcmd: GOARGS = GOOS=linux GOARCH=arm GOARM=6
-bin/linux-arm64/bootcmd: GOARGS = GOOS=linux GOARCH=arm64
-bin/darwin-amd64/bootcmd: GOARGS = GOOS=darwin GOARCH=amd64
-
-bin/%/bootcmd:
-	$(GOARGS) go build -o $@ -ldflags $(LD_FLAGS) -a $(REPO)/cmd/bootcmd
-
 _output/matchbox-%.tar.gz: NAME=matchbox-$(VERSION)-$*
 _output/matchbox-%.tar.gz: DEST=_output/$(NAME)
-_output/matchbox-%.tar.gz: bin/%/matchbox bin/%/bootcmd
+_output/matchbox-%.tar.gz: bin/%/matchbox
 	mkdir -p $(DEST)
 	cp bin/$*/matchbox $(DEST)
-	cp bin/$*/bootcmd $(DEST)
-	./scripts/release-files $(DEST)
+	./scripts/dev/release-files $(DEST)
 	tar zcvf $(DEST).tar.gz -C _output $(NAME)
 
 .PHONY: all build clean test release

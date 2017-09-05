@@ -2,7 +2,8 @@
 
 # Getting Started
 
-1. If you haven't already, set up a Go workspace according to the [Go docs](http://golang.org/doc).
+1. If you haven't already, set up a Go workspace according to the
+   [Go docs](http://golang.org/doc).
 2. Install the Go SDK. Normally this is done with "go get".
 3. Setup GOPATH environment variable
 
@@ -15,7 +16,9 @@
 
 ## Sample App
 
-Here's a quick sample app that will retrieve Photon Controller status from a [local devbox]. In this example, it's under $GOPATH/src/sdkexample/main.go:
+Here's a quick sample app that will retrieve Photon Controller status from a
+[local devbox].
+In this example, it's under $GOPATH/src/sdkexample/main.go:
 
 ```golang
 package main
@@ -49,9 +52,11 @@ And the output should look something like this:
 
 ## Using APIs that return tasks
 
-Most Photon Controller APIs use a task model. The API will return a task object, which will indicate the state of the task (such as queued, completed, error, etc).
-These tasks return immediately and the caller must poll to find out when the task has been completed.
-The Go SDK provides a tasks API to do this for you, with built-in retry and error handling.
+Most Photon Controller APIs use a task model. The API will return a task object,
+which will indicate the state of the task (such as queued, completed, error, etc).
+These tasks return immediately and the caller must poll to find out when the task
+has been completed.The Go SDK provides a tasks API to do this for you,
+with built-in retry and error handling.
 
 Let's expand the sample app to create a new tenant:
 

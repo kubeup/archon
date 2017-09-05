@@ -22,15 +22,15 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/api/v1"
 	"k8s.io/kubernetes/pkg/client/clientset_generated/clientset/fake"
 	"k8s.io/kubernetes/pkg/controller/node/testutil"
 
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clienttesting "k8s.io/client-go/testing"
 )
+
+var timeForControllerToProgress = 500 * time.Millisecond
 
 func createNoExecuteTaint(index int) v1.Taint {
 	return v1.Taint{
@@ -90,99 +90,6 @@ func TestFilterNoExecuteTaints(t *testing.T) {
 	taints = getNoExecuteTaints(taints)
 	if len(taints) != 1 || taints[0].Key != "one" {
 		t.Errorf("Filtering doesn't work. Got %v", taints)
-	}
-}
-
-func TestComputeTaintDifference(t *testing.T) {
-	testCases := []struct {
-		lhs                []v1.Taint
-		rhs                []v1.Taint
-		expectedDifference []v1.Taint
-		description        string
-	}{
-		{
-			lhs: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-				{
-					Key:   "two",
-					Value: "two",
-				},
-			},
-			rhs: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-				{
-					Key:   "two",
-					Value: "two",
-				},
-			},
-			description: "Equal sets",
-		},
-		{
-			lhs: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-			},
-			expectedDifference: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-			},
-			description: "Right is empty",
-		},
-		{
-			rhs: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-			},
-			description: "Left is empty",
-		},
-		{
-			lhs: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-				{
-					Key:   "two",
-					Value: "two",
-				},
-			},
-			rhs: []v1.Taint{
-				{
-					Key:   "two",
-					Value: "two",
-				},
-				{
-					Key:   "three",
-					Value: "three",
-				},
-			},
-			expectedDifference: []v1.Taint{
-				{
-					Key:   "one",
-					Value: "one",
-				},
-			},
-			description: "Intersecting arrays",
-		},
-	}
-
-	for _, item := range testCases {
-		difference := computeTaintDifference(item.lhs, item.rhs)
-		if !api.Semantic.DeepEqual(difference, item.expectedDifference) {
-			t.Errorf("%v: difference in not what expected. Got %v, expected %v", item.description, difference, item.expectedDifference)
-		}
 	}
 }
 
@@ -248,7 +155,7 @@ func TestCreatePod(t *testing.T) {
 		controller.taintedNodes = item.taintedNodes
 		controller.PodUpdated(nil, item.pod)
 		// wait a bit
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(timeForControllerToProgress)
 
 		podDeleted := false
 		for _, action := range fakeClientset.Actions() {
@@ -274,7 +181,7 @@ func TestDeletePod(t *testing.T) {
 	}
 	controller.PodUpdated(testutil.NewPod("pod1", "node1"), nil)
 	// wait a bit to see if nothing will panic
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(timeForControllerToProgress)
 	close(stopCh)
 }
 
@@ -336,10 +243,10 @@ func TestUpdatePod(t *testing.T) {
 
 		controller.PodUpdated(nil, item.prevPod)
 		fakeClientset.ClearActions()
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(timeForControllerToProgress)
 		controller.PodUpdated(item.prevPod, item.newPod)
 		// wait a bit
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(timeForControllerToProgress)
 		if item.additionalSleep > 0 {
 			time.Sleep(item.additionalSleep)
 		}
@@ -398,7 +305,7 @@ func TestCreateNode(t *testing.T) {
 		go controller.Run(stopCh)
 		controller.NodeUpdated(nil, item.node)
 		// wait a bit
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(timeForControllerToProgress)
 
 		podDeleted := false
 		for _, action := range fakeClientset.Actions() {
@@ -424,7 +331,7 @@ func TestDeleteNode(t *testing.T) {
 	go controller.Run(stopCh)
 	controller.NodeUpdated(testutil.NewNode("node1"), nil)
 	// wait a bit to see if nothing will panic
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(timeForControllerToProgress)
 	controller.taintedNodesLock.Lock()
 	if _, ok := controller.taintedNodes["node1"]; ok {
 		t.Error("Node should have been deleted from taintedNodes list")
@@ -519,7 +426,7 @@ func TestUpdateNode(t *testing.T) {
 		go controller.Run(stopCh)
 		controller.NodeUpdated(item.oldNode, item.newNode)
 		// wait a bit
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(timeForControllerToProgress)
 		if item.additionalSleep > 0 {
 			time.Sleep(item.additionalSleep)
 		}
@@ -575,6 +482,8 @@ func TestUpdateNodeWithMultiplePods(t *testing.T) {
 	}
 
 	for _, item := range testCases {
+		t.Logf("Starting testcase %q", item.description)
+
 		stopCh := make(chan struct{})
 		fakeClientset := fake.NewSimpleClientset(&v1.PodList{Items: item.pods})
 		sort.Sort(item.expectedDeleteTimes)
@@ -583,19 +492,24 @@ func TestUpdateNodeWithMultiplePods(t *testing.T) {
 		go controller.Run(stopCh)
 		controller.NodeUpdated(item.oldNode, item.newNode)
 
-		sleptAlready := time.Duration(0)
+		startedAt := time.Now()
 		for i := range item.expectedDeleteTimes {
-			var increment time.Duration
 			if i == 0 || item.expectedDeleteTimes[i-1].timestamp != item.expectedDeleteTimes[i].timestamp {
+				// compute a grace duration to give controller time to process updates. Choose big
+				// enough intervals in the test cases above to avoid flakes.
+				var increment time.Duration
 				if i == len(item.expectedDeleteTimes)-1 || item.expectedDeleteTimes[i+1].timestamp == item.expectedDeleteTimes[i].timestamp {
-					increment = 200 * time.Millisecond
+					increment = 500 * time.Millisecond
 				} else {
 					increment = ((item.expectedDeleteTimes[i+1].timestamp - item.expectedDeleteTimes[i].timestamp) / time.Duration(2))
 				}
-				sleepTime := item.expectedDeleteTimes[i].timestamp - sleptAlready + increment
-				glog.Infof("Sleeping for %v", sleepTime)
+
+				sleepTime := item.expectedDeleteTimes[i].timestamp - time.Since(startedAt) + increment
+				if sleepTime < 0 {
+					sleepTime = 0
+				}
+				t.Logf("Sleeping for %v", sleepTime)
 				time.Sleep(sleepTime)
-				sleptAlready = item.expectedDeleteTimes[i].timestamp + increment
 			}
 
 			for delay, podName := range item.expectedDeleteTimes[i].names {
@@ -603,7 +517,7 @@ func TestUpdateNodeWithMultiplePods(t *testing.T) {
 				for _, action := range fakeClientset.Actions() {
 					deleteAction, ok := action.(clienttesting.DeleteActionImpl)
 					if !ok {
-						glog.Infof("Found not-delete action with verb %v. Ignoring.", action.GetVerb())
+						t.Logf("Found not-delete action with verb %v. Ignoring.", action.GetVerb())
 						continue
 					}
 					if deleteAction.GetResource().Resource != "pods" {
@@ -620,7 +534,7 @@ func TestUpdateNodeWithMultiplePods(t *testing.T) {
 			for _, action := range fakeClientset.Actions() {
 				deleteAction, ok := action.(clienttesting.DeleteActionImpl)
 				if !ok {
-					glog.Infof("Found not-delete action with verb %v. Ignoring.", action.GetVerb())
+					t.Logf("Found not-delete action with verb %v. Ignoring.", action.GetVerb())
 					continue
 				}
 				if deleteAction.GetResource().Resource != "pods" {
@@ -641,5 +555,49 @@ func TestUpdateNodeWithMultiplePods(t *testing.T) {
 		}
 
 		close(stopCh)
+	}
+}
+
+func TestGetMinTolerationTime(t *testing.T) {
+	one := int64(1)
+	oneSec := 1 * time.Second
+
+	tests := []struct {
+		tolerations []v1.Toleration
+		expected    time.Duration
+	}{
+		{
+			tolerations: []v1.Toleration{},
+			expected:    0,
+		},
+		{
+			tolerations: []v1.Toleration{
+				{
+					TolerationSeconds: &one,
+				},
+				{
+					TolerationSeconds: nil,
+				},
+			},
+			expected: oneSec,
+		},
+		{
+			tolerations: []v1.Toleration{
+				{
+					TolerationSeconds: nil,
+				},
+				{
+					TolerationSeconds: &one,
+				},
+			},
+			expected: oneSec,
+		},
+	}
+
+	for _, test := range tests {
+		got := getMinTolerationTime(test.tolerations)
+		if got != test.expected {
+			t.Errorf("Incorrect min toleration time: got %v, expected %v", got, test.expected)
+		}
 	}
 }

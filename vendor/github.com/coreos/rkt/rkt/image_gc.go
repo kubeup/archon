@@ -19,8 +19,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/appc/spec/schema"
 	"github.com/coreos/rkt/common"
 	"github.com/coreos/rkt/pkg/lock"
+	pkgPod "github.com/coreos/rkt/pkg/pod"
 	"github.com/coreos/rkt/store/imagestore"
 	"github.com/coreos/rkt/store/treestore"
 	"github.com/hashicorp/errwrap"
@@ -53,7 +55,7 @@ func runGCImage(cmd *cobra.Command, args []string) (exit int) {
 	s, err := imagestore.NewStore(storeDir())
 	if err != nil {
 		stderr.PrintE("cannot open store", err)
-		return 1
+		return 254
 	}
 
 	ts, err := treestore.NewStore(treeStoreDir(), s)
@@ -64,12 +66,12 @@ func runGCImage(cmd *cobra.Command, args []string) (exit int) {
 
 	if err := gcTreeStore(ts); err != nil {
 		stderr.PrintE("failed to remove unreferenced treestores", err)
-		return 1
+		return 254
 	}
 
 	if err := gcStore(s, flagImageGracePeriod); err != nil {
 		stderr.Error(err)
-		return 1
+		return 254
 	}
 
 	return 0
@@ -111,15 +113,15 @@ func gcTreeStore(ts *treestore.Store) error {
 func getReferencedTreeStoreIDs() (map[string]struct{}, error) {
 	treeStoreIDs := map[string]struct{}{}
 	// Consider pods in preparing, prepared, run, exitedgarbage state
-	if err := walkPods(includeMostDirs, func(p *pod) {
-		stage1TreeStoreID, err := p.getStage1TreeStoreID()
+	if err := pkgPod.WalkPods(getDataDir(), pkgPod.IncludeMostDirs, func(p *pkgPod.Pod) {
+		stage1TreeStoreID, err := p.GetStage1TreeStoreID()
 		if err != nil {
-			stderr.PrintE(fmt.Sprintf("cannot get stage1 treestoreID for pod %s", p.uuid), err)
+			stderr.PrintE(fmt.Sprintf("cannot get stage1 treestoreID for pod %s", p.UUID), err)
 			return
 		}
-		appsTreeStoreIDs, err := p.getAppsTreeStoreIDs()
+		appsTreeStoreIDs, err := p.GetAppsTreeStoreIDs()
 		if err != nil {
-			stderr.PrintE(fmt.Sprintf("cannot get apps treestoreID for pod %s", p.uuid), err)
+			stderr.PrintE(fmt.Sprintf("cannot get apps treestoreID for pod %s", p.UUID), err)
 			return
 		}
 		allTreeStoreIDs := append(appsTreeStoreIDs, stage1TreeStoreID)
@@ -139,8 +141,15 @@ func gcStore(s *imagestore.Store, gracePeriod time.Duration) error {
 	if err != nil {
 		return errwrap.Wrap(errors.New("failed to get aciinfos"), err)
 	}
+	runningImages, err := getRunningImages()
+	if err != nil {
+		return errwrap.Wrap(errors.New("failed to get list of images for running pods"), err)
+	}
 	for _, ai := range aciinfos {
 		if time.Now().Sub(ai.LastUsed) <= gracePeriod {
+			break
+		}
+		if isInSet(ai.BlobKey, runningImages) {
 			break
 		}
 		imagesToRemove = append(imagesToRemove, ai.BlobKey)
@@ -151,4 +160,45 @@ func gcStore(s *imagestore.Store, gracePeriod time.Duration) error {
 	}
 
 	return nil
+}
+
+// getRunningImages will return the image IDs used to create any of the
+// currently running pods
+func getRunningImages() ([]string, error) {
+	var runningImages []string
+	var errors []error
+	err := pkgPod.WalkPods(getDataDir(), pkgPod.IncludeMostDirs, func(p *pkgPod.Pod) {
+		var pm schema.PodManifest
+		if p.State() != pkgPod.Running {
+			return
+		}
+		if !p.PodManifestAvailable() {
+			return
+		}
+		_, manifest, err := p.PodManifest()
+		if err != nil {
+			errors = append(errors, newPodListReadError(p, err))
+			return
+		}
+		pm = *manifest
+		for _, app := range pm.Apps {
+			runningImages = append(runningImages, app.Image.ID.String())
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(errors) > 0 {
+		return nil, errors[0]
+	}
+	return runningImages, nil
+}
+
+func isInSet(item string, set []string) bool {
+	for _, elem := range set {
+		if item == elem {
+			return true
+		}
+	}
+	return false
 }

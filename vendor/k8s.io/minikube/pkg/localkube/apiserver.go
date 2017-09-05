@@ -17,22 +17,27 @@ limitations under the License.
 package localkube
 
 import (
+	"net"
+	"path"
+	"strconv"
+
 	apiserveroptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
+
 	apiserver "k8s.io/kubernetes/cmd/kube-apiserver/app"
 	"k8s.io/kubernetes/cmd/kube-apiserver/app/options"
 	kubeapioptions "k8s.io/kubernetes/pkg/kubeapiserver/options"
 )
 
 func (lk LocalkubeServer) NewAPIServer() Server {
-	return NewSimpleServer("apiserver", serverInterval, StartAPIServer(lk))
+	return NewSimpleServer("apiserver", serverInterval, StartAPIServer(lk), readyFunc(lk))
 }
 
 func StartAPIServer(lk LocalkubeServer) func() error {
 	config := options.NewServerRunOptions()
 
-	config.SecureServing.ServingOptions.BindAddress = lk.APIServerAddress
-	config.SecureServing.ServingOptions.BindPort = lk.APIServerPort
+	config.SecureServing.BindAddress = lk.APIServerAddress
+	config.SecureServing.BindPort = lk.APIServerPort
 
 	config.InsecureServing.BindAddress = lk.APIServerInsecureAddress
 	config.InsecureServing.BindPort = lk.APIServerInsecurePort
@@ -41,8 +46,13 @@ func StartAPIServer(lk LocalkubeServer) func() error {
 
 	config.SecureServing.ServerCert.CertKey.CertFile = lk.GetPublicKeyCertPath()
 	config.SecureServing.ServerCert.CertKey.KeyFile = lk.GetPrivateKeyCertPath()
-	config.GenericServerRunOptions.AdmissionControl = "NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota"
-
+	config.Admission.PluginNames = []string{
+		"NamespaceLifecycle",
+		"LimitRanger",
+		"ServiceAccount",
+		"DefaultStorageClass",
+		"ResourceQuota",
+	}
 	// use localkube etcd
 
 	config.Etcd.StorageConfig.ServerList = KubeEtcdClientURLs
@@ -68,6 +78,13 @@ func StartAPIServer(lk LocalkubeServer) func() error {
 	lk.SetExtraConfigForComponent("apiserver", &config)
 
 	return func() error {
-		return apiserver.Run(config)
+		stop := make(chan struct{})
+		return apiserver.Run(config, stop)
 	}
+}
+
+func readyFunc(lk LocalkubeServer) HealthCheck {
+	hostport := net.JoinHostPort(lk.APIServerInsecureAddress.String(), strconv.Itoa(lk.APIServerInsecurePort))
+	addr := "http://" + path.Join(hostport, "healthz")
+	return healthCheck(addr)
 }

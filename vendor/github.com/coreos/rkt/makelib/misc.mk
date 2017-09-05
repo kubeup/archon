@@ -469,6 +469,52 @@ define add-dependency
 $(eval $(call add-dependency-template,$1,$2))
 endef
 
+# 1 - stamp file, which will depend on the generated clean stamp
+# 2 - file list
+# 3 - a list of directory mappings
+# 4 - descriptor
+define generate-clean-mk-from-filelist
+$(strip \
+	$(eval _MISC_GCMFF_MAIN_STAMP_ := $(strip $1)) \
+	$(eval _MISC_GCMFF_FILELIST_ := $(strip $2)) \
+	$(eval _MISC_GCMFF_DIR_MAPS_ := $(strip $3)) \
+	$(eval _MISC_GCMFF_DESCRIPTOR_ := $(strip $4)) \
+	\
+	$(call setup-stamp-file,_MISC_GCMFF_CLEAN_STAMP_,$(_MISC_GCMFF_DESCRIPTOR_)-gcmff-generated-clean-stamp) \
+	$(call setup-clean-file,_MISC_GCMFF_CLEANMK_,$(_MISC_GCMFF_DESCRIPTOR_)-gcmff-generated-cleanmk) \
+	\
+	$(call add-dependency,$(_MISC_GCMFF_MAIN_STAMP_),$(_MISC_GCMFF_CLEAN_STAMP_)) \
+	$(call generate-clean-mk,$(_MISC_GCMFF_CLEAN_STAMP_),$(_MISC_GCMFF_CLEANMK_),$(_MISC_GCMFF_FILELIST_),$(_MISC_GCMFF_DIR_MAPS_)) \
+	\
+	$(call undefine-namespaces,_MISC_GCMFF))
+endef
+
+# 1 - stamp file, which will depend on the generated clean stamp
+# 2 - source directory
+# 3 - a list of directory mappings
+# 4 - filelist deps
+# 5 - descriptor
+define generate-clean-mk-simple
+$(strip \
+	$(eval _MISC_GCMS_MAIN_STAMP_ := $(strip $1)) \
+	$(eval _MISC_GCMS_SRCDIR_ := $(strip $2)) \
+	$(eval _MISC_GCMS_DIR_MAPS_ := $(strip $3)) \
+	$(eval _MISC_GCMS_DEPS_ := $(strip $4)) \
+	$(eval _MISC_GCMS_DESCRIPTOR_ := $(strip $5)) \
+	\
+	$(call setup-filelist-file,_MISC_GCMS_FILELIST_,$(_MISC_GCMS_DESCRIPTOR_)-gcms-generated-filelist) \
+	$(call add-dependency,$(_MISC_GCMS_FILELIST_),$(_MISC_GCMS_DEPS_)) \
+	$(call generate-deep-filelist,$(_MISC_GCMS_FILELIST_),$(_MISC_GCMS_SRCDIR_)) \
+	\
+	$(call generate-clean-mk-from-filelist, \
+		$(_MISC_GCMS_MAIN_STAMP_), \
+		$(_MISC_GCMS_FILELIST_), \
+		$(_MISC_GCMS_DIR_MAPS_), \
+		$(_MISC_GCMS_DESCRIPTOR_)) \
+	\
+	$(call undefine-namespaces,_MISC_GCMS))
+endef
+
 # Formats given lists of source and destination files for the
 # INSTALL_FILES variable.
 #
@@ -522,4 +568,24 @@ $(strip \
 		$(call generate-shallow-filelist,$(_MISC_GPF_FILELIST),$(_MISC_GPF_DIR),.patch), \
 		$(call generate-empty-filelist,$(_MISC_GPF_FILELIST)))) \
 	$(call undefine-namespaces,_MISC_GPF))
+endef
+
+# Recursive wildcard - recursively generate a list of files
+#
+# 1 - root directory
+# 2 - filter pattern
+define rwildcard
+$(foreach d, $(wildcard $1/*), \
+	$(filter $(subst *, %, $2), $d) $(call rwildcard, $d, $2))
+endef
+
+# Recursively list all files in a given path
+# This just shells out to `find`.
+#
+# 1 - the path (file or directory)
+define rlist-files
+$(strip \
+	$(eval _MISC_RLIST_OP1_ := $(call sq_escape,$1)) \
+	$(eval _MISC_RLIST_FILES_ := $(shell find $(_MISC_RLIST_OP1_) -type f)) \
+	$(_MISC_RLIST_FILES_))
 endef

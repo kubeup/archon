@@ -83,6 +83,19 @@ func createProject(server *mocks.Server, client *Client, tenantID string, resNam
 	return task.Entity.ID
 }
 
+func createRouter(server *mocks.Server, client *Client, projID string) string {
+	mockTask := createMockTask("CREATE_ROUTER", "COMPLETED")
+	server.SetResponseJson(200, mockTask)
+	routerSpec := &RouterCreateSpec{
+		Name:          randomString(10, "go-sdk-project-"),
+		PrivateIpCidr: randomString(10, "go-sdk-project-cidr-"),
+	}
+	task, err := client.Projects.CreateRouter(projID, routerSpec)
+	GinkgoT().Log(err)
+	Expect(err).Should(BeNil())
+	return task.Entity.ID
+}
+
 // Checks the projects for the tenant and deletes ones created by go-sdk
 func cleanProjects(client *Client, tenantID string) {
 	projList, err := client.Tenants.GetProjects(tenantID, &ProjectGetOptions{})
@@ -166,6 +179,9 @@ func cleanImages(client *Client) {
 	if err != nil {
 		GinkgoT().Log(err)
 	}
+	if imageList == nil {
+		return
+	}
 	for _, image := range imageList.Items {
 		if image.Name == "tty_tiny.ova" {
 			task, err := client.Images.Delete(image.ID)
@@ -211,14 +227,14 @@ func cleanHosts(client *Client) {
 	}
 }
 
-func cleanSubnets(client *Client) {
-	networks, err := client.Subnets.GetAll(&SubnetGetOptions{})
+func cleanNetworks(client *Client) {
+	networks, err := client.Networks.GetAll(&NetworkGetOptions{})
 	if err != nil {
 		GinkgoT().Log(err)
 	}
 	for _, network := range networks.Items {
 		if strings.HasPrefix(network.Name, "go-sdk-network-") {
-			task, err := client.Subnets.Delete(network.ID)
+			task, err := client.Networks.Delete(network.ID)
 			task, err = client.Tasks.Wait(task.ID)
 			if err != nil {
 				GinkgoT().Log(err)
@@ -247,14 +263,14 @@ func cleanVirtualSubnets(client *Client, projectId string) {
 	}
 }
 
-func cleanClusters(client *Client, projID string) {
-	clusters, err := client.Projects.GetClusters(projID)
+func cleanServices(client *Client, projID string) {
+	services, err := client.Projects.GetServices(projID)
 	if err != nil {
 		GinkgoT().Log(err)
 	}
-	for _, cluster := range clusters.Items {
-		if strings.HasPrefix(cluster.Name, "go-sdk-cluster-") {
-			task, err := client.Clusters.Delete(cluster.ID)
+	for _, service := range services.Items {
+		if strings.HasPrefix(service.Name, "go-sdk-service-") {
+			task, err := client.Services.Delete(service.ID)
 			task, err = client.Tasks.Wait(task.ID)
 			if err != nil {
 				GinkgoT().Log(err)

@@ -91,8 +91,10 @@ func DeepCopy_settings_PodPresetSpec(in interface{}, out interface{}, c *convers
 			in, out := &in.Env, &out.Env
 			*out = make([]api.EnvVar, len(*in))
 			for i := range *in {
-				if err := api.DeepCopy_api_EnvVar(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*api.EnvVar)
 				}
 			}
 		}
@@ -100,8 +102,10 @@ func DeepCopy_settings_PodPresetSpec(in interface{}, out interface{}, c *convers
 			in, out := &in.EnvFrom, &out.EnvFrom
 			*out = make([]api.EnvFromSource, len(*in))
 			for i := range *in {
-				if err := api.DeepCopy_api_EnvFromSource(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*api.EnvFromSource)
 				}
 			}
 		}
@@ -109,8 +113,10 @@ func DeepCopy_settings_PodPresetSpec(in interface{}, out interface{}, c *convers
 			in, out := &in.Volumes, &out.Volumes
 			*out = make([]api.Volume, len(*in))
 			for i := range *in {
-				if err := api.DeepCopy_api_Volume(&(*in)[i], &(*out)[i], c); err != nil {
+				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
 					return err
+				} else {
+					(*out)[i] = *newVal.(*api.Volume)
 				}
 			}
 		}

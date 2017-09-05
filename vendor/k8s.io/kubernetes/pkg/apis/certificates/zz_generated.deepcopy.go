@@ -68,7 +68,11 @@ func DeepCopy_certificates_CertificateSigningRequestCondition(in interface{}, ou
 		in := in.(*CertificateSigningRequestCondition)
 		out := out.(*CertificateSigningRequestCondition)
 		*out = *in
-		out.LastUpdateTime = in.LastUpdateTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastUpdateTime); err != nil {
+			return err
+		} else {
+			out.LastUpdateTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }

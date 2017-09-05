@@ -22,7 +22,7 @@ import (
 )
 
 func (lk LocalkubeServer) NewSchedulerServer() Server {
-	return NewSimpleServer("scheduler", serverInterval, StartSchedulerServer(lk))
+	return NewSimpleServer("scheduler", serverInterval, StartSchedulerServer(lk), noop)
 }
 
 func StartSchedulerServer(lk LocalkubeServer) func() error {

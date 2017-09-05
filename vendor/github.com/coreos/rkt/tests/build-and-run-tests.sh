@@ -74,7 +74,7 @@ function checkFlavorValue {
 
 # Parse user provided parameters
 function parseParameters {
-    while getopts "f:s:cxujd" option; do
+    while getopts "f:s:r:cxujd" option; do
         case ${option} in
         f)
             RKT_STAGE1_USR_FROM="${OPTARG}"
@@ -84,6 +84,13 @@ function parseParameters {
                 RKT_STAGE1_SYSTEMD_VER="${OPTARG}"
             else
                 echo "Only \`src\` flavor requires systemd version"
+            fi
+            ;;
+        r)
+            if [[ $RKT_STAGE1_USR_FROM == "src" ]]; then
+                RKT_STAGE1_SYSTEMD_REV="${OPTARG}"
+            else
+                echo "Only \`src\` flavor requires systemd revision"
             fi
             ;;
         x)
@@ -133,7 +140,8 @@ function configure {
         src)
         ./configure --with-stage1-flavors="${RKT_STAGE1_USR_FROM}" \
                 --with-stage1-default-flavor="${RKT_STAGE1_USR_FROM}" \
-                --with-stage1-systemd-version="${RKT_STAGE1_SYSTEMD_VER}" \
+                --with-stage1-systemd-version="${RKT_STAGE1_SYSTEMD_VER:-v999}" \
+                --with-stage1-systemd-revision="${RKT_STAGE1_SYSTEMD_REV:-master}" \
                 --enable-functional-tests --enable-tpm=auto \
                 --enable-insecure-go
         ;;
@@ -220,6 +228,7 @@ function usage {
     echo -e "-f\tSelect flavor"
     echo -e "-j\tDon't run tests after build"
     echo -e "-s\tSystemd version"
+    echo -e "-r\tSystemd revision"
     echo -e "-u\tShow this message"
     echo -e "-x\tUse with '-c' to force cleanup on non-CI systems"
 }

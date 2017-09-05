@@ -22,9 +22,10 @@ import (
 	"net/url"
 	"time"
 
+	rktflag "github.com/coreos/rkt/rkt/flag"
+
 	"github.com/coreos/rkt/pkg/keystore"
 	"github.com/coreos/rkt/rkt/config"
-	rktflag "github.com/coreos/rkt/rkt/flag"
 	"github.com/coreos/rkt/rkt/pubkey"
 	"github.com/coreos/rkt/store/imagestore"
 	"github.com/hashicorp/errwrap"
@@ -38,6 +39,7 @@ type nameFetcher struct {
 	InsecureFlags      *rktflag.SecFlags
 	S                  *imagestore.Store
 	Ks                 *keystore.Keystore
+	NoCache            bool
 	Debug              bool
 	Headers            map[string]config.Headerer
 	TrustKeysFromHTTPS bool
@@ -48,7 +50,7 @@ type nameFetcher struct {
 func (f *nameFetcher) Hash(app *discovery.App, a *asc) (string, error) {
 	ensureLogger(f.Debug)
 	name := app.Name.String()
-	log.Printf("searching for app image %s", name)
+	diag.Printf("searching for app image %s", name)
 	ep, err := f.discoverApp(app)
 	if err != nil {
 		return "", errwrap.Wrap(fmt.Errorf("discovery failed for %q", name), err)
@@ -92,36 +94,53 @@ func (f *nameFetcher) fetchImageFromEndpoints(app *discovery.App, ep discovery.A
 	// maybeOverrideAscFetcherWithRemote on the clone
 	aciURL := ep[0].ACI
 	ascURL := ep[0].ASC
-	log.Printf("remote fetching from URL %q", aciURL)
+	diag.Printf("remote fetching from URL %q", aciURL)
 	f.maybeOverrideAscFetcherWithRemote(ascURL, a)
 	return f.fetchImageFromSingleEndpoint(app, aciURL, a, latest)
 }
 
 func (f *nameFetcher) fetchImageFromSingleEndpoint(app *discovery.App, aciURL string, a *asc, latest bool) (string, error) {
-	if f.Debug {
-		log.Printf("fetching image from %s", aciURL)
+	diag.Printf("fetching image from %s", aciURL)
+
+	u, err := url.Parse(aciURL)
+	if err != nil {
+		return "", errwrap.Wrap(fmt.Errorf("failed to parse URL %q", aciURL), err)
+	}
+	rem, err := remoteForURL(f.S, u)
+	if err != nil {
+		return "", err
+	}
+	if !f.NoCache && rem != nil {
+		if useCached(rem.DownloadTime, rem.CacheMaxAge) {
+			diag.Printf("image for %s isn't expired, not fetching.", aciURL)
+			return rem.BlobKey, nil
+		}
 	}
 
-	aciFile, cd, err := f.fetch(app, aciURL, a)
+	aciFile, cd, err := f.fetch(app, aciURL, a, eTag(rem))
 	if err != nil {
 		return "", err
 	}
 	defer aciFile.Close()
 
+	if key := maybeUseCached(rem, cd); key != "" {
+		return key, nil
+	}
 	key, err := f.S.WriteACI(aciFile, imagestore.ACIFetchInfo{
-		Latest:          latest,
-		InsecureOptions: int64(f.InsecureFlags.Value()),
+		Latest: latest,
 	})
 	if err != nil {
 		return "", err
 	}
 
-	rem := imagestore.NewRemote(aciURL, a.Location)
-	rem.BlobKey = key
-	rem.DownloadTime = time.Now()
-	rem.ETag = cd.ETag
-	rem.CacheMaxAge = cd.MaxAge
-	err = f.S.WriteRemote(rem)
+	newRem := imagestore.NewRemote(aciURL, a.Location)
+	newRem.BlobKey = key
+	newRem.DownloadTime = time.Now()
+	if cd != nil {
+		newRem.ETag = cd.ETag
+		newRem.CacheMaxAge = cd.MaxAge
+	}
+	err = f.S.WriteRemote(newRem)
 	if err != nil {
 		return "", err
 	}
@@ -129,7 +148,7 @@ func (f *nameFetcher) fetchImageFromSingleEndpoint(app *discovery.App, aciURL st
 	return key, nil
 }
 
-func (f *nameFetcher) fetch(app *discovery.App, aciURL string, a *asc) (readSeekCloser, *cacheData, error) {
+func (f *nameFetcher) fetch(app *discovery.App, aciURL string, a *asc, etag string) (readSeekCloser, *cacheData, error) {
 	if f.InsecureFlags.SkipTLSCheck() && f.Ks != nil {
 		log.Print("warning: TLS verification has been disabled")
 	}
@@ -144,17 +163,20 @@ func (f *nameFetcher) fetch(app *discovery.App, aciURL string, a *asc) (readSeek
 
 	if f.InsecureFlags.SkipImageCheck() || f.Ks == nil {
 		o := f.httpOps()
-		aciFile, cd, err := o.DownloadImage(u)
+		aciFile, cd, err := o.DownloadImageWithETag(u, etag)
 		if err != nil {
 			return nil, nil, err
 		}
 		return aciFile, cd, nil
 	}
 
-	return f.fetchVerifiedURL(app, u, a)
+	return f.fetchVerifiedURL(app, u, a, etag)
 }
 
-func (f *nameFetcher) fetchVerifiedURL(app *discovery.App, u *url.URL, a *asc) (readSeekCloser, *cacheData, error) {
+func (f *nameFetcher) fetchVerifiedURL(app *discovery.App, u *url.URL, a *asc, etag string) (readSeekCloser, *cacheData, error) {
+	var aciFile readSeekCloser // closed on error
+	var errClose error         // error signaling to close aciFile
+
 	appName := app.Name.String()
 	f.maybeFetchPubKeys(appName)
 
@@ -163,7 +185,7 @@ func (f *nameFetcher) fetchVerifiedURL(app *discovery.App, u *url.URL, a *asc) (
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() { maybeClose(ascFile) }()
+	defer ascFile.Close()
 
 	if !retry {
 		if err := f.checkIdentity(appName, ascFile); err != nil {
@@ -171,25 +193,37 @@ func (f *nameFetcher) fetchVerifiedURL(app *discovery.App, u *url.URL, a *asc) (
 		}
 	}
 
-	aciFile, cd, err := o.DownloadImage(u)
+	aciFile, cd, err := o.DownloadImageWithETag(u, etag)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer func() { maybeClose(aciFile) }()
+
+	defer func() {
+		if errClose != nil {
+			aciFile.Close()
+		}
+	}()
+
+	if cd.UseCached {
+		aciFile.Close()
+		return NopReadSeekCloser(nil), cd, nil
+	}
 
 	if retry {
-		ascFile, err = o.DownloadSignatureAgain(a)
-		if err != nil {
-			return nil, nil, err
+		ascFile.Close()
+		ascFile, errClose = o.DownloadSignatureAgain(a)
+		if errClose != nil {
+			ascFile = NopReadSeekCloser(nil)
+			return nil, nil, errClose
 		}
 	}
 
-	if err := f.validate(app, aciFile, ascFile); err != nil {
-		return nil, nil, err
+	errClose = f.validate(app, aciFile, ascFile)
+	if errClose != nil {
+		return nil, nil, errClose
 	}
-	retAciFile := aciFile
-	aciFile = nil
-	return retAciFile, cd, nil
+
+	return aciFile, cd, nil
 }
 
 func (f *nameFetcher) maybeFetchPubKeys(appName string) {

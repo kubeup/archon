@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/appc/spec/schema/types"
-	"github.com/coreos/rkt/common/apps"
 	"github.com/coreos/rkt/rkt/config"
 	"github.com/coreos/rkt/rkt/image"
 	"github.com/coreos/rkt/store/imagestore"
@@ -244,31 +243,15 @@ func getStage1HashFromFlag(s *imagestore.Store, ts *treestore.Store, loc stage1I
 		return nil, err
 	}
 
-	imgType := apps.AppImageGuess
 	switch loc.kind {
-	case stage1ImageLocationURL:
-		imgType = apps.AppImageURL
+	case stage1ImageLocationURL, stage1ImageLocationPath, stage1ImageLocationFromDir:
 		if trustedLocation {
 			withKeystore = false
 		}
-	case stage1ImageLocationPath:
-		imgType = apps.AppImagePath
-		if trustedLocation {
-			withKeystore = false
-		}
-	case stage1ImageLocationName:
-		imgType = apps.AppImageName
-	case stage1ImageLocationHash:
-		imgType = apps.AppImageHash
-	case stage1ImageLocationFromDir:
-		if trustedLocation {
-			withKeystore = false
-		}
-		imgType = apps.AppImagePath
 	}
 
 	fn := getStage1Finder(s, ts, withKeystore)
-	return fn.FindImage(location, "", imgType)
+	return fn.FindImage(location, "")
 }
 
 func getStage1DataFromConfig(c *config.Config) (string, string, string) {
@@ -319,11 +302,12 @@ func getConfiguredStage1Hash(s *imagestore.Store, ts *treestore.Store, imgRef, i
 	}
 	fn := getStage1Finder(s, ts, !trusted)
 	if !strings.HasSuffix(imgRef, "-dirty") {
-		fn.StoreOnly = true
-		if hash, err := fn.FindImage(imgRef, "", apps.AppImageName); err == nil {
+		oldPolicy := fn.PullPolicy
+		fn.PullPolicy = image.PullPolicyNever
+		if hash, err := fn.FindImage(imgRef, ""); err == nil {
 			return hash, nil
 		}
-		fn.StoreOnly = false
+		fn.PullPolicy = oldPolicy
 	}
 	if imgLoc == "" && imgFileName == "" {
 		return nil, fmt.Errorf("neither the location of the default stage1 image nor its filename are set, use --stage1-{path,url,name,hash,from-dir} flag")
@@ -331,7 +315,7 @@ func getConfiguredStage1Hash(s *imagestore.Store, ts *treestore.Store, imgRef, i
 	// If imgLoc is not an absolute path, then it is a URL
 	imgLocIsURL := imgLoc != "" && !filepath.IsAbs(imgLoc)
 	if imgLocIsURL {
-		return fn.FindImage(imgLoc, "", apps.AppImageURL)
+		return fn.FindImage(imgLoc, "")
 	}
 	return getStage1HashFromPath(fn, imgLoc, imgFileName)
 }
@@ -340,12 +324,12 @@ func getStage1Finder(s *imagestore.Store, ts *treestore.Store, withKeystore bool
 	fn := &image.Finder{
 		S:                  s,
 		Ts:                 ts,
+		Debug:              globalFlags.Debug,
 		InsecureFlags:      globalFlags.InsecureFlags,
 		TrustKeysFromHTTPS: globalFlags.TrustKeysFromHTTPS,
 
-		StoreOnly: false,
-		NoStore:   false,
-		WithDeps:  false,
+		PullPolicy: image.PullPolicyNew,
+		WithDeps:   false,
 	}
 
 	if withKeystore {
@@ -358,7 +342,7 @@ func getStage1HashFromPath(fn *image.Finder, imgLoc, imgFileName string) (*types
 	var fetchErr error
 	var fallbackErr error
 	if imgLoc != "" {
-		hash, err := fn.FindImage(imgLoc, "", apps.AppImagePath)
+		hash, err := fn.FindImage(imgLoc, "")
 		if err == nil {
 			return hash, nil
 		}
@@ -373,7 +357,7 @@ func getStage1HashFromPath(fn *image.Finder, imgLoc, imgFileName string) (*types
 			fn.Ks = nil
 			rktDir := filepath.Dir(exePath)
 			imgPath := filepath.Join(rktDir, imgFileName)
-			hash, err := fn.FindImage(imgPath, "", apps.AppImagePath)
+			hash, err := fn.FindImage(imgPath, "")
 			if err == nil {
 				return hash, nil
 			}

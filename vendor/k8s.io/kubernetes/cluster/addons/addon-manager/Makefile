@@ -15,11 +15,8 @@
 IMAGE=gcr.io/google-containers/kube-addon-manager
 ARCH?=amd64
 TEMP_DIR:=$(shell mktemp -d)
-VERSION=v6.4-alpha.3
-# TODO: Current Addon Manager is built with kubectl on head
-# (GitCommit:"17375fc59fff39135af63bd1750bb07c36ef873b").
-# Should use next released kubectl once available.
-KUBECTL_VERSION?=v1.6.0-alpha.2
+VERSION=v6.4-beta.2
+KUBECTL_VERSION?=v1.6.4
 
 ifeq ($(ARCH),amd64)
 	BASEIMAGE?=bashell/alpine-bash
@@ -52,7 +49,7 @@ push: build
 	gcloud docker -- push $(IMAGE)-$(ARCH):$(VERSION)
 ifeq ($(ARCH),amd64)
 	# Backward compatibility. TODO: deprecate this image tag
-	docker rmi $(IMAGE):$(VERSION) || true
+	docker rmi $(IMAGE):$(VERSION) 2>/dev/null || true
 	docker tag $(IMAGE)-$(ARCH):$(VERSION) $(IMAGE):$(VERSION)
 	gcloud docker -- push $(IMAGE):$(VERSION)
 endif

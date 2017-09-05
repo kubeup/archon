@@ -28,7 +28,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -40,8 +39,10 @@ import (
 
 	"github.com/appc/spec/schema"
 	"github.com/appc/spec/schema/types"
+	cnitypes "github.com/containernetworking/cni/pkg/types"
 	"github.com/coreos/rkt/common"
 	"github.com/coreos/rkt/common/apps"
+	commonnet "github.com/coreos/rkt/common/networking"
 	"github.com/coreos/rkt/common/overlay"
 	"github.com/coreos/rkt/pkg/aci"
 	"github.com/coreos/rkt/pkg/fileutil"
@@ -57,47 +58,71 @@ import (
 
 var debugEnabled bool
 
-// configuration parameters required by Prepare
+// PrepareConfig defines the configuration parameters required by Prepare
 type PrepareConfig struct {
 	*CommonConfig
-	Apps               *apps.Apps          // apps to prepare
-	InheritEnv         bool                // inherit parent environment into apps
-	ExplicitEnv        []string            // always set these environment variables for all the apps
-	EnvFromFile        []string            // environment variables loaded from files, set for all the apps
-	Ports              []types.ExposedPort // list of ports that rkt will expose on the host
-	UseOverlay         bool                // prepare pod with overlay fs
-	SkipTreeStoreCheck bool                // skip checking the treestore before rendering
-	PodManifest        string              // use the pod manifest specified by the user, this will ignore flags such as '--volume', '--port', etc.
-	PrivateUsers       *user.UidRange      // User namespaces
+	Apps               *apps.Apps            // apps to prepare
+	InheritEnv         bool                  // inherit parent environment into apps
+	ExplicitEnv        []string              // always set these environment variables for all the apps
+	EnvFromFile        []string              // environment variables loaded from files, set for all the apps
+	Ports              []types.ExposedPort   // list of ports that rkt will expose on the host
+	UseOverlay         bool                  // prepare pod with overlay fs
+	SkipTreeStoreCheck bool                  // skip checking the treestore before rendering
+	PodManifest        string                // use the pod manifest specified by the user, this will ignore flags such as '--volume', '--port', etc.
+	PrivateUsers       *user.UidRange        // user namespaces
+	UserAnnotations    types.UserAnnotations // user annotations for the pod.
+	UserLabels         types.UserLabels      // user labels for the pod.
 }
 
-// configuration parameters needed by Run
+// RunConfig defines the configuration parameters needed by Run
 type RunConfig struct {
 	*CommonConfig
-	Net         common.NetList // pod should have its own network stack
-	LockFd      int            // lock file descriptor
-	Interactive bool           // whether the pod is interactive or not
-	MDSRegister bool           // whether to register with metadata service or not
-	Apps        schema.AppList // applications (prepare gets them via Apps)
-	LocalConfig string         // Path to local configuration
-	Hostname    string         // hostname of the pod
-	RktGid      int            // group id of the 'rkt' group, -1 if there's no rkt group.
-	DNS         []string       // DNS name servers to write in /etc/resolv.conf
-	DNSSearch   []string       // DNS search domains to write in /etc/resolv.conf
-	DNSOpt      []string       // DNS options to write in /etc/resolv.conf
+	Net                  common.NetList // pod should have its own network stack
+	LockFd               int            // lock file descriptor
+	Interactive          bool           // whether the pod is interactive or not
+	MDSRegister          bool           // whether to register with metadata service or not
+	Apps                 schema.AppList // applications (prepare gets them via Apps)
+	LocalConfig          string         // Path to local configuration
+	Hostname             string         // hostname of the pod
+	RktGid               int            // group id of the 'rkt' group, -1 ere's no rkt group.
+	DNSConfMode          DNSConfMode    // dns configuration file mode - for stAage1
+	DNSConfig            cnitypes.DNS   // the DNS configuration (nameservers, search, options)
+	InsecureCapabilities bool           // Do not restrict capabilities
+	InsecurePaths        bool           // Do not restrict access to files in sysfs or procfs
+	InsecureSeccomp      bool           // Do not add seccomp restrictions
+	UseOverlay           bool           // run pod with overlay fs
+	HostsEntries         HostsEntries   // The entries in /etc/hosts
 }
 
-// configuration shared by both Run and Prepare
+// CommonConfig defines the configuration shared by both Run and Prepare
 type CommonConfig struct {
-	Store        *imagestore.Store // store containing all of the configured application images
-	TreeStore    *treestore.Store  // store containing all of the configured application images
-	Stage1Image  types.Hash        // stage1 image containing usable /init and /enter entrypoints
-	UUID         *types.UUID       // UUID of the pod
-	RootHash     string            // Hash of the root filesystem
-	ManifestData string            // The pod manifest data
-	Debug        bool
-	MountLabel   string // selinux label to use for fs
-	ProcessLabel string // selinux label to use for process
+	DataDir      string                        // The path to the data directory, e.g. /var/lib/rkt/pods
+	Store        *imagestore.Store             // store containing all of the configured application images
+	TreeStore    *treestore.Store              // store containing all of the configured application images
+	Stage1Image  types.Hash                    // stage1 image containing usable /init and /enter entrypoints
+	UUID         *types.UUID                   // UUID of the pod
+	RootHash     string                        // hash of the root filesystem
+	ManifestData string                        // the pod manifest data
+	Debug        bool                          // debug mode
+	MountLabel   string                        // SELinux label to use for fs
+	ProcessLabel string                        // SELinux label to use
+	Mutable      bool                          // whether this pod is mutable
+	Annotations  map[types.ACIdentifier]string // pod-level annotations, for internal/experimental usage
+}
+
+// HostsEntries encapsulates the entries in an etc-hosts file: mapping from IP
+// to arbitrary list of hostnames
+type HostsEntries map[string][]string
+
+// DNSConfMode indicates what the stage1 should do with dns config files
+// The values and meanings are:
+// 'host': bind-mount from host
+// 'stage0': the stage0 has generated it
+// 'none' : do not generate it
+// 'default' : do whatever was the default
+type DNSConfMode struct {
+	Resolv string // /etc/rkt-resolv.conf
+	Hosts  string // /etc/rkt-hosts
 }
 
 func init() {
@@ -107,6 +132,7 @@ func init() {
 	runtime.LockOSThread()
 }
 
+// InitDebug enables debugging
 func InitDebug() {
 	debugEnabled = true
 	log.SetDebug(true)
@@ -184,94 +210,33 @@ func generatePodManifest(cfg PrepareConfig, dir string) ([]byte, error) {
 		if err != nil {
 			return errwrap.Wrap(errors.New("error getting the manifest"), err)
 		}
-		appName, err := imageNameToAppName(am.Name)
-		if err != nil {
-			return errwrap.Wrap(errors.New("error converting image name to app name"), err)
+
+		if app.Name == "" {
+			appName, err := imageNameToAppName(am.Name)
+			if err != nil {
+				return errwrap.Wrap(errors.New("error converting image name to app name"), err)
+			}
+			app.Name = appName.String()
 		}
 
-		if err := prepareAppImage(cfg, *appName, img, dir, cfg.UseOverlay); err != nil {
-			return errwrap.Wrap(fmt.Errorf("error setting up image %s", img), err)
+		appName, err := types.NewACName(app.Name)
+		if err != nil {
+			return errwrap.Wrap(errors.New("invalid app name format"), err)
+		}
+
+		if _, err := prepareAppImage(cfg, *appName, img, dir, cfg.UseOverlay); err != nil {
+			return errwrap.Wrap(fmt.Errorf("error preparing image %s", img), err)
 		}
 		if pm.Apps.Get(*appName) != nil {
-			return fmt.Errorf("error: multiple apps with name %s", am.Name)
+			return fmt.Errorf("error: multiple apps with name %s", app.Name)
 		}
 		if am.App == nil && app.Exec == "" {
 			return fmt.Errorf("error: image %s has no app section and --exec argument is not provided", img)
 		}
-		ra := schema.RuntimeApp{
-			// TODO(vc): leverage RuntimeApp.Name for disambiguating the apps
-			Name: *appName,
-			App:  am.App,
-			Image: schema.RuntimeImage{
-				Name:   &am.Name,
-				ID:     img,
-				Labels: am.Labels,
-			},
-			Annotations: am.Annotations,
-			Mounts:      MergeMounts(cfg.Apps.Mounts, app.Mounts),
-		}
 
-		if execOverride := app.Exec; execOverride != "" {
-			// Create a minimal App section if not present
-			if am.App == nil {
-				ra.App = &types.App{
-					User:  strconv.Itoa(os.Getuid()),
-					Group: strconv.Itoa(os.Getgid()),
-				}
-			}
-			ra.App.Exec = []string{execOverride}
-		}
-
-		if execAppends := app.Args; execAppends != nil {
-			ra.App.Exec = append(ra.App.Exec, execAppends...)
-		}
-
-		if memoryOverride := app.MemoryLimit; memoryOverride != nil {
-			isolator := memoryOverride.AsIsolator()
-			ra.App.Isolators = append(ra.App.Isolators, isolator)
-		}
-
-		if cpuOverride := app.CPULimit; cpuOverride != nil {
-			isolator := cpuOverride.AsIsolator()
-			ra.App.Isolators = append(ra.App.Isolators, isolator)
-		}
-
-		if app.CapsRetain != nil && app.CapsRemove != nil {
-			return fmt.Errorf("error: cannot use both --cap-retain and --cap-remove on the same image")
-		}
-
-		// Delete existing caps isolators if the user wants to override
-		// them with either --cap-retain or --cap-remove
-		if app.CapsRetain != nil || app.CapsRemove != nil {
-			for i := len(ra.App.Isolators) - 1; i >= 0; i-- {
-				isolator := ra.App.Isolators[i]
-				if _, ok := isolator.Value().(types.LinuxCapabilitiesSet); ok {
-					ra.App.Isolators = append(ra.App.Isolators[:i],
-						ra.App.Isolators[i+1:]...)
-				}
-			}
-		}
-
-		if capsRetain := app.CapsRetain; capsRetain != nil {
-			isolator, err := capsRetain.AsIsolator()
-			if err != nil {
-				return err
-			}
-			ra.App.Isolators = append(ra.App.Isolators, *isolator)
-		} else if capsRemove := app.CapsRemove; capsRemove != nil {
-			isolator, err := capsRemove.AsIsolator()
-			if err != nil {
-				return err
-			}
-			ra.App.Isolators = append(ra.App.Isolators, *isolator)
-		}
-
-		if user := app.User; user != "" {
-			ra.App.User = user
-		}
-
-		if group := app.Group; group != "" {
-			ra.App.Group = group
+		ra, err := generateRuntimeApp(app, am, cfg.Apps.Mounts)
+		if err != nil {
+			return err
 		}
 
 		// loading the environment from the lowest priority to highest
@@ -282,7 +247,9 @@ func generatePodManifest(cfg PrepareConfig, dir string) ([]byte, error) {
 
 		mergeEnvs(&ra.App.Environment, cfg.EnvFromFile, true)
 		mergeEnvs(&ra.App.Environment, cfg.ExplicitEnv, true)
+
 		pm.Apps = append(pm.Apps, ra)
+
 		return nil
 	}); err != nil {
 		return nil, err
@@ -291,13 +258,117 @@ func generatePodManifest(cfg PrepareConfig, dir string) ([]byte, error) {
 	// TODO(jonboulle): check that app mountpoint expectations are
 	// satisfied here, rather than waiting for stage1
 	pm.Volumes = cfg.Apps.Volumes
+
+	// Check to see if ports have any errors
 	pm.Ports = cfg.Ports
+	if _, err := commonnet.ForwardedPorts(&pm); err != nil {
+		return nil, err
+	}
+
+	pm.Annotations = append(pm.Annotations, types.Annotation{
+		Name:  "coreos.com/rkt/stage1/mutable",
+		Value: strconv.FormatBool(cfg.Mutable),
+	})
+
+	pm.UserAnnotations = cfg.UserAnnotations
+	pm.UserLabels = cfg.UserLabels
+
+	// Add internal annotations for rkt experiments
+	for k, v := range cfg.Annotations {
+		if _, ok := pm.Annotations.Get(k.String()); ok {
+			continue
+		}
+		pm.Annotations.Set(k, v)
+	}
 
 	pmb, err := json.Marshal(pm)
 	if err != nil {
 		return nil, errwrap.Wrap(errors.New("error marshalling pod manifest"), err)
 	}
 	return pmb, nil
+}
+
+// prepareIsolators merges the CLI app parameters with the manifest's app
+func prepareIsolators(setup *apps.App, app *types.App) error {
+	if memoryOverride := setup.MemoryLimit; memoryOverride != nil {
+		isolator := memoryOverride.AsIsolator()
+		app.Isolators = append(app.Isolators, isolator)
+	}
+
+	if cpuOverride := setup.CPULimit; cpuOverride != nil {
+		isolator := cpuOverride.AsIsolator()
+		app.Isolators = append(app.Isolators, isolator)
+	}
+
+	if cpuSharesOverride := setup.CPUShares; cpuSharesOverride != nil {
+		isolator := cpuSharesOverride.AsIsolator()
+		app.Isolators.ReplaceIsolatorsByName(isolator, []types.ACIdentifier{types.LinuxCPUSharesName})
+	}
+
+	if oomAdjOverride := setup.OOMScoreAdj; oomAdjOverride != nil {
+		app.Isolators.ReplaceIsolatorsByName(oomAdjOverride.AsIsolator(), []types.ACIdentifier{types.LinuxOOMScoreAdjName})
+	}
+
+	if setup.CapsRetain != nil && setup.CapsRemove != nil {
+		return fmt.Errorf("error: cannot use both --caps-retain and --caps-remove on the same image")
+	}
+
+	// Delete existing caps isolators if the user wants to override
+	// them with either --caps-retain or --caps-remove
+	if setup.CapsRetain != nil || setup.CapsRemove != nil {
+		for i := len(app.Isolators) - 1; i >= 0; i-- {
+			isolator := app.Isolators[i]
+			if _, ok := isolator.Value().(types.LinuxCapabilitiesSet); ok {
+				app.Isolators = append(app.Isolators[:i],
+					app.Isolators[i+1:]...)
+			}
+		}
+	}
+
+	if capsRetain := setup.CapsRetain; capsRetain != nil {
+		isolator, err := capsRetain.AsIsolator()
+		if err != nil {
+			return err
+		}
+		app.Isolators = append(app.Isolators, *isolator)
+	} else if capsRemove := setup.CapsRemove; capsRemove != nil {
+		isolator, err := capsRemove.AsIsolator()
+		if err != nil {
+			return err
+		}
+		app.Isolators = append(app.Isolators, *isolator)
+	}
+
+	// Override seccomp isolators via --seccomp CLI switch
+	if setup.SeccompFilter != "" {
+		var is *types.Isolator
+		mode, errno, set, err := setup.SeccompOverride()
+		if err != nil {
+			return err
+		}
+		switch mode {
+		case "retain":
+			lss, err := types.NewLinuxSeccompRetainSet(errno, set...)
+			if err != nil {
+				return err
+			}
+			if is, err = lss.AsIsolator(); err != nil {
+				return err
+			}
+		case "remove":
+			lss, err := types.NewLinuxSeccompRemoveSet(errno, set...)
+			if err != nil {
+				return err
+			}
+			if is, err = lss.AsIsolator(); err != nil {
+				return err
+			}
+		default:
+			return apps.ErrInvalidSeccompMode
+		}
+		app.Isolators.ReplaceIsolatorsByName(*is, []types.ACIdentifier{types.LinuxSeccompRemoveSetName, types.LinuxSeccompRetainSetName})
+	}
+	return nil
 }
 
 // validatePodManifest reads the user-specified pod manifest, prepares the app images
@@ -325,8 +396,8 @@ func validatePodManifest(cfg PrepareConfig, dir string) ([]byte, error) {
 		if err != nil {
 			return nil, errwrap.Wrap(errors.New("error getting the image manifest from store"), err)
 		}
-		if err := prepareAppImage(cfg, ra.Name, img.ID, dir, cfg.UseOverlay); err != nil {
-			return nil, errwrap.Wrap(fmt.Errorf("error setting up image %s", img), err)
+		if _, err := prepareAppImage(cfg, ra.Name, img.ID, dir, cfg.UseOverlay); err != nil {
+			return nil, errwrap.Wrap(fmt.Errorf("error preparing image %s", img), err)
 		}
 		if _, ok := appNames[ra.Name]; ok {
 			return nil, fmt.Errorf("multiple apps with same name %s", ra.Name)
@@ -335,6 +406,11 @@ func validatePodManifest(cfg PrepareConfig, dir string) ([]byte, error) {
 		if ra.App == nil && am.App == nil {
 			return nil, fmt.Errorf("no app section in the pod manifest or the image manifest")
 		}
+	}
+
+	// Validate forwarded ports
+	if _, err := commonnet.ForwardedPorts(&pm); err != nil {
+		return nil, err
 	}
 	return pmb, nil
 }
@@ -345,7 +421,7 @@ func Prepare(cfg PrepareConfig, dir string, uuid *types.UUID) error {
 		return errwrap.Wrap(errors.New("error creating apps info directory"), err)
 	}
 	debug("Preparing stage1")
-	if err := prepareStage1Image(cfg, cfg.Stage1Image, dir, cfg.UseOverlay); err != nil {
+	if err := prepareStage1Image(cfg, dir); err != nil {
 		return errwrap.Wrap(errors.New("error preparing stage1"), err)
 	}
 
@@ -362,11 +438,24 @@ func Prepare(cfg PrepareConfig, dir string, uuid *types.UUID) error {
 
 	cfg.CommonConfig.ManifestData = string(pmb)
 
+	// create pod lock file for app add/rm operations.
+	f, err := os.OpenFile(common.PodManifestLockPath(dir), os.O_CREATE|os.O_RDWR, 0600)
+	if err != nil {
+		return err
+	}
+	f.Close()
+
 	debug("Writing pod manifest")
 	fn := common.PodManifestPath(dir)
 	if err := ioutil.WriteFile(fn, pmb, common.DefaultRegularFilePerm); err != nil {
 		return errwrap.Wrap(errors.New("error writing pod manifest"), err)
 	}
+
+	f, err = os.OpenFile(common.PodCreatedPath(dir), os.O_CREATE|os.O_RDWR, common.DefaultRegularFilePerm)
+	if err != nil {
+		return err
+	}
+	f.Close()
 
 	if cfg.UseOverlay {
 		// mark the pod as prepared with overlay
@@ -389,22 +478,6 @@ func Prepare(cfg PrepareConfig, dir string, uuid *types.UUID) error {
 	return nil
 }
 
-func preparedWithOverlay(dir string) (bool, error) {
-	_, err := os.Stat(filepath.Join(dir, common.OverlayPreparedFilename))
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-
-	if !common.SupportsOverlay() {
-		return false, fmt.Errorf("the pod was prepared with overlay but overlay is not supported")
-	}
-
-	return true, nil
-}
-
 func preparedWithPrivateUsers(dir string) (string, error) {
 	bytes, err := ioutil.ReadFile(filepath.Join(dir, common.PrivateUsersPreparedFilename))
 	if os.IsNotExist(err) {
@@ -417,68 +490,98 @@ func preparedWithPrivateUsers(dir string) (string, error) {
 	return string(bytes), nil
 }
 
-func addResolvConf(cfg RunConfig, rootfs string) {
-	content := "# Generated by rkt\n\n"
-	if len(cfg.DNSSearch) > 0 {
-		content += fmt.Sprintf("search %s\n", strings.Join(cfg.DNSSearch, " "))
+func writeDnsConfig(cfg *RunConfig, rootfs string) {
+	writeResolvConf(cfg, rootfs)
+	writeEtcHosts(cfg, rootfs)
+}
+
+// writeResolvConf will generate <stage1>/etc/rkt-resolv.conf if needed
+func writeResolvConf(cfg *RunConfig, rootfs string) {
+	if cfg.DNSConfMode.Resolv != "stage0" {
+		return
 	}
-	for _, server := range cfg.DNS {
-		// skip empty entries
-		if server == "" {
-			continue
-		}
-		// comment invalid entries
-		if net.ParseIP(server) == nil {
-			content += "# "
-		}
-		content += "nameserver " + server + "\n"
-	}
-	if len(cfg.DNSOpt) > 0 {
-		content += fmt.Sprintf("options %s\n", strings.Join(cfg.DNSOpt, " "))
-	}
-	content += "\n"
 
 	if err := os.Mkdir(filepath.Join(rootfs, "etc"), common.DefaultRegularDirPerm); err != nil {
 		if !os.IsExist(err) {
 			log.Fatalf("error creating dir %q: %v\n", "/etc", err)
 		}
 	}
+	resolvPath := filepath.Join(rootfs, "etc/rkt-resolv.conf")
+	f, err := os.Create(resolvPath)
+	if err != nil {
+		log.Fatalf("error writing etc/rkt-resolv.conf: %v\n", err)
+	}
+	defer f.Close()
 
-	if err := ioutil.WriteFile(filepath.Join(rootfs, "etc/rkt-resolv.conf"), []byte(content), 0644); err != nil {
-		log.Fatalf("error writing /etc/rkt-resolv.conf: %v\n", err)
+	_, err = f.WriteString(common.MakeResolvConf(cfg.DNSConfig, "Generated by rkt run"))
+	if err != nil {
+		log.Fatalf("error writing etc/rkt-resolv.conf: %v\n", err)
+	}
+}
+
+// writeEtcHosts writes the file /etc/rkt-hosts into the stage1 rootfs.
+// This will read defaults from <rootfs>/etc/hosts-fallback if it exists.
+// Therefore, this should be called after the stage1 is mounted
+func writeEtcHosts(cfg *RunConfig, rootfs string) {
+	if cfg.DNSConfMode.Hosts != "stage0" {
+		return
+	}
+
+	// Read <stage1>/rootfs/etc/hosts-fallback to get some sane defaults
+	hostsTextb, err := ioutil.ReadFile(filepath.Join(rootfs, "etc/hosts-fallback"))
+	if err != nil {
+		// fallback-fallback :-)
+		hostsTextb = []byte("#created by rkt stage0\n127.0.0.1 localhost localhost.localdomain\n")
+	}
+	hostsText := string(hostsTextb)
+
+	hostsText += "\n\n# Added by rkt run --hosts-entry\n"
+
+	for ip, hostnames := range cfg.HostsEntries {
+		hostsText = fmt.Sprintf("%s%s %s\n", hostsText, ip, strings.Join(hostnames, " "))
+	}
+
+	// Create /etc if it does not exist
+	etcPath := filepath.Join(rootfs, "etc")
+	if _, err := os.Stat(etcPath); err != nil && os.IsNotExist(err) {
+		err = os.Mkdir(etcPath, 0755)
+		if err != nil {
+			log.FatalE("failed to make stage1 etc directory", err)
+		}
+	} else if err != nil {
+		log.FatalE("Failed to stat stage1 etc", err)
+	}
+
+	hostsPath := filepath.Join(etcPath, "rkt-hosts")
+	err = ioutil.WriteFile(hostsPath, []byte(hostsText), 0644)
+	if err != nil {
+		log.FatalE("failed to write etc/rkt-hosts", err)
 	}
 }
 
 // Run mounts the right overlay filesystems and actually runs the prepared
 // pod by exec()ing the stage1 init inside the pod filesystem.
 func Run(cfg RunConfig, dir string, dataDir string) {
-	useOverlay, err := preparedWithOverlay(dir)
-	if err != nil {
-		log.FatalE("error preparing overlay", err)
-	}
-
 	privateUsers, err := preparedWithPrivateUsers(dir)
 	if err != nil {
 		log.FatalE("error preparing private users", err)
 	}
 
 	debug("Setting up stage1")
-	if err := setupStage1Image(cfg, dir, useOverlay); err != nil {
+	if err := setupStage1Image(cfg, dir, cfg.UseOverlay); err != nil {
 		log.FatalE("error setting up stage1", err)
 	}
 	debug("Wrote filesystem to %s\n", dir)
 
 	for _, app := range cfg.Apps {
-		if err := setupAppImage(cfg, app.Name, app.Image.ID, dir, useOverlay); err != nil {
+		if err := setupAppImage(cfg, app.Name, app.Image.ID, dir, cfg.UseOverlay); err != nil {
 			log.FatalE("error setting up app image", err)
 		}
 	}
 
 	destRootfs := common.Stage1RootfsPath(dir)
 
-	if len(cfg.DNS) > 0 || len(cfg.DNSSearch) > 0 || len(cfg.DNSOpt) > 0 {
-		addResolvConf(cfg, destRootfs)
-	}
+	writeDnsConfig(&cfg, destRootfs)
 
 	if err := os.Setenv(common.EnvLockFd, fmt.Sprintf("%v", cfg.LockFd)); err != nil {
 		log.FatalE("setting lock fd environment", err)
@@ -489,7 +592,7 @@ func Run(cfg RunConfig, dir string, dataDir string) {
 	}
 
 	if err := os.Setenv(common.EnvSELinuxMountContext, fmt.Sprintf("%v", cfg.MountLabel)); err != nil {
-		log.FatalE("setting SELinux mount context enviroment", err)
+		log.FatalE("setting SELinux mount context environment", err)
 	}
 
 	debug("Pivoting to filesystem %s", dir)
@@ -502,7 +605,6 @@ func Run(cfg RunConfig, dir string, dataDir string) {
 		log.FatalE("error determining 'run' entrypoint", err)
 	}
 	args := []string{filepath.Join(destRootfs, ep)}
-	debug("Execing %s", ep)
 
 	if cfg.Debug {
 		args = append(args, "--debug")
@@ -542,6 +644,39 @@ func Run(cfg RunConfig, dir string, dataDir string) {
 		}
 	}
 
+	if cfg.DNSConfMode.Hosts != "default" || cfg.DNSConfMode.Resolv != "default" {
+		if interfaceVersionSupportsDNSConfMode(s1v) {
+			args = append(args, fmt.Sprintf("--dns-conf-mode=resolv=%s,hosts=%s", cfg.DNSConfMode.Resolv, cfg.DNSConfMode.Hosts))
+		} else {
+			log.Printf("warning: --dns-conf-mode option not supported by stage1")
+		}
+	}
+
+	if interfaceVersionSupportsInsecureOptions(s1v) {
+		if cfg.InsecureCapabilities {
+			args = append(args, "--disable-capabilities-restriction")
+		}
+		if cfg.InsecurePaths {
+			args = append(args, "--disable-paths")
+		}
+		if cfg.InsecureSeccomp {
+			args = append(args, "--disable-seccomp")
+		}
+	}
+
+	if cfg.Mutable {
+		mutable, err := supportsMutableEnvironment(dir)
+
+		switch {
+		case err != nil:
+			log.FatalE("error determining stage1 mutable support", err)
+		case !mutable:
+			log.Fatalln("stage1 does not support mutable pods")
+		}
+
+		args = append(args, "--mutable")
+	}
+
 	args = append(args, cfg.UUID.String())
 
 	// make sure the lock fd stays open across exec
@@ -555,6 +690,8 @@ func Run(cfg RunConfig, dir string, dataDir string) {
 	// that enforces TPM behaviour, but we don't have any infrastructure
 	// around that yet.
 	_ = tpm.Extend(tpmEvent)
+
+	debug("Execing %s", args)
 	if err := syscall.Exec(args[0], args, os.Environ()); err != nil {
 		log.FatalE("error execing init", err)
 	}
@@ -562,38 +699,42 @@ func Run(cfg RunConfig, dir string, dataDir string) {
 
 // prepareAppImage renders and verifies the tree cache of the app image that
 // corresponds to the given app name.
-// When useOverlay is false, it attempts to render and expand the app image
-func prepareAppImage(cfg PrepareConfig, appName types.ACName, img types.Hash, cdir string, useOverlay bool) error {
+// When useOverlay is false, it attempts to render and expand the app image.
+// It returns the tree store ID if overlay is being used.
+func prepareAppImage(cfg PrepareConfig, appName types.ACName, img types.Hash, cdir string, useOverlay bool) (string, error) {
 	debug("Loading image %s", img.String())
 
 	am, err := cfg.Store.GetImageManifest(img.String())
 	if err != nil {
-		return errwrap.Wrap(errors.New("error getting the manifest"), err)
+		return "", errwrap.Wrap(errors.New("error getting the manifest"), err)
 	}
 
 	if _, hasOS := am.Labels.Get("os"); !hasOS {
-		return fmt.Errorf("missing os label in the image manifest")
+		return "", fmt.Errorf("missing os label in the image manifest")
 	}
+
 	if _, hasArch := am.Labels.Get("arch"); !hasArch {
-		return fmt.Errorf("missing arch label in the image manifest")
+		return "", fmt.Errorf("missing arch label in the image manifest")
 	}
 
 	if err := types.IsValidOSArch(am.Labels.ToMap(), ValidOSArch); err != nil {
-		return err
+		return "", err
 	}
 
 	appInfoDir := common.AppInfoPath(cdir, appName)
 	if err := os.MkdirAll(appInfoDir, common.DefaultRegularDirPerm); err != nil {
-		return errwrap.Wrap(errors.New("error creating apps info directory"), err)
+		return "", errwrap.Wrap(errors.New("error creating apps info directory"), err)
 	}
 
+	var treeStoreID string
 	if useOverlay {
 		if cfg.PrivateUsers.Shift > 0 {
-			return fmt.Errorf("cannot use both overlay and user namespace: not implemented yet. (Try --no-overlay)")
+			return "", fmt.Errorf("cannot use both overlay and user namespace: not implemented yet. (Try --no-overlay)")
 		}
-		treeStoreID, _, err := cfg.TreeStore.Render(img.String(), false)
+
+		treeStoreID, _, err = cfg.TreeStore.Render(img.String(), false)
 		if err != nil {
-			return errwrap.Wrap(errors.New("error rendering tree image"), err)
+			return "", errwrap.Wrap(errors.New("error rendering tree image"), err)
 		}
 
 		if !cfg.SkipTreeStoreCheck {
@@ -603,44 +744,48 @@ func prepareAppImage(cfg PrepareConfig, appName types.ACName, img types.Hash, cd
 				var err error
 				treeStoreID, hash, err = cfg.TreeStore.Render(img.String(), true)
 				if err != nil {
-					return errwrap.Wrap(errors.New("error rendering tree image"), err)
+					return "", errwrap.Wrap(errors.New("error rendering tree image"), err)
 				}
 			}
 			cfg.CommonConfig.RootHash = hash
 		}
 
 		if err := ioutil.WriteFile(common.AppTreeStoreIDPath(cdir, appName), []byte(treeStoreID), common.DefaultRegularFilePerm); err != nil {
-			return errwrap.Wrap(errors.New("error writing app treeStoreID"), err)
+			return "", errwrap.Wrap(errors.New("error writing app treeStoreID"), err)
 		}
 	} else {
 		ad := common.AppPath(cdir, appName)
+
 		err := os.MkdirAll(ad, common.DefaultRegularDirPerm)
 		if err != nil {
-			return errwrap.Wrap(errors.New("error creating image directory"), err)
+			return "", errwrap.Wrap(errors.New("error creating image directory"), err)
 		}
 
 		shiftedUid, shiftedGid, err := cfg.PrivateUsers.ShiftRange(uint32(os.Getuid()), uint32(os.Getgid()))
 		if err != nil {
-			return errwrap.Wrap(errors.New("error getting uid, gid"), err)
+			return "", errwrap.Wrap(errors.New("error getting uid, gid"), err)
 		}
 
 		if err := os.Chown(ad, int(shiftedUid), int(shiftedGid)); err != nil {
-			return errwrap.Wrap(fmt.Errorf("error shifting app %q's stage2 dir", appName), err)
+			return "", errwrap.Wrap(fmt.Errorf("error shifting app %q's stage2 dir", appName), err)
 		}
 
 		if err := aci.RenderACIWithImageID(img, ad, cfg.Store, cfg.PrivateUsers); err != nil {
-			return errwrap.Wrap(errors.New("error rendering ACI"), err)
+			return "", errwrap.Wrap(errors.New("error rendering ACI"), err)
 		}
 	}
+
 	if err := writeManifest(*cfg.CommonConfig, img, appInfoDir); err != nil {
-		return err
+		return "", errwrap.Wrap(errors.New("error writing manifest"), err)
 	}
-	return nil
+
+	return treeStoreID, nil
 }
 
 // setupAppImage mounts the overlay filesystem for the app image that
-// corresponds to the given hash. Then, it creates the tmp directory.
-// When useOverlay is false it just creates the tmp directory for this app.
+// corresponds to the given hash if useOverlay is true.
+// It also creates an mtab file in the application's rootfs if one is not
+// present.
 func setupAppImage(cfg RunConfig, appName types.ACName, img types.Hash, cdir string, useOverlay bool) error {
 	ad := common.AppPath(cdir, appName)
 	if useOverlay {
@@ -659,20 +804,52 @@ func setupAppImage(cfg RunConfig, appName types.ACName, img types.Hash, cdir str
 			return errwrap.Wrap(errors.New("error rendering overlay filesystem"), err)
 		}
 	}
+	return ensureMtabExists(filepath.Join(ad, "rootfs"))
+}
 
+// ensureMtabExists creates a symlink from /etc/mtab -> /proc/self/mounts if
+// nothing exists at /etc/mtab.
+// Various tools, such as mount from util-linux 2.25, expect the mtab file to
+// be populated.
+func ensureMtabExists(rootfs string) error {
+	stat, err := os.Stat(filepath.Join(rootfs, "etc"))
+	if os.IsNotExist(err) {
+		// If your image has no /etc you don't get /etc/mtab either
+		return nil
+	}
+	if err != nil {
+		return errwrap.Wrap(errors.New("error determining if /etc existed in the image"), err)
+	}
+	if !stat.IsDir() {
+		return nil
+	}
+	mtabPath := filepath.Join(rootfs, "etc", "mtab")
+	if _, err = os.Lstat(mtabPath); err == nil {
+		// If the image already has an mtab, don't replace it
+		return nil
+	}
+	if !os.IsNotExist(err) {
+		return errwrap.Wrap(errors.New("error determining if /etc/mtab exists in the image"), err)
+	}
+
+	target := "../proc/self/mounts"
+	err = os.Symlink(target, mtabPath)
+	if err != nil {
+		return errwrap.Wrap(errors.New("error creating mtab symlink"), err)
+	}
 	return nil
 }
 
 // prepareStage1Image renders and verifies tree cache of the given hash
 // when using overlay.
 // When useOverlay is false, it attempts to render and expand the stage1.
-func prepareStage1Image(cfg PrepareConfig, img types.Hash, cdir string, useOverlay bool) error {
+func prepareStage1Image(cfg PrepareConfig, cdir string) error {
 	s1 := common.Stage1ImagePath(cdir)
 	if err := os.MkdirAll(s1, common.DefaultRegularDirPerm); err != nil {
 		return errwrap.Wrap(errors.New("error creating stage1 directory"), err)
 	}
 
-	treeStoreID, _, err := cfg.TreeStore.Render(img.String(), false)
+	treeStoreID, _, err := cfg.TreeStore.Render(cfg.Stage1Image.String(), false)
 	if err != nil {
 		return errwrap.Wrap(errors.New("error rendering tree image"), err)
 	}
@@ -682,7 +859,7 @@ func prepareStage1Image(cfg PrepareConfig, img types.Hash, cdir string, useOverl
 		if err != nil {
 			log.Printf("warning: tree cache is in a bad state: %v. Rebuilding...", err)
 			var err error
-			treeStoreID, hash, err = cfg.TreeStore.Render(img.String(), true)
+			treeStoreID, hash, err = cfg.TreeStore.Render(cfg.Stage1Image.String(), true)
 			if err != nil {
 				return errwrap.Wrap(errors.New("error rendering tree image"), err)
 			}
@@ -690,11 +867,11 @@ func prepareStage1Image(cfg PrepareConfig, img types.Hash, cdir string, useOverl
 		cfg.CommonConfig.RootHash = hash
 	}
 
-	if err := writeManifest(*cfg.CommonConfig, img, s1); err != nil {
+	if err := writeManifest(*cfg.CommonConfig, cfg.Stage1Image, s1); err != nil {
 		return errwrap.Wrap(errors.New("error writing manifest"), err)
 	}
 
-	if !useOverlay {
+	if !cfg.UseOverlay {
 		destRootfs := filepath.Join(s1, "rootfs")
 		cachedTreePath := cfg.TreeStore.GetRootFS(treeStoreID)
 		if err := fileutil.CopyTree(cachedTreePath, destRootfs, cfg.PrivateUsers); err != nil {

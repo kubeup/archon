@@ -1,13 +1,79 @@
 # Minikube Release Notes
 
+## Version 0.20.0 - 6/17/2017
+* Updated default Kubernetes version to 1.6.4
+* Added Local Registry Addon `minikube addons enable registry` [#1583](https://github.com/kubernetes/minikube/pull/1583)
+* Fixed kube-DNS addon failures
+* Bumped default ISO version to 0.20.0
+* Fixed mtime issue on macOS [#1594](https://github.com/kubernetes/minikube/pull/1594)
+* Use --dns-domain for k8s API server cert generation [#1589](https://github.com/kubernetes/minikube/pull/1589)
+* Added `minikube update-context` command [#1578](https://github.com/kubernetes/minikube/pull/1578)
+* Added kubeconfig context and minikube ip to `minikube status` [#1578](https://github.com/kubernetes/minikube/pull/1578)
+* Use native golang ssh [#1571](https://github.com/kubernetes/minikube/pull/1571)
+* Don't treat stopping stoppped hosts as error [#1606](https://github.com/kubernetes/minikube/pull/1606)
+* Bumped ingress addon to 0.9-beta.8
+* Removed systemd dependency for None driver [#1592](https://github.com/kubernetes/minikube/pull/1592)
+
+* [Minikube ISO] Enabled IP_VS, MACVLAN, and VXLAN Kernel modules
+* [Minikube ISO] Increase number of inodes
+* [Minikube ISO] Use buildroot branch 2017-02
+
+## Version 0.19.1 - 5/30/2017
+* Fixed issue where using TPRs could cause localkube to crash
+* Added mount daemon that can be started using `minikube start --mount --mount-string="/path/to/mount"`.  Cleanup of mount handled by `minikube delete`
+* Added minikube "none" driver which does not require a VM but instead launches k8s components on the host.  This allows minikube to be used in cloud environments that don't support nested virtualizations.  This can be launched by running `sudo minikube start --vm-driver=none --use-vendored-driver`
+* Update kube-dns to 1.14.2
+* Update kubernetes to 1.6.4
+* Added `minikube ssh-key` command which retrieves the ssh key information for the minikubeVM
+* Fixed vbox interface issue with minikube mount
+
+## Version 0.19.0 - 5/3/2017
+* Updated nginx ingress to v0.9-beta.4
+* Updated kube-dns to 1.14.1
+* Added optional `--profile` flag to all `minikube` commands to support multiple minikube instances
+* Increased localkube boot speed by removing dependency on the network being up
+* Improved integration tests to be more stable
+* Fixed issue where using TPRs could cause localkube to crash
+
+## Version 0.18.0 - 4/6/2017
+* Upgraded default kubernetes version to v1.6.0
+* Mount command on macOS xhyve
+* Pods can now write to files mounted by `minikube mount` 
+* Added `addon configure` command
+* Made DNS domain configurable with `--dns-domain` flag to `minikube start`
+* Upgraded Kubernetes Dashboard to 1.6.0
+* Removed Boot2Docker ISO support
+* Added `addons disable default-storageclass` command to disable default dynamic provisioner
+* Added support for private docker registry in registry-creds addon
+* Added `--f` flag to `minikube logs` to stream logs
+* Added `--docker-opts` flag to `minikube start` to propagate docker options to the daemon
+* Updated heapster addon to v1.3.0
+* Updated ingress addon to v0.9-beta.3
+* Made localkube versions backwards compatible for versions without `--apiserver-name`
+
+* [Minikube ISO] ISO will now be versioned the same as minikube
+* [Minikube ISO] Added timezone data
+* [Minikube ISO] Added `jq` and `coreutils` packages
+* [Minikube ISO] Enabled RDB Kernel module
+* [Minikube ISO] Added dockerized build for iso image
+* [Minikube ISO] Enabled NFS_v4_2 in kernel
+* [Minikube ISO] Added CIFS-utils
+
 ## Version 0.17.1 - 3/2/2017
 * Removed vendored KVM driver so minikube doesn't have a dependency on libvirt-bin
+
+* [Minikube ISO] Added ethtool
+* [Minikube ISO] Added bootlocal.sh script for custom startup options
+* [Minikube ISO] Added version info in /etc/VERSION
+* [Minikube ISO] Bumped rkt to v1.24.0
+* [Minikube ISO] Enabled user namespaces in kernel
+* [Minikube ISO] `/tmp/hostpath_pv` and `/tmp/hostpath-provisioner` are now persisted
 
 ## Version 0.17.0 - 3/2/2017
 * Added external hostpath provisioner to localkube
 * Added unit test coverage
 * Added API Name as configuration option
-* Etcd is now accesible to pods
+* Etcd is now accessible to pods
 * Always use native golang SSH
 * Added a deprecation warning to boot2docker provisioner
 * Added MINIKUBE_HOME environment variable
@@ -18,6 +84,16 @@
 * Updated Registry Creds addon to v1.5
 * Added check for minimum disk size
 * Updated kubernetes to v1.5.2
+
+* [Minikube ISO] Added back in curl, git, and rsync
+* [Minikube ISO] Enabled CONFIG_TUN in kernel
+* [Minikube ISO] Added NFS packages
+* [Minikube ISO] Enabled swapon on start/stop
+* [Minikube ISO] Updated CNI to v0.4.0
+* [Minikube ISO] Fix permissions for /data directory
+* [Minikube ISO] Updated RKT to v1.23.0
+* [Minikube ISO] Added in CoreOS toolbox binary
+* [Minikube ISO] Fixed vboxFS permission error
 
 ## Version 0.15.0 - 1/10/2017
 * Update Dashboard to v1.5.1, fixes a CSRF vulnerability in the dashboard

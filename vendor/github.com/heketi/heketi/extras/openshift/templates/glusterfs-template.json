@@ -90,8 +90,13 @@
                                         "mountPath": "/dev"
                                     },
                                     {
+                                        "name": "glusterfs-misc",
+                                        "mountPath": "/var/lib/misc/glusterfsd"
+                                    },
+                                    {
                                         "name": "glusterfs-cgroup",
-                                        "mountPath": "/sys/fs/cgroup"
+                                        "mountPath": "/sys/fs/cgroup",
+                                        "readOnly": true
                                     }
                                 ],
                                 "securityContext": {
@@ -100,7 +105,7 @@
                                 },
                                 "readinessProbe": {
                                     "timeoutSeconds": 3,
-                                    "initialDelaySeconds": 60,
+                                    "initialDelaySeconds": 100,
                                     "exec": {
                                         "command": [
                                             "/bin/bash",
@@ -111,7 +116,7 @@
                                 },
                                 "livenessProbe": {
                                     "timeoutSeconds": 3,
-                                    "initialDelaySeconds": 60,
+                                    "initialDelaySeconds": 100,
                                     "exec": {
                                         "command": [
                                             "/bin/bash",
@@ -160,6 +165,12 @@
                                 "name": "glusterfs-dev",
                                 "hostPath": {
                                     "path": "/dev"
+                                }
+                            },
+                            {
+                                "name": "glusterfs-misc",
+                                "hostPath": {
+                                    "path": "/var/lib/misc/glusterfsd"
                                 }
                             },
                             {

@@ -48,10 +48,8 @@ func DeepCopy_apiserver_AdmissionConfiguration(in interface{}, out interface{}, 
 			in, out := &in.Plugins, &out.Plugins
 			*out = make([]AdmissionPluginConfiguration, len(*in))
 			for i := range *in {
-				if newVal, err := c.DeepCopy(&(*in)[i]); err != nil {
+				if err := DeepCopy_apiserver_AdmissionPluginConfiguration(&(*in)[i], &(*out)[i], c); err != nil {
 					return err
-				} else {
-					(*out)[i] = *newVal.(*AdmissionPluginConfiguration)
 				}
 			}
 		}

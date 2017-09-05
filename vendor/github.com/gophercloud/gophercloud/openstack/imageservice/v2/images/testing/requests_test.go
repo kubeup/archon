@@ -44,6 +44,19 @@ func TestListImage(t *testing.T) {
 	th.AssertEquals(t, 3, count)
 }
 
+func TestAllPagesImage(t *testing.T) {
+	th.SetupHTTP()
+	defer th.TeardownHTTP()
+
+	HandleImageListSuccessfully(t)
+
+	pages, err := images.List(fakeclient.ServiceClient(), nil).AllPages()
+	th.AssertNoErr(t, err)
+	images, err := images.ExtractImages(pages)
+	th.AssertNoErr(t, err)
+	th.AssertEquals(t, 3, len(images))
+}
+
 func TestCreateImage(t *testing.T) {
 	th.SetupHTTP()
 	defer th.TeardownHTTP()
@@ -56,6 +69,9 @@ func TestCreateImage(t *testing.T) {
 	actualImage, err := images.Create(fakeclient.ServiceClient(), images.CreateOpts{
 		ID:   id,
 		Name: name,
+		Properties: map[string]string{
+			"architecture": "x86_64",
+		},
 		Tags: []string{"ubuntu", "quantal"},
 	}).Extract()
 
@@ -86,11 +102,17 @@ func TestCreateImage(t *testing.T) {
 
 		Owner: owner,
 
-		Visibility: images.ImageVisibilityPrivate,
-		File:       file,
-		CreatedAt:  createdDate,
-		UpdatedAt:  lastUpdate,
-		Schema:     schema,
+		Visibility:  images.ImageVisibilityPrivate,
+		File:        file,
+		CreatedAt:   createdDate,
+		UpdatedAt:   lastUpdate,
+		Schema:      schema,
+		VirtualSize: 0,
+		Properties: map[string]interface{}{
+			"hw_disk_bus":       "scsi",
+			"hw_disk_bus_model": "virtio-scsi",
+			"hw_scsi_model":     "virtio-scsi",
+		},
 	}
 
 	th.AssertDeepEquals(t, &expectedImage, actualImage)
@@ -188,12 +210,18 @@ func TestGetImage(t *testing.T) {
 		Protected:  false,
 		Visibility: images.ImageVisibilityPublic,
 
-		Checksum:  checksum,
-		SizeBytes: sizeBytes,
-		File:      file,
-		CreatedAt: createdDate,
-		UpdatedAt: lastUpdate,
-		Schema:    schema,
+		Checksum:    checksum,
+		SizeBytes:   sizeBytes,
+		File:        file,
+		CreatedAt:   createdDate,
+		UpdatedAt:   lastUpdate,
+		Schema:      schema,
+		VirtualSize: 0,
+		Properties: map[string]interface{}{
+			"hw_disk_bus":       "scsi",
+			"hw_disk_bus_model": "virtio-scsi",
+			"hw_scsi_model":     "virtio-scsi",
+		},
 	}
 
 	th.AssertDeepEquals(t, &expectedImage, actualImage)
@@ -253,6 +281,12 @@ func TestUpdateImage(t *testing.T) {
 		CreatedAt:       createdDate,
 		UpdatedAt:       lastUpdate,
 		Schema:          schema,
+		VirtualSize:     0,
+		Properties: map[string]interface{}{
+			"hw_disk_bus":       "scsi",
+			"hw_disk_bus_model": "virtio-scsi",
+			"hw_scsi_model":     "virtio-scsi",
+		},
 	}
 
 	th.AssertDeepEquals(t, &expectedImage, actualImage)

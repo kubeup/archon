@@ -26,13 +26,11 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version of minikube.",
+	Short: "Print the version of minikube",
 	Long:  `Print the version of minikube.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		// Explicitly disable update checking for the version command
 		enableUpdateNotification = false
-
-		RootCmd.PersistentPreRun(cmd, args)
 	},
 	Run: func(command *cobra.Command, args []string) {
 

@@ -55,10 +55,10 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_DeploymentStatus, InType: reflect.TypeOf(&DeploymentStatus{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_DeploymentStrategy, InType: reflect.TypeOf(&DeploymentStrategy{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_FSGroupStrategyOptions, InType: reflect.TypeOf(&FSGroupStrategyOptions{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_GroupIDRange, InType: reflect.TypeOf(&GroupIDRange{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_HTTPIngressPath, InType: reflect.TypeOf(&HTTPIngressPath{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_HTTPIngressRuleValue, InType: reflect.TypeOf(&HTTPIngressRuleValue{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_HostPortRange, InType: reflect.TypeOf(&HostPortRange{})},
-		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_IDRange, InType: reflect.TypeOf(&IDRange{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_Ingress, InType: reflect.TypeOf(&Ingress{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_IngressBackend, InType: reflect.TypeOf(&IngressBackend{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_IngressList, InType: reflect.TypeOf(&IngressList{})},
@@ -95,6 +95,7 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_ThirdPartyResourceData, InType: reflect.TypeOf(&ThirdPartyResourceData{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_ThirdPartyResourceDataList, InType: reflect.TypeOf(&ThirdPartyResourceDataList{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_ThirdPartyResourceList, InType: reflect.TypeOf(&ThirdPartyResourceList{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_extensions_UserIDRange, InType: reflect.TypeOf(&UserIDRange{})},
 	)
 }
 
@@ -176,6 +177,9 @@ func DeepCopy_extensions_DaemonSet(in interface{}, out interface{}, c *conversio
 		if err := DeepCopy_extensions_DaemonSetSpec(&in.Spec, &out.Spec, c); err != nil {
 			return err
 		}
+		if err := DeepCopy_extensions_DaemonSetStatus(&in.Status, &out.Status, c); err != nil {
+			return err
+		}
 		return nil
 	}
 }
@@ -211,11 +215,18 @@ func DeepCopy_extensions_DaemonSetSpec(in interface{}, out interface{}, c *conve
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api.DeepCopy_api_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api.PodTemplateSpec)
 		}
 		if err := DeepCopy_extensions_DaemonSetUpdateStrategy(&in.UpdateStrategy, &out.UpdateStrategy, c); err != nil {
 			return err
+		}
+		if in.RevisionHistoryLimit != nil {
+			in, out := &in.RevisionHistoryLimit, &out.RevisionHistoryLimit
+			*out = new(int32)
+			**out = **in
 		}
 		return nil
 	}
@@ -226,6 +237,11 @@ func DeepCopy_extensions_DaemonSetStatus(in interface{}, out interface{}, c *con
 		in := in.(*DaemonSetStatus)
 		out := out.(*DaemonSetStatus)
 		*out = *in
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
+		}
 		return nil
 	}
 }
@@ -269,8 +285,16 @@ func DeepCopy_extensions_DeploymentCondition(in interface{}, out interface{}, c 
 		in := in.(*DeploymentCondition)
 		out := out.(*DeploymentCondition)
 		*out = *in
-		out.LastUpdateTime = in.LastUpdateTime.DeepCopy()
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastUpdateTime); err != nil {
+			return err
+		} else {
+			out.LastUpdateTime = *newVal.(*v1.Time)
+		}
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -322,8 +346,10 @@ func DeepCopy_extensions_DeploymentSpec(in interface{}, out interface{}, c *conv
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api.DeepCopy_api_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api.PodTemplateSpec)
 		}
 		if err := DeepCopy_extensions_DeploymentStrategy(&in.Strategy, &out.Strategy, c); err != nil {
 			return err
@@ -361,6 +387,11 @@ func DeepCopy_extensions_DeploymentStatus(in interface{}, out interface{}, c *co
 				}
 			}
 		}
+		if in.CollisionCount != nil {
+			in, out := &in.CollisionCount, &out.CollisionCount
+			*out = new(int64)
+			**out = **in
+		}
 		return nil
 	}
 }
@@ -386,9 +417,18 @@ func DeepCopy_extensions_FSGroupStrategyOptions(in interface{}, out interface{},
 		*out = *in
 		if in.Ranges != nil {
 			in, out := &in.Ranges, &out.Ranges
-			*out = make([]IDRange, len(*in))
+			*out = make([]GroupIDRange, len(*in))
 			copy(*out, *in)
 		}
+		return nil
+	}
+}
+
+func DeepCopy_extensions_GroupIDRange(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*GroupIDRange)
+		out := out.(*GroupIDRange)
+		*out = *in
 		return nil
 	}
 }
@@ -420,15 +460,6 @@ func DeepCopy_extensions_HostPortRange(in interface{}, out interface{}, c *conve
 	{
 		in := in.(*HostPortRange)
 		out := out.(*HostPortRange)
-		*out = *in
-		return nil
-	}
-}
-
-func DeepCopy_extensions_IDRange(in interface{}, out interface{}, c *conversion.Cloner) error {
-	{
-		in := in.(*IDRange)
-		out := out.(*IDRange)
 		*out = *in
 		return nil
 	}
@@ -546,8 +577,10 @@ func DeepCopy_extensions_IngressStatus(in interface{}, out interface{}, c *conve
 		in := in.(*IngressStatus)
 		out := out.(*IngressStatus)
 		*out = *in
-		if err := api.DeepCopy_api_LoadBalancerStatus(&in.LoadBalancer, &out.LoadBalancer, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.LoadBalancer); err != nil {
 			return err
+		} else {
+			out.LoadBalancer = *newVal.(*api.LoadBalancerStatus)
 		}
 		return nil
 	}
@@ -802,7 +835,11 @@ func DeepCopy_extensions_ReplicaSetCondition(in interface{}, out interface{}, c 
 		in := in.(*ReplicaSetCondition)
 		out := out.(*ReplicaSetCondition)
 		*out = *in
-		out.LastTransitionTime = in.LastTransitionTime.DeepCopy()
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
+		}
 		return nil
 	}
 }
@@ -838,8 +875,10 @@ func DeepCopy_extensions_ReplicaSetSpec(in interface{}, out interface{}, c *conv
 				*out = newVal.(*v1.LabelSelector)
 			}
 		}
-		if err := api.DeepCopy_api_PodTemplateSpec(&in.Template, &out.Template, c); err != nil {
+		if newVal, err := c.DeepCopy(&in.Template); err != nil {
 			return err
+		} else {
+			out.Template = *newVal.(*api.PodTemplateSpec)
 		}
 		return nil
 	}
@@ -906,7 +945,7 @@ func DeepCopy_extensions_RunAsUserStrategyOptions(in interface{}, out interface{
 		*out = *in
 		if in.Ranges != nil {
 			in, out := &in.Ranges, &out.Ranges
-			*out = make([]IDRange, len(*in))
+			*out = make([]UserIDRange, len(*in))
 			copy(*out, *in)
 		}
 		return nil
@@ -977,7 +1016,7 @@ func DeepCopy_extensions_SupplementalGroupsStrategyOptions(in interface{}, out i
 		*out = *in
 		if in.Ranges != nil {
 			in, out := &in.Ranges, &out.Ranges
-			*out = make([]IDRange, len(*in))
+			*out = make([]GroupIDRange, len(*in))
 			copy(*out, *in)
 		}
 		return nil
@@ -1054,6 +1093,15 @@ func DeepCopy_extensions_ThirdPartyResourceList(in interface{}, out interface{},
 				}
 			}
 		}
+		return nil
+	}
+}
+
+func DeepCopy_extensions_UserIDRange(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*UserIDRange)
+		out := out.(*UserIDRange)
+		*out = *in
 		return nil
 	}
 }

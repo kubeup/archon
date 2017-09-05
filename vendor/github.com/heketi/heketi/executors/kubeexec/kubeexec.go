@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2016 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package kubeexec
@@ -19,34 +12,23 @@ package kubeexec
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/openshift/origin/pkg/cmd/util/tokencmd"
 	"k8s.io/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api/v1"
+	client "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5"
+	coreclient "k8s.io/kubernetes/pkg/client/clientset_generated/release_1_5/typed/core/v1"
 	"k8s.io/kubernetes/pkg/client/restclient"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned/remotecommand"
-	"k8s.io/kubernetes/pkg/fields"
 	kubeletcmd "k8s.io/kubernetes/pkg/kubelet/server/remotecommand"
-	"k8s.io/kubernetes/pkg/labels"
-
-	"github.com/lpabon/godbc"
 
 	"github.com/heketi/heketi/executors/sshexec"
+	"github.com/heketi/heketi/pkg/kubernetes"
 	"github.com/heketi/heketi/pkg/utils"
+	"github.com/lpabon/godbc"
 )
-
-type KubernetesClient interface {
-}
-
-type KubernetesRemoteCommand interface {
-}
-
-type KubernetesRemoteCommandStream interface {
-}
 
 const (
 	KubeGlusterFSPodLabelKey = "glusterfs-node"
@@ -57,50 +39,22 @@ type KubeExecutor struct {
 	sshexec.SshExecutor
 
 	// save kube configuration
-	config *KubeConfig
+	config     *KubeConfig
+	namespace  string
+	kube       *client.Clientset
+	rest       restclient.Interface
+	kubeConfig *restclient.Config
 }
 
 var (
-	logger       = utils.NewLogger("[kubeexec]", utils.LEVEL_DEBUG)
-	tokenCreator = tokencmd.RequestToken
+	logger          = utils.NewLogger("[kubeexec]", utils.LEVEL_DEBUG)
+	inClusterConfig = func() (*restclient.Config, error) {
+		return restclient.InClusterConfig()
+	}
 )
 
 func setWithEnvVariables(config *KubeConfig) {
-	// Check Host e.g. "https://myhost:8443"
-	env := os.Getenv("HEKETI_KUBE_APIHOST")
-	if "" != env {
-		config.Host = env
-	}
-
-	// Check certificate file
-	env = os.Getenv("HEKETI_KUBE_CERTFILE")
-	if "" != env {
-		config.CertFile = env
-	}
-
-	// Correct values are = y YES yes Yes Y true 1
-	// disable are n N no NO No
-	env = os.Getenv("HEKETI_KUBE_INSECURE")
-	if "" != env {
-		env = strings.ToLower(env)
-		if env[0] == 'y' || env[0] == '1' {
-			config.Insecure = true
-		} else if env[0] == 'n' || env[0] == '0' {
-			config.Insecure = false
-		}
-	}
-
-	// User login
-	env = os.Getenv("HEKETI_KUBE_USER")
-	if "" != env {
-		config.User = env
-	}
-
-	// Password for user
-	env = os.Getenv("HEKETI_KUBE_PASSWORD")
-	if "" != env {
-		config.Password = env
-	}
+	var env string
 
 	// Namespace / Project
 	env = os.Getenv("HEKETI_KUBE_NAMESPACE")
@@ -123,20 +77,16 @@ func setWithEnvVariables(config *KubeConfig) {
 		}
 	}
 
-	// Use secret for Auth
-	env = os.Getenv("HEKETI_KUBE_USE_SECRET")
+	// Determine if Heketi should communicate with Gluster
+	// pods deployed by a DaemonSet
+	env = os.Getenv("HEKETI_KUBE_GLUSTER_DAEMONSET")
 	if "" != env {
 		env = strings.ToLower(env)
 		if env[0] == 'y' || env[0] == '1' {
-			config.UseSecrets = true
+			config.GlusterDaemonSet = true
 		} else if env[0] == 'n' || env[0] == '0' {
-			config.UseSecrets = false
+			config.GlusterDaemonSet = false
 		}
-	}
-
-	env = os.Getenv("HEKETI_KUBE_TOKENFILE")
-	if "" != env {
-		config.TokenFile = env
 	}
 
 	// Use POD names
@@ -167,9 +117,34 @@ func NewKubeExecutor(config *KubeConfig) (*KubeExecutor, error) {
 		k.Fstab = config.Fstab
 	}
 
-	// Check required values
+	// Get namespace
+	var err error
 	if k.config.Namespace == "" {
-		return nil, fmt.Errorf("Namespace must be provided in configuration")
+		k.config.Namespace, err = kubernetes.GetNamespace()
+		if err != nil {
+			return nil, logger.LogError("Namespace must be provided in configuration: %v", err)
+		}
+	}
+	k.namespace = k.config.Namespace
+
+	// Create a Kube client configuration
+	k.kubeConfig, err = inClusterConfig()
+	if err != nil {
+		return nil, logger.LogError("Unable to create configuration for Kubernetes: %v", err)
+	}
+
+	// Get a raw REST client.  This is still needed for kube-exec
+	restCore, err := coreclient.NewForConfig(k.kubeConfig)
+	if err != nil {
+		return nil, logger.LogError("Unable to create a client connection: %v", err)
+	}
+	k.rest = restCore.RESTClient()
+
+	// Get a Go-client for Kubernetes
+	k.kube, err = client.NewForConfig(k.kubeConfig)
+	if err != nil {
+		logger.Err(err)
+		return nil, fmt.Errorf("Unable to create a client set")
 	}
 
 	// Show experimental settings
@@ -193,95 +168,41 @@ func (k *KubeExecutor) RemoteCommandExecute(host string,
 
 	// Execute
 	return k.ConnectAndExec(host,
-		k.config.Namespace,
 		"pods",
 		commands,
 		timeoutMinutes)
 }
 
-func (k *KubeExecutor) ConnectAndExec(host, namespace, resource string,
+func (k *KubeExecutor) ConnectAndExec(host, resource string,
 	commands []string,
 	timeoutMinutes int) ([]string, error) {
 
 	// Used to return command output
 	buffers := make([]string, len(commands))
 
-	// Create a Kube client configuration
-	clientConfig := &restclient.Config{}
-	clientConfig.Host = k.config.Host
-	clientConfig.CertFile = k.config.CertFile
-	clientConfig.Insecure = k.config.Insecure
-
-	// Login
-	if k.config.User != "" && k.config.Password != "" {
-		token, err := tokenCreator(clientConfig,
-			nil,
-			k.config.User,
-			k.config.Password)
-		if err != nil {
-			logger.Err(err)
-			return nil, fmt.Errorf("User %v credentials not accepted", k.config.User)
-		}
-		clientConfig.BearerToken = token
-	} else if k.config.UseSecrets {
-		tokenBytes, err := ioutil.ReadFile(k.config.TokenFile)
-		if err != nil {
-			logger.Err(err)
-			return nil, logger.LogError("Secret token not found in %v", k.config.TokenFile)
-		}
-		clientConfig.BearerToken = string(tokenBytes)
-	}
-
-	// Get a client
-	conn, err := client.New(clientConfig)
-	if err != nil {
-		logger.Err(err)
-		return nil, fmt.Errorf("Unable to create a client connection")
-	}
-
 	// Get pod name
-	var podName string
+	var (
+		podName string
+		err     error
+	)
 	if k.config.UsePodNames {
 		podName = host
+	} else if k.config.GlusterDaemonSet {
+		podName, err = k.getPodNameFromDaemonSet(host)
 	} else {
-		// 'host' is actually the value for the label with a key
-		// of 'glusterid'
-		selector, err := labels.Parse(KubeGlusterFSPodLabelKey + "==" + host)
-		if err != nil {
-			logger.Err(err)
-			return nil, fmt.Errorf("Unable to get pod with a matching label of %v==%v",
-				KubeGlusterFSPodLabelKey, host)
-		}
-
-		// Get a list of pods
-		pods, err := conn.Pods(namespace).List(api.ListOptions{
-			LabelSelector: selector,
-			FieldSelector: fields.Everything(),
-		})
-		if err != nil {
-			logger.Err(err)
-			return nil, fmt.Errorf("Failed to get list of pods")
-		}
-
-		numPods := len(pods.Items)
-		if numPods == 0 {
-			// No pods found with that label
-			err := fmt.Errorf("No pods with the label '%v=%v' were found",
-				KubeGlusterFSPodLabelKey, host)
-			logger.Critical(err.Error())
-			return nil, err
-
-		} else if numPods > 1 {
-			// There are more than one pod with the same label
-			err := fmt.Errorf("Found %v pods with the sharing the same label '%v=%v'",
-				numPods, KubeGlusterFSPodLabelKey, host)
-			logger.Critical(err.Error())
-			return nil, err
-		}
-
-		// Get pod name
-		podName = pods.Items[0].ObjectMeta.Name
+		podName, err = k.getPodNameByLabel(host)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Get container name
+	podSpec, err := k.kube.Core().Pods(k.namespace).Get(podName)
+	if err != nil {
+		return nil, logger.LogError("Unable to get pod spec for %v: %v",
+			podName, err)
+	}
+	containerName := podSpec.Spec.Containers[0].Name
 
 	for index, command := range commands {
 
@@ -291,19 +212,21 @@ func (k *KubeExecutor) ConnectAndExec(host, namespace, resource string,
 		// SUDO is *not* supported
 
 		// Create REST command
-		req := conn.RESTClient.Post().
+		req := k.rest.Post().
 			Resource(resource).
 			Name(podName).
-			Namespace(namespace).
-			SubResource("exec")
+			Namespace(k.namespace).
+			SubResource("exec").
+			Param("container", containerName)
 		req.VersionedParams(&api.PodExecOptions{
-			Command: []string{"/bin/bash", "-c", command},
-			Stdout:  true,
-			Stderr:  true,
+			Container: containerName,
+			Command:   []string{"/bin/bash", "-c", command},
+			Stdout:    true,
+			Stderr:    true,
 		}, api.ParameterCodec)
 
 		// Create SPDY connection
-		exec, err := remotecommand.NewExecutor(clientConfig, "POST", req.URL())
+		exec, err := remotecommand.NewExecutor(k.kubeConfig, "POST", req.URL())
 		if err != nil {
 			logger.Err(err)
 			return nil, fmt.Errorf("Unable to setup a session with %v", podName)
@@ -324,7 +247,7 @@ func (k *KubeExecutor) ConnectAndExec(host, namespace, resource string,
 				command, podName, err, b.String(), berr.String())
 			return nil, fmt.Errorf("Unable to execute command on %v: %v", podName, berr.String())
 		}
-		logger.Debug("Host: %v Command: %v\nResult: %v", podName, command, b.String())
+		logger.Debug("Host: %v Pod: %v Command: %v\nResult: %v", host, podName, command, b.String())
 		buffers[index] = b.String()
 
 	}
@@ -338,4 +261,60 @@ func (k *KubeExecutor) RebalanceOnExpansion() bool {
 
 func (k *KubeExecutor) SnapShotLimit() int {
 	return k.config.SnapShotLimit
+}
+
+func (k *KubeExecutor) getPodNameByLabel(host string) (string, error) {
+	// Get a list of pods
+	pods, err := k.kube.Core().Pods(k.config.Namespace).List(v1.ListOptions{
+		LabelSelector: KubeGlusterFSPodLabelKey + "==" + host,
+	})
+	if err != nil {
+		logger.Err(err)
+		return "", fmt.Errorf("Failed to get list of pods")
+	}
+
+	numPods := len(pods.Items)
+	if numPods == 0 {
+		// No pods found with that label
+		err := fmt.Errorf("No pods with the label '%v=%v' were found",
+			KubeGlusterFSPodLabelKey, host)
+		logger.Critical(err.Error())
+		return "", err
+
+	} else if numPods > 1 {
+		// There are more than one pod with the same label
+		err := fmt.Errorf("Found %v pods with the sharing the same label '%v=%v'",
+			numPods, KubeGlusterFSPodLabelKey, host)
+		logger.Critical(err.Error())
+		return "", err
+	}
+
+	// Get pod name
+	return pods.Items[0].ObjectMeta.Name, nil
+}
+
+func (k *KubeExecutor) getPodNameFromDaemonSet(host string) (string, error) {
+	// Get a list of pods
+	pods, err := k.kube.Core().Pods(k.config.Namespace).List(v1.ListOptions{
+		LabelSelector: KubeGlusterFSPodLabelKey,
+	})
+	if err != nil {
+		logger.Err(err)
+		return "", logger.LogError("Failed to get list of pods")
+	}
+
+	// Go through the pods looking for the node
+	var glusterPod string
+	for _, pod := range pods.Items {
+		if pod.Spec.NodeName == host {
+			glusterPod = pod.ObjectMeta.Name
+		}
+	}
+	if glusterPod == "" {
+		return "", logger.LogError("Unable to find a GlusterFS pod on host %v "+
+			"with a label key %v", host, KubeGlusterFSPodLabelKey)
+	}
+
+	// Get pod name
+	return glusterPod, nil
 }

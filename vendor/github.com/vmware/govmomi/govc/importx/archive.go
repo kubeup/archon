@@ -59,7 +59,7 @@ func (f *ArchiveFlag) ReadOvf(fpath string) ([]byte, error) {
 
 func (f *ArchiveFlag) ReadEnvelope(fpath string) (*ovf.Envelope, error) {
 	if fpath == "" {
-		return nil, nil
+		return &ovf.Envelope{}, nil
 	}
 
 	r, _, err := f.Open(fpath)
@@ -110,7 +110,7 @@ func (t *TapeArchive) Open(name string) (io.ReadCloser, int64, error) {
 			return nil, 0, err
 		}
 
-		matched, err := filepath.Match(name, path.Base(h.Name))
+		matched, err := path.Match(name, path.Base(h.Name))
 		if err != nil {
 			return nil, 0, err
 		}

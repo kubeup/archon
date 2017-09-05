@@ -19,12 +19,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"math/big"
-	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/vmware/photon-controller-go-sdk/photon/internal/mocks"
+	"math/big"
+	"runtime"
+	"time"
 )
 
 var _ = Describe("OIDCClient", func() {
@@ -241,6 +242,66 @@ var _ = Describe("OIDCClient", func() {
 					Expect(err).ToNot(BeNil())
 					Expect(err.(OIDCError).Code).To(BeEquivalentTo("invalid_grant"))
 					Expect(err.(OIDCError).Message).ToNot(BeNil())
+				})
+			})
+		})
+	})
+
+	Describe("GetTokensFromWindowsLogInContext", func() {
+		Context("with fake server", func() {
+			BeforeEach(func() {
+				if runtime.GOOS != "windows" {
+					Skip("Intended to run only on Windows OS")
+				}
+				client, server = testSetupFakeServer()
+			})
+
+			Context("when server responds with valid data", func() {
+				var (
+					expected *OIDCTokenResponse
+				)
+
+				BeforeEach(func() {
+					expected = &OIDCTokenResponse{
+						AccessToken:  "fake_access_token",
+						ExpiresIn:    36000,
+						RefreshToken: "fake_refresh_token",
+						IdToken:      "fake_id_token",
+						TokenType:    "Bearer",
+					}
+					server.SetResponseJsonForPath(tokenPath, 200, expected)
+				})
+
+				It("retrieves tokens", func() {
+					resp, err := client.GetTokensFromWindowsLogInContext()
+					Expect(err).To(BeNil())
+					Expect(resp).To(BeEquivalentTo(expected))
+				})
+			})
+
+			Context("when server responds with unsupported format", func() {
+				BeforeEach(func() {
+					server.SetResponseForPath(tokenPath, 200, "text")
+				})
+
+				It("returns an error", func() {
+					resp, err := client.GetTokensFromWindowsLogInContext()
+					Expect(resp).To(BeNil())
+					Expect(err).ToNot(BeNil())
+					Expect(err).To(MatchError("invalid character 'e' in literal true (expecting 'r')"))
+				})
+			})
+
+			Context("when server responds with error", func() {
+				BeforeEach(func() {
+					server.SetResponseForPath(tokenPath, 400, "Error")
+				})
+
+				It("returns an error", func() {
+					resp, err := client.GetTokensFromWindowsLogInContext()
+					Expect(resp).To(BeNil())
+					Expect(err).ToNot(BeNil())
+					Expect(err).To(MatchError("Status: 400 Bad Request, Body: Error\n [<nil>]"))
 				})
 			})
 		})

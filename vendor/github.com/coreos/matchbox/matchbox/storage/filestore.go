@@ -56,6 +56,11 @@ func (s *fileStore) GroupGet(id string) (*storagepb.Group, error) {
 	return group, err
 }
 
+// GroupDelete deletes a machine Group by id.
+func (s *fileStore) GroupDelete(id string) error {
+	return Dir(s.root).deleteFile(filepath.Join("groups", id+".json"))
+}
+
 // GroupList lists all machine Groups.
 func (s *fileStore) GroupList() ([]*storagepb.Group, error) {
 	files, err := Dir(s.root).readDir("groups")
@@ -101,6 +106,11 @@ func (s *fileStore) ProfileGet(id string) (*storagepb.Profile, error) {
 	return profile, err
 }
 
+// ProfileDelete deletes a profile by id.
+func (s *fileStore) ProfileDelete(id string) error {
+	return Dir(s.root).deleteFile(filepath.Join("profiles", id+".json"))
+}
+
 // ProfileList lists all profiles.
 func (s *fileStore) ProfileList() ([]*storagepb.Profile, error) {
 	files, err := Dir(s.root).readDir("profiles")
@@ -131,14 +141,29 @@ func (s *fileStore) IgnitionGet(name string) (string, error) {
 	return string(data), err
 }
 
-// CloudGet gets a Cloud-Config template by name.
-func (s *fileStore) CloudGet(name string) (string, error) {
-	data, err := Dir(s.root).readFile(filepath.Join("cloud", name))
+// IgnitionDelete deletes an Ignition template by name.
+func (s *fileStore) IgnitionDelete(name string) error {
+	return Dir(s.root).deleteFile(filepath.Join("ignition", name))
+}
+
+// GenericPut creates or updates an Generic template.
+func (s *fileStore) GenericPut(name string, config []byte) error {
+	return Dir(s.root).writeFile(filepath.Join("generic", name), config)
+}
+
+// GenericGet gets an Generic template by name.
+func (s *fileStore) GenericGet(name string) (string, error) {
+	data, err := Dir(s.root).readFile(filepath.Join("generic", name))
 	return string(data), err
 }
 
-// GenericGet gets a generic template by name.
-func (s *fileStore) GenericGet(name string) (string, error) {
-	data, err := Dir(s.root).readFile(filepath.Join("generic", name))
+// GenericDelete deletes an Generic template by name.
+func (s *fileStore) GenericDelete(name string) error {
+	return Dir(s.root).deleteFile(filepath.Join("generic", name))
+}
+
+// CloudGet gets a Cloud-Config template by name.
+func (s *fileStore) CloudGet(name string) (string, error) {
+	data, err := Dir(s.root).readFile(filepath.Join("cloud", name))
 	return string(data), err
 }

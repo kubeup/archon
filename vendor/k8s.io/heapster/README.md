@@ -12,8 +12,6 @@ It can be extended to support other cluster management solutions easily.
 Heapster collects and interprets various signals like compute resource usage, lifecycle events, etc, and exports cluster metrics via [REST endpoints](docs/model.md).
 **Note: Some of the endpoints are only valid in Kubernetes clusters**
 
-Use [Kubedash](https://github.com/kubernetes/kubedash) to visualize data exported by Heapster.
-
 Heapster supports multiple sources of data.
 More information [here](docs/source-configuration.md).
 
@@ -37,4 +35,4 @@ Using Heapster to monitor an OpenShift cluster requires some additional changes 
 
 ### Community
 
-Contributions, questions, and comments are all welcomed and encouraged! Heapster and cAdvisor developers hang out in the [#google-containers](http://webchat.freenode.net/?channels=google-containers) room on freenode.net.  You can also reach us on the [google-containers Google Groups mailing list](https://groups.google.com/forum/#!forum/google-containers).
+Contributions, questions, and comments are all welcomed and encouraged! Heapster and cAdvisor developers hang out in the [#google-containers](http://webchat.freenode.net/?channels=google-containers) room on freenode.net.  You can also reach us on the [kubernetes-users Google Groups mailing list](https://groups.google.com/forum/#!forum/kubernetes-users).

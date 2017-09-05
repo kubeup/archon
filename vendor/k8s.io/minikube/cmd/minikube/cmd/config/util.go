@@ -18,19 +18,18 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	"k8s.io/minikube/pkg/minikube/assets"
 	"k8s.io/minikube/pkg/minikube/cluster"
 	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/machine"
-	"k8s.io/minikube/pkg/minikube/service"
 	"k8s.io/minikube/pkg/minikube/sshutil"
+	"k8s.io/minikube/pkg/minikube/storageclass"
 )
 
 // Runs all the validation or callback functions and collects errors
@@ -82,13 +81,6 @@ func SetBool(m config.MinikubeConfig, name string, val string) error {
 	return nil
 }
 
-func GetClientType() machine.ClientType {
-	if viper.GetBool(useVendoredDriver) {
-		return machine.ClientTypeLocal
-	}
-	return machine.ClientTypeRPC
-}
-
 func EnableOrDisableAddon(name string, val string) error {
 
 	enable, err := strconv.ParseBool(val)
@@ -96,89 +88,8 @@ func EnableOrDisableAddon(name string, val string) error {
 		errors.Wrapf(err, "error attempted to parse enabled/disable value addon %s", name)
 	}
 
-	// allows for additional prompting of information when enabling addons
-	if enable {
-		switch name {
-		case "registry-creds":
-			posResponses := []string{"yes", "y"}
-			negResponses := []string{"no", "n"}
-
-			// Default values
-			awsAccessID := "changeme"
-			awsAccessKey := "changeme"
-			awsRegion := "changeme"
-			awsAccount := "changeme"
-			gcrApplicationDefaultCredentials := "changeme"
-
-			enableAWSECR := AskForYesNoConfirmation("\nDo you want to enable AWS Elastic Container Registry?", posResponses, negResponses)
-			if enableAWSECR {
-				awsAccessID = AskForStaticValue("-- Enter AWS Access Key ID: ")
-				awsAccessKey = AskForStaticValue("-- Enter AWS Secret Access Key: ")
-				awsRegion = AskForStaticValue("-- Enter AWS Region: ")
-				awsAccount = AskForStaticValue("-- Enter 12 digit AWS Account ID: ")
-			}
-
-			enableGCR := AskForYesNoConfirmation("\nDo you want to enable Google Container Registry?", posResponses, negResponses)
-			if enableGCR {
-				gcrPath := AskForStaticValue("-- Enter path to credentials (e.g. /home/user/.config/gcloud/application_default_credentials.json):")
-
-				// Read file from disk
-				dat, err := ioutil.ReadFile(gcrPath)
-
-				if err != nil {
-					fmt.Println("Could not read file for application_default_credentials.json")
-				} else {
-					gcrApplicationDefaultCredentials = string(dat)
-				}
-			}
-
-			// Create ECR Secret
-			err = service.CreateSecret(
-				"kube-system",
-				"registry-creds-ecr",
-				map[string]string{
-					"AWS_ACCESS_KEY_ID":     awsAccessID,
-					"AWS_SECRET_ACCESS_KEY": awsAccessKey,
-					"aws-account":           awsAccount,
-					"aws-region":            awsRegion,
-				},
-				map[string]string{
-					"app":   "registry-creds",
-					"cloud": "ecr",
-					"kubernetes.io/minikube-addons": "registry-creds",
-				})
-
-			if err != nil {
-				fmt.Println("ERROR creating `registry-creds-ecr` secret")
-			}
-
-			// Create GCR Secret
-			err = service.CreateSecret(
-				"kube-system",
-				"registry-creds-gcr",
-				map[string]string{
-					"application_default_credentials.json": gcrApplicationDefaultCredentials,
-				},
-				map[string]string{
-					"app":   "registry-creds",
-					"cloud": "gcr",
-					"kubernetes.io/minikube-addons": "registry-creds",
-				})
-
-			if err != nil {
-				fmt.Println("ERROR creating `registry-creds-gcr` secret")
-			}
-
-			break
-		}
-	} else {
-		// Cleanup existing secrets
-		service.DeleteSecret("kube-system", "registry-creds-ecr")
-		service.DeleteSecret("kube-system", "registry-creds-gcr")
-	}
-
 	//TODO(r2d4): config package should not reference API, pull this out
-	api, err := machine.NewAPIClient(GetClientType())
+	api, err := machine.NewAPIClient()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error getting client: %s\n", err)
 		os.Exit(1)
@@ -192,18 +103,18 @@ func EnableOrDisableAddon(name string, val string) error {
 	}
 	host, err := cluster.CheckIfApiExistsAndLoad(api)
 	if enable {
-		if err = transferAddonViaDriver(addon, host.Driver); err != nil {
+		if err = transferAddon(addon, host.Driver); err != nil {
 			return errors.Wrapf(err, "Error transferring addon %s to VM", name)
 		}
 	} else {
-		if err = deleteAddonViaDriver(addon, host.Driver); err != nil {
+		if err = deleteAddon(addon, host.Driver); err != nil {
 			return errors.Wrapf(err, "Error deleting addon %s from VM", name)
 		}
 	}
 	return nil
 }
 
-func deleteAddonViaDriver(addon *assets.Addon, d drivers.Driver) error {
+func deleteAddonSSH(addon *assets.Addon, d drivers.Driver) error {
 	client, err := sshutil.NewSSHClient(d)
 	if err != nil {
 		return err
@@ -214,7 +125,30 @@ func deleteAddonViaDriver(addon *assets.Addon, d drivers.Driver) error {
 	return nil
 }
 
-func transferAddonViaDriver(addon *assets.Addon, d drivers.Driver) error {
+func deleteAddon(addon *assets.Addon, d drivers.Driver) error {
+	if d.DriverName() == "none" {
+		if err := deleteAddonLocal(addon, d); err != nil {
+			return err
+		}
+	} else {
+		if err := deleteAddonSSH(addon, d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func deleteAddonLocal(addon *assets.Addon, d drivers.Driver) error {
+	var err error
+	for _, f := range addon.Assets {
+		if err = os.Remove(filepath.Join(f.GetTargetDir(), f.GetTargetName())); err != nil {
+			return err
+		}
+	}
+	return err
+}
+
+func transferAddonSSH(addon *assets.Addon, d drivers.Driver) error {
 	client, err := sshutil.NewSSHClient(d)
 	if err != nil {
 		return err
@@ -223,4 +157,43 @@ func transferAddonViaDriver(addon *assets.Addon, d drivers.Driver) error {
 		return err
 	}
 	return nil
+}
+
+func EnableOrDisableDefaultStorageClass(name, val string) error {
+	enable, err := strconv.ParseBool(val)
+	if err != nil {
+		return errors.Wrap(err, "Error parsing boolean")
+	}
+
+	// Special logic to disable the default storage class
+	if !enable {
+		err := storageclass.DisableDefaultStorageClass()
+		if err != nil {
+			return errors.Wrap(err, "Error disabling default storage class")
+		}
+	}
+	return EnableOrDisableAddon(name, val)
+}
+
+func transferAddon(addon *assets.Addon, d drivers.Driver) error {
+	if d.DriverName() == "none" {
+		if err := transferAddonLocal(addon, d); err != nil {
+			return err
+		}
+	} else {
+		if err := transferAddonSSH(addon, d); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func transferAddonLocal(addon *assets.Addon, d drivers.Driver) error {
+	var err error
+	for _, f := range addon.Assets {
+		if err = assets.CopyFileLocal(f); err != nil {
+			return err
+		}
+	}
+	return err
 }

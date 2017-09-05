@@ -38,6 +38,7 @@ func RegisterDeepCopies(scheme *runtime.Scheme) error {
 	return scheme.AddGeneratedDeepCopyFuncs(
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_CrossVersionObjectReference, InType: reflect.TypeOf(&CrossVersionObjectReference{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_HorizontalPodAutoscaler, InType: reflect.TypeOf(&HorizontalPodAutoscaler{})},
+		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_HorizontalPodAutoscalerCondition, InType: reflect.TypeOf(&HorizontalPodAutoscalerCondition{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_HorizontalPodAutoscalerList, InType: reflect.TypeOf(&HorizontalPodAutoscalerList{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_HorizontalPodAutoscalerSpec, InType: reflect.TypeOf(&HorizontalPodAutoscalerSpec{})},
 		conversion.GeneratedDeepCopyFunc{Fn: DeepCopy_autoscaling_HorizontalPodAutoscalerStatus, InType: reflect.TypeOf(&HorizontalPodAutoscalerStatus{})},
@@ -79,6 +80,20 @@ func DeepCopy_autoscaling_HorizontalPodAutoscaler(in interface{}, out interface{
 		}
 		if err := DeepCopy_autoscaling_HorizontalPodAutoscalerStatus(&in.Status, &out.Status, c); err != nil {
 			return err
+		}
+		return nil
+	}
+}
+
+func DeepCopy_autoscaling_HorizontalPodAutoscalerCondition(in interface{}, out interface{}, c *conversion.Cloner) error {
+	{
+		in := in.(*HorizontalPodAutoscalerCondition)
+		out := out.(*HorizontalPodAutoscalerCondition)
+		*out = *in
+		if newVal, err := c.DeepCopy(&in.LastTransitionTime); err != nil {
+			return err
+		} else {
+			out.LastTransitionTime = *newVal.(*v1.Time)
 		}
 		return nil
 	}
@@ -137,14 +152,26 @@ func DeepCopy_autoscaling_HorizontalPodAutoscalerStatus(in interface{}, out inte
 		}
 		if in.LastScaleTime != nil {
 			in, out := &in.LastScaleTime, &out.LastScaleTime
-			*out = new(v1.Time)
-			**out = (*in).DeepCopy()
+			if newVal, err := c.DeepCopy(*in); err != nil {
+				return err
+			} else {
+				*out = newVal.(*v1.Time)
+			}
 		}
 		if in.CurrentMetrics != nil {
 			in, out := &in.CurrentMetrics, &out.CurrentMetrics
 			*out = make([]MetricStatus, len(*in))
 			for i := range *in {
 				if err := DeepCopy_autoscaling_MetricStatus(&(*in)[i], &(*out)[i], c); err != nil {
+					return err
+				}
+			}
+		}
+		if in.Conditions != nil {
+			in, out := &in.Conditions, &out.Conditions
+			*out = make([]HorizontalPodAutoscalerCondition, len(*in))
+			for i := range *in {
+				if err := DeepCopy_autoscaling_HorizontalPodAutoscalerCondition(&(*in)[i], &(*out)[i], c); err != nil {
 					return err
 				}
 			}

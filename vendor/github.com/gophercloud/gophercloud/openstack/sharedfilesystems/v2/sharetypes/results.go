@@ -68,3 +68,72 @@ func ExtractShareTypes(r pagination.Page) ([]ShareType, error) {
 type GetDefaultResult struct {
 	commonResult
 }
+
+// ExtraSpecs contains all the information associated with extra specifications
+// for an Openstack ShareType.
+type ExtraSpecs map[string]interface{}
+
+type extraSpecsResult struct {
+	gophercloud.Result
+}
+
+// Extract will get the ExtraSpecs object out of the commonResult object.
+func (r extraSpecsResult) Extract() (ExtraSpecs, error) {
+	var s struct {
+		Specs ExtraSpecs `json:"extra_specs"`
+	}
+	err := r.ExtractInto(&s)
+	return s.Specs, err
+}
+
+// GetExtraSpecsResult contains the response body and error from a Get Extra Specs request.
+type GetExtraSpecsResult struct {
+	extraSpecsResult
+}
+
+// SetExtraSpecsResult contains the response body and error from a Set Extra Specs request.
+type SetExtraSpecsResult struct {
+	extraSpecsResult
+}
+
+// UnsetExtraSpecsResult contains the response body and error from a Unset Extra Specs request.
+type UnsetExtraSpecsResult struct {
+	gophercloud.ErrResult
+}
+
+// ShareTypeAccess contains all the information associated with an OpenStack
+// ShareTypeAccess.
+type ShareTypeAccess struct {
+	// The share type ID of the member.
+	ShareTypeID string `json:"share_type_id"`
+	// The UUID of the project for which access to the share type is granted.
+	ProjectID string `json:"project_id"`
+}
+
+type shareTypeAccessResult struct {
+	gophercloud.Result
+}
+
+// ShowAccessResult contains the response body and error from a Show access request.
+type ShowAccessResult struct {
+	shareTypeAccessResult
+}
+
+// Extract will get the ShareTypeAccess objects out of the shareTypeAccessResult object.
+func (r ShowAccessResult) Extract() ([]ShareTypeAccess, error) {
+	var s struct {
+		ShareTypeAccess []ShareTypeAccess `json:"share_type_access"`
+	}
+	err := r.ExtractInto(&s)
+	return s.ShareTypeAccess, err
+}
+
+// AddAccessResult contains the response body and error from a Add Access request.
+type AddAccessResult struct {
+	gophercloud.ErrResult
+}
+
+// RemoveAccessResult contains the response body and error from a Remove Access request.
+type RemoveAccessResult struct {
+	gophercloud.ErrResult
+}

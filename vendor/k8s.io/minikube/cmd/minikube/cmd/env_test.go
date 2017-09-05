@@ -22,6 +22,7 @@ import (
 
 	"github.com/docker/machine/libmachine"
 	"github.com/docker/machine/libmachine/host"
+	"k8s.io/minikube/pkg/minikube/config"
 	"k8s.io/minikube/pkg/minikube/constants"
 	"k8s.io/minikube/pkg/minikube/tests"
 )
@@ -49,14 +50,14 @@ func (f FakeNoProxyGetter) GetNoProxyVar() (string, string) {
 
 var defaultAPI = &tests.MockAPI{
 	Hosts: map[string]*host.Host{
-		constants.MachineName: {
-			Name:   constants.MachineName,
+		config.GetMachineName(): {
+			Name:   config.GetMachineName(),
 			Driver: &tests.MockDriver{},
 		},
 	},
 }
 
-//Most of the shell cfg isn't configurable
+// Most of the shell cfg isn't configurable
 func newShellCfg(shell, prefix, suffix, delim string) *ShellConfig {
 	return &ShellConfig{
 		DockerCertPath:   constants.MakeMiniPath("certs"),

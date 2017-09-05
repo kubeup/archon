@@ -39,8 +39,8 @@ GET http://matchbox.foo/ipxe?label=value
 
 ```
 #!ipxe
-kernel /assets/coreos/1235.9.0/coreos_production_pxe.vmlinuz coreos.config.url=http://matchbox.foo:8080/ignition?uuid=${uuid}&mac=${mac:hexhyp} coreos.first_boot=1 coreos.autologin
-initrd  /assets/coreos/1235.9.0/coreos_production_pxe_image.cpio.gz
+kernel /assets/coreos/1409.7.0/coreos_production_pxe.vmlinuz coreos.config.url=http://matchbox.foo:8080/ignition?uuid=${uuid}&mac=${mac:hexhyp} coreos.first_boot=1 coreos.autologin
+initrd  /assets/coreos/1409.7.0/coreos_production_pxe_image.cpio.gz
 boot
 ```
 
@@ -67,15 +67,15 @@ default=0
 timeout=1
 menuentry "CoreOS" {
 echo "Loading kernel"
-linuxefi "(http;matchbox.foo:8080)/assets/coreos/1235.9.0/coreos_production_pxe.vmlinuz" "coreos.autologin" "coreos.config.url=http://matchbox.foo:8080/ignition" "coreos.first_boot"
+linuxefi "(http;matchbox.foo:8080)/assets/coreos/1409.7.0/coreos_production_pxe.vmlinuz" "coreos.autologin" "coreos.config.url=http://matchbox.foo:8080/ignition" "coreos.first_boot"
 echo "Loading initrd"
-initrdefi "(http;matchbox.foo:8080)/assets/coreos/1235.9.0/coreos_production_pxe_image.cpio.gz"
+initrdefi "(http;matchbox.foo:8080)/assets/coreos/1409.7.0/coreos_production_pxe_image.cpio.gz"
 }
 ```
 
 ## Cloud config
 
-Finds the profile matching the machine and renders the corresponding Cloud-Config with group metadata, selectors, and query params.
+DEPRECATED: Finds the profile matching the machine and renders the corresponding Cloud-Config with group metadata, selectors, and query params.
 
 ```
 GET http://matchbox.foo/cloud?label=value
@@ -101,7 +101,7 @@ coreos:
       command: start
 ```
 
-## Ignition Config
+## Container Linux Config / Ignition Config
 
 Finds the profile matching the machine and renders the corresponding Ignition Config with group metadata, selectors, and query params.
 
@@ -231,7 +231,7 @@ If you need to serve static assets (e.g. kernel, initrd), `matchbox` can serve a
 ```
 matchbox.foo/assets/
 └── coreos
-    └── 1235.9.0
+    └── 1409.7.0
         ├── coreos_production_pxe.vmlinuz
         └── coreos_production_pxe_image.cpio.gz
     └── 1153.0.0

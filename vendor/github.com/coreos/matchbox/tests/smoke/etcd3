@@ -19,7 +19,7 @@ main() {
     echo "Waiting for etcd cluster..."
   done
 
-  echo "etcd cluster came up!"
+  echo "etcd3 cluster came up!"
   echo
 
   cleanup

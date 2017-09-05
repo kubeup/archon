@@ -1,17 +1,10 @@
 //
 // Copyright (c) 2015 The heketi Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// This file is licensed to you under your choice of the GNU Lesser
+// General Public License, version 3 or any later version (LGPLv3 or
+// later), or the GNU General Public License, version 2 (GPLv2), in all
+// cases as published by the Free Software Foundation.
 //
 
 package glusterfs
@@ -1074,7 +1067,7 @@ func TestVolumeEntryCreateVolumeCreationFailure(t *testing.T) {
 
 	// Cause a brick creation failure
 	mockerror := errors.New("MOCK")
-	app.xo.MockVolumeCreate = func(host string, volume *executors.VolumeRequest) (*executors.VolumeInfo, error) {
+	app.xo.MockVolumeCreate = func(host string, volume *executors.VolumeRequest) (*executors.SingleVolumeInfo, error) {
 		return nil, mockerror
 	}
 
@@ -1512,4 +1505,89 @@ func TestVolumeEntryNameConflictMultiCluster(t *testing.T) {
 	v.Info.Name = "myvol"
 	err = v.Create(app.db, app.executor, app.allocator)
 	tests.Assert(t, err != nil, err)
+}
+
+func TestReplaceBrickInVolume(t *testing.T) {
+	tmpfile := tests.Tempfile()
+	defer os.Remove(tmpfile)
+
+	app := NewTestApp(tmpfile)
+	defer app.Close()
+
+	// Create a cluster in the database
+	err := setupSampleDbWithTopology(app,
+		1,      // clusters
+		3,      // nodes_per_cluster
+		1,      // devices_per_node,
+		500*GB, // disksize)
+	)
+	tests.Assert(t, err == nil)
+
+	v := createSampleVolumeEntry(100)
+
+	err = v.Create(app.db, app.executor, app.allocator)
+	tests.Assert(t, err == nil, err)
+	var brickNames []string
+	var be *BrickEntry
+	err = app.db.View(func(tx *bolt.Tx) error {
+
+		for _, brick := range v.Bricks {
+			be, err = NewBrickEntryFromId(tx, brick)
+			if err != nil {
+				return err
+			}
+			ne, err := NewNodeEntryFromId(tx, be.Info.NodeId)
+			if err != nil {
+				return err
+			}
+			brickName := fmt.Sprintf("%v:%v", ne.Info.Hostnames.Storage[0], be.Info.Path)
+			brickNames = append(brickNames, brickName)
+		}
+		return nil
+	})
+	app.xo.MockVolumeInfo = func(host string, volume string) (*executors.SingleVolumeInfo, error) {
+		var bricks []executors.Brick
+		brick := executors.Brick{Name: brickNames[0]}
+		bricks = append(bricks, brick)
+		brick = executors.Brick{Name: brickNames[1]}
+		bricks = append(bricks, brick)
+		Bricks := executors.Bricks{
+			Bricks: bricks,
+		}
+		b := &executors.SingleVolumeInfo{
+			Bricks: Bricks,
+		}
+		return b, nil
+	}
+	brickId := be.Id()
+	err = v.replaceBrickInVolume(app.db, app.executor, app.allocator, brickId)
+	tests.Assert(t, err == nil)
+
+	oldNode := be.Info.NodeId
+	brickOnOldNode := false
+	oldBrickIdExists := false
+
+	err = app.db.View(func(tx *bolt.Tx) error {
+
+		for _, brick := range v.Bricks {
+			be, err = NewBrickEntryFromId(tx, brick)
+			if err != nil {
+				return err
+			}
+			ne, err := NewNodeEntryFromId(tx, be.Info.NodeId)
+			if err != nil {
+				return err
+			}
+			if ne.Info.Id == oldNode {
+				brickOnOldNode = true
+			}
+			if be.Info.Id == brickId {
+				oldBrickIdExists = true
+			}
+		}
+		return nil
+	})
+
+	tests.Assert(t, !brickOnOldNode, "brick found on oldNode")
+	tests.Assert(t, !oldBrickIdExists, "old Brick not deleted")
 }

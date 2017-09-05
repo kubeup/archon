@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"k8s.io/minikube/pkg/minikube/constants"
+	"k8s.io/minikube/pkg/provision"
 
 	"github.com/docker/machine/drivers/virtualbox"
 	"github.com/docker/machine/libmachine"
@@ -34,11 +35,13 @@ import (
 	"github.com/docker/machine/libmachine/check"
 	"github.com/docker/machine/libmachine/drivers"
 	"github.com/docker/machine/libmachine/drivers/plugin/localbinary"
-	"github.com/docker/machine/libmachine/drivers/rpc"
+	rpcdriver "github.com/docker/machine/libmachine/drivers/rpc"
 	"github.com/docker/machine/libmachine/engine"
 	"github.com/docker/machine/libmachine/host"
+	"github.com/docker/machine/libmachine/mcnutils"
 	"github.com/docker/machine/libmachine/persist"
 	"github.com/docker/machine/libmachine/ssh"
+	"github.com/docker/machine/libmachine/state"
 	"github.com/docker/machine/libmachine/swarm"
 	"github.com/docker/machine/libmachine/version"
 	"github.com/pkg/errors"
@@ -46,50 +49,23 @@ import (
 
 type driverGetter func([]byte) (drivers.Driver, error)
 
-type ClientType int
-type clientFactory interface {
-	NewClient(string, string) libmachine.API
-}
-
-type localClientFactory struct{}
-
-func (*localClientFactory) NewClient(storePath, certsDir string) libmachine.API {
-	return &LocalClient{
-		certsDir:  certsDir,
-		storePath: storePath,
-		Filestore: persist.NewFilestore(storePath, certsDir, certsDir),
-	}
-}
-
-type rpcClientFactory struct{}
-
-func (*rpcClientFactory) NewClient(storePath, certsDir string) libmachine.API {
+func NewRPCClient(storePath, certsDir string) libmachine.API {
 	c := libmachine.NewClient(storePath, certsDir)
 	c.SSHClientType = ssh.Native
 	return c
 }
 
-var clientFactories = map[ClientType]clientFactory{
-	ClientTypeLocal: &localClientFactory{},
-	ClientTypeRPC:   &rpcClientFactory{},
-}
-
-const (
-	ClientTypeLocal ClientType = iota
-	ClientTypeRPC
-)
-
-// Gets a new client depending on the clientType specified
-// defaults to the libmachine client
-func NewAPIClient(clientType ClientType) (libmachine.API, error) {
+// NewAPIClient gets a new client.
+func NewAPIClient() (libmachine.API, error) {
 	storePath := constants.GetMinipath()
 	certsDir := constants.MakeMiniPath("certs")
-	newClientFactory, ok := clientFactories[clientType]
-	if !ok {
-		return nil, fmt.Errorf("No implementation for API client type %d", clientType)
-	}
 
-	return newClientFactory.NewClient(storePath, certsDir), nil
+	return &LocalClient{
+		certsDir:     certsDir,
+		storePath:    storePath,
+		Filestore:    persist.NewFilestore(storePath, certsDir, certsDir),
+		legacyClient: NewRPCClient(storePath, certsDir),
+	}, nil
 }
 
 func getDriver(driverName string, rawDriver []byte) (drivers.Driver, error) {
@@ -125,9 +101,15 @@ type LocalClient struct {
 	certsDir  string
 	storePath string
 	*persist.Filestore
+	legacyClient libmachine.API
 }
 
 func (api *LocalClient) NewHost(driverName string, rawDriver []byte) (*host.Host, error) {
+	// If not should get Driver, use legacy
+	if _, ok := driverMap[driverName]; !ok {
+		return api.legacyClient.NewHost(driverName, rawDriver)
+	}
+
 	driver, err := getDriver(driverName, rawDriver)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error getting driver")
@@ -162,6 +144,11 @@ func (api *LocalClient) Load(name string) (*host.Host, error) {
 		return nil, errors.Wrap(err, "Error loading host from store")
 	}
 
+	// If not should get Driver, use legacy
+	if _, ok := driverMap[h.DriverName]; !ok {
+		return api.legacyClient.Load(name)
+	}
+
 	h.Driver, err = getDriver(h.DriverName, h.RawDriver)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error loading driver from host")
@@ -170,14 +157,69 @@ func (api *LocalClient) Load(name string) (*host.Host, error) {
 	return h, nil
 }
 
-func (api *LocalClient) Close() error { return nil }
+func (api *LocalClient) Close() error {
+	if api.legacyClient != nil {
+		return api.legacyClient.Close()
+	}
+	return nil
+}
 
-// TODO(r2d4): We can rewrite the create function,
-// for now, just defer to libmachine's implementation
 func (api *LocalClient) Create(h *host.Host) error {
-	c := libmachine.NewClient(api.storePath, api.certsDir)
-	c.SSHClientType = ssh.Native
-	return c.Create(h)
+
+	if _, ok := driverMap[h.Driver.DriverName()]; !ok {
+		return api.legacyClient.Create(h)
+	}
+
+	steps := []struct {
+		name string
+		f    func() error
+	}{
+		{
+			"Bootstrapping certs.",
+			func() error { return cert.BootstrapCertificates(h.AuthOptions()) },
+		},
+		{
+			"Running precreate checks.",
+			h.Driver.PreCreateCheck,
+		},
+		{
+			"Saving driver.",
+			func() error {
+				return api.Save(h)
+			},
+		},
+		{
+			"Creating VM.",
+			h.Driver.Create,
+		},
+		{
+			"Waiting for VM to start.",
+			func() error {
+				if h.Driver.DriverName() == "none" {
+					return nil
+				}
+				return mcnutils.WaitFor(drivers.MachineInState(h.Driver, state.Running))
+			},
+		},
+		{
+			"Provisioning VM.",
+			func() error {
+				if h.Driver.DriverName() == "none" {
+					return nil
+				}
+				pv := provision.NewBuildrootProvisioner(h.Driver)
+				return pv.Provision(*h.HostOptions.SwarmOptions, *h.HostOptions.AuthOptions, *h.HostOptions.EngineOptions)
+			},
+		},
+	}
+
+	for _, step := range steps {
+		if err := step.f(); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Error executing step: %s\n", step.name))
+		}
+	}
+
+	return nil
 }
 
 func StartDriver() {
@@ -190,11 +232,6 @@ func StartDriver() {
 	localbinary.CurrentBinaryIsDockerMachine = true
 }
 
-// CertGenerator is used to override the default machine CertGenerator with a longer timeout.
-type CertGenerator struct {
-	cert.X509CertGenerator
-}
-
 type ConnChecker struct {
 }
 
@@ -205,6 +242,11 @@ func (cc *ConnChecker) Check(h *host.Host, swarm bool) (string, *auth.Options, e
 		return "", &auth.Options{}, err
 	}
 	return dockerHost, authOptions, nil
+}
+
+// CertGenerator is used to override the default machine CertGenerator with a longer timeout.
+type CertGenerator struct {
+	cert.X509CertGenerator
 }
 
 // ValidateCertificate is a reimplementation of the default generator with a longer timeout.
