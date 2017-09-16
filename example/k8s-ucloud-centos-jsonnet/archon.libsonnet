@@ -3,14 +3,23 @@ local config = import "config.libsonnet";
 
 local mixin =  {
     password+:: {
-        new(name)::
-            super.new(name, config.instancePassword),
+        new(name, config={})::
+            local finalConfig = self.config + config;
+            super.new(name, finalConfig.instancePassword),
+        config:: {
+            instancePassword:: config.instancePassword,
+        }
     },
     user+:: {
-        new(name):: super.new(name) + self.mixin.spec.sshAuthorizedKeys(config.sshAuthorizedKeys),
+        new(name, config={})::
+            local finalConfig = self.config + config;
+            super.new(name) + self.mixin.spec.sshAuthorizedKeys(finalConfig.sshAuthorizedKeys),
+        config+:: {
+            sshAuthorizedKeys:: config.sshAuthorizedKeys,
+        }
     },
     instanceGroup+:: {
-        new(name):: super.new(name) + self.mixin.spec.template.spec.users({name: "k8s-user"}),
+        new(name, config={}):: super.new(name, config) + self.mixin.spec.template.spec.users({name: "k8s-user"}),
     },
     network+:: {
         config+:: {
@@ -21,19 +30,15 @@ local mixin =  {
     },
     master+:: {
         config+:: {
-            k8s+:: {
-                "token": config.token,
-            },
+            k8sToken: config.k8sToken,
             networkName:: "k8s-net",
             instancePasswordRef:: "password",
         }
     },
     node+:: {
         config+:: {
-            k8s+:: {
-                "token":: config.token,
-                "master-ip":: config.masterIP,
-            },
+            k8sToken:: config.k8sToken,
+            k8sMasterIP:: config.k8sMasterIP,
             networkName:: "k8s-net",
             instancePasswordRef:: "password",
         }

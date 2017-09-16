@@ -2,16 +2,17 @@ local k = import "ksonnet.beta.2/k.libsonnet";
 
 {
     instanceGroup+:: {
-        new(name)::
+        new(name, config={})::
+          local finalConfig = self.config + config;
           local spec = self.mixin.spec.template.spec;
           local metadata = self.mixin.spec.template.metadata;
           local secretType = self.mixin.spec.template.spec.secretsType;
-          local initializers = self.config.initializers;
-          super.new(name) +
-          spec.instanceType(self.config.instanceType) +
-          spec.networkName(self.config.networkName) +
-          spec.image(self.config.image) +
-          spec.secrets(secretType.name(self.config.instancePasswordRef)) +
+          local initializers = finalConfig.initializers;
+          super.new(name, finalConfig) +
+          spec.instanceType(finalConfig.instanceType) +
+          spec.networkName(finalConfig.networkName) +
+          spec.image(finalConfig.image) +
+          spec.secrets(secretType.name(finalConfig.instancePasswordRef)) +
           metadata.annotations({initializers: initializers}),
         config+:: {
             instanceType:: "Normal",
@@ -19,16 +20,17 @@ local k = import "ksonnet.beta.2/k.libsonnet";
         },
     },
     network+:: {
-        new(name)::
-            local vpcID = self.config.vpcID;
-            local subnetID = self.config.subnetID;
-            local securityGroupID = self.config.securityGroupID;
+        new(name, config={})::
+            local finalConfig = self.config + config;
+            local vpcID = finalConfig.vpcID;
+            local subnetID = finalConfig.subnetID;
+            local securityGroupID = finalConfig.securityGroupID;
             local annotations = {
                 "ucloud.archon.kubeup.com/vpc-id": vpcID,
                 "ucloud.archon.kubeup.com/subnet-id": subnetID,
                 "ucloud.archon.kubeup.com/security-group-id": securityGroupID,
             };
-            super.new(name) +
+            super.new(name, finalConfig) +
             self.mixin.metadata.annotations(annotations) +
             self.mixin.status.phase("Running"),
         config+:: {
