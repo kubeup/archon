@@ -1889,6 +1889,8 @@ imports:
   version: db5cfe13f5cc80a4990d98e2e1b0707a4d1a5394
   subpackages:
   - sortorder
+- package: github.com/strickyak/jsonnet_cgo
+  version: 381b3aada63af68fd243c8aa2bb2e47dadb0f311
 testImports:
 - name: github.com/pmezard/go-difflib
   version: d8ed2627bdf02c080bf22230dbb337003b7aba2d

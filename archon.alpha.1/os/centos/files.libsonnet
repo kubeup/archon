@@ -51,17 +51,17 @@ local masterKubeadm = |||
   - kubeadm
   - init
   - --pod-network-cidr
-  - %(pod-ip-range)s
+  - %(k8sPodIPRange)s
   - --token
-  - %(token)s
+  - %(k8sToken)s
 |||;
 
 local nodeKubeadm = |||
   - kubeadm
   - join
   - --token
-  - %(token)s
-  - %(master-ip)s
+  - %(k8sToken)s
+  - %(k8sMasterIP)s
 |||;
 
 {
@@ -75,9 +75,9 @@ local nodeKubeadm = |||
     i70startKubelet(config):: file.new() + file.name("start-kubelet") + file.path("/config/runcmd/start-kubelet") + file.content(startKubelet),
   },
   master:: self. shared + {
-    i80kubeadm(config):: file.new() + file.name("kubeadm") + file.path("/config/runcmd/kubeadm") + file.content(masterKubeadm % config.k8s),
+    i80kubeadm(config):: file.new() + file.name("kubeadm") + file.path("/config/runcmd/kubeadm") + file.content(masterKubeadm % config),
   },
   node:: self.shared + {
-    i80kubeadm(config):: file.new() + file.name("kubeadm") + file.path("/config/runcmd/kubeadm") + file.content(nodeKubeadm % config.k8s),
+    i80kubeadm(config):: file.new() + file.name("kubeadm") + file.path("/config/runcmd/kubeadm") + file.content(nodeKubeadm % config),
   },
 }

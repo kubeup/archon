@@ -41,5 +41,18 @@ test-docker:
 	@echo ">> test docker image"
 	@docker run "$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)" /archon-controller --test-run
 
-.PHONY: all style format test vet docker
+update-jsonnet:
+	@echo ">> updating jsonnet"
+	@mkdir -p assets
+	@git clone https://github.com/ksonnet/ksonnet-lib.git
+	@cp -r ksonnet-lib/ksonnet.beta.2 assets/
+	@cp -r archon.alpha.1 assets/
+	@mkdir -p assets/aws-centos
+	@cp example/k8s-aws-centos-jsonnet/*.libsonnet assets/aws-centos
+	@mkdir -p assets/ucloud-centos
+	@cp example/k8s-ucloud-centos-jsonnet/*.libsonnet assets/ucloud-centos
+	@go-bindata -pkg jsonnet -prefix assets/ -o pkg/jsonnet/assets.go assets/...
+	@rm -rf assets ksonnet-lib
+
+.PHONY: all style format test vet docker update-jsonnet
 

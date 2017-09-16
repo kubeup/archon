@@ -3,8 +3,8 @@ local f = import "archon.alpha.1/os/centos/files.libsonnet";
 
 {
     instanceGroup+:: {
-        new(name)::
-            super.new(name) +
+        new(name, config={})::
+            super.new(name, config) +
             self.mixin.spec.template.spec.os("CentOS"),
     },
     master+:: {
@@ -14,9 +14,9 @@ local f = import "archon.alpha.1/os/centos/files.libsonnet";
         files+:: f.node,
     },
     user+:: {
-        new(name)::
+        new(name, config={})::
             local spec = self.mixin.spec;
-            super.new(name) +
+            super.new(name, config) +
             spec.name("centos") +
             spec.sudo("ALL=(ALL) NOPASSWD:ALL") +
             spec.shell("/bin/bash"),

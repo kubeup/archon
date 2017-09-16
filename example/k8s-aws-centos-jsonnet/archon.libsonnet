@@ -10,7 +10,12 @@ local mixin =  {
         }
     },
     user+:: {
-        new(name):: super.new(name) + self.mixin.spec.sshAuthorizedKeys(config.sshAuthorizedKeys),
+        new(name, config={})::
+            local finalConfig = self.config + config;
+            super.new(name, finalConfig) + self.mixin.spec.sshAuthorizedKeys(finalConfig.sshAuthorizedKeys),
+        config+:: {
+            sshAuthorizedKeys:: config.sshAuthorizedKeys,
+        }
     },
     instanceGroup+:: {
         local file = archon.v1.instance.mixin.spec.filesType,
@@ -18,7 +23,7 @@ local mixin =  {
           - sysctl
           - -p
         |||,
-        new(name):: super.new(name) + self.mixin.spec.template.spec.users({name: "k8s-user"}),
+        new(name, config={}):: super.new(name, config) + self.mixin.spec.template.spec.users({name: "k8s-user"}),
         files+:: {
             i01fixIptable(config):: file.new() + file.name("fix-iptable") + file.path("/etc/sysctl.d/10-iptable.conf") + file.content("net.bridge.bridge-nf-call-iptables = 1"),
             i02sysctl(config):: file.new() + file.name("sysctl") + file.path("/config/runcmd/sysctl") + file.content(sysctl),
@@ -26,20 +31,16 @@ local mixin =  {
     },
     master+:: {
         config+:: {
-            k8s+:: {
-                "token": config.token,
-                "pod-ip-range": config.podIPRange,
-            },
+            k8sToken:: config.k8sToken,
+            k8sPodIPRange:: config.k8sPodIPRange,
             networkName:: "k8s-net",
             instanceProfile:: config.masterInstanceProfile,
         }
     },
     node+:: {
         config+:: {
-            k8s+:: {
-                "token":: config.token,
-                "master-ip":: config.masterIP,
-            },
+            k8sToken:: config.k8sToken,
+            k8sMasterIP:: config.k8sMasterIP,
             networkName:: "k8s-net",
         }
     },
