@@ -646,7 +646,7 @@ imports:
   subpackages:
   - capability
 - name: github.com/tryk8s/ssh-cloudinit
-  version: dcea472e81e9248f0fc09340f5da5b7452b26eea
+  version: a6d29122bb7995f54f6e27c36b340b8b1a882f12
   subpackages:
   - client
 - name: github.com/ucloud/ucloud-sdk-go
