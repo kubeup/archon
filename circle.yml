@@ -66,4 +66,25 @@ deployment:
           github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
           --name "archon-controller-$CIRCLE_TAG-win-x86.zip" --file archon-controller-win-x86.zip
         fi
+      - |
+        if [[ "$CIRCLE_TAG" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
+          mv archon-conf archon-conf-linux-amd64
+          gzip archon-conf-linux-amd64
+          github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
+          --name "archon-conf-$CIRCLE_TAG-linux-amd64.gz" --file archon-conf-linux-amd64.gz
+        fi
+      - |
+        if [[ "$CIRCLE_TAG" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
+          GOOS=darwin go build -o archon-conf-darwin-amd64 kubeup.com/archon/cmd/archon-conf
+          gzip archon-conf-darwin-amd64
+          github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
+          --name "archon-conf-$CIRCLE_TAG-darwin-amd64.gz" --file archon-conf-darwin-amd64.gz
+        fi
+      - |
+        if [[ "$CIRCLE_TAG" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
+          GOOS=windows GOARCH=386 go build -o archon-conf-win-x86.exe kubeup.com/archon/cmd/archon-conf
+          zip archon-conf-win-x86.zip archon-conf-win-x86.exe
+          github-release upload --user $USER --repo $REPO --tag $CIRCLE_TAG \
+          --name "archon-conf-$CIRCLE_TAG-win-x86.zip" --file archon-conf-win-x86.zip
+        fi
       - docker push $DOCKER_IMAGE_NAME
