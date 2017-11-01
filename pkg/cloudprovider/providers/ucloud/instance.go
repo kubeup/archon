@@ -377,6 +377,10 @@ func (p *UCloud) createInstance(clusterName string, instance *cluster.Instance) 
 			return nil, err2
 		}
 
+		if resp == nil {
+			return nil, fmt.Errorf("EIP is specifed but not found: %v", eip.ID)
+		}
+
 		glog.Warning("EIP: %+v", resp)
 		eipInstance := ""
 		if resp.Resource != nil {
