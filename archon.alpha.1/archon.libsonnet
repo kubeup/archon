@@ -17,7 +17,7 @@ local schemaMixins = {
             spec.replicas(finalConfig.replicas) +
             spec.selector.matchLabels(finalConfig.instanceLabel) +
             template.metadata.labels(finalConfig.instanceLabel) +
-            template.spec.files([self.files[x](finalConfig) for x in std.objectFieldsAll(self.files)]),
+            template.spec.files(std.prune([self.files[x](finalConfig) for x in std.objectFieldsAll(self.files)])),
         files:: {
         },
         config:: {
@@ -32,6 +32,11 @@ local schemaMixins = {
     node:: self.instanceGroup + {
         config+:: {
             instanceLabel:: { app: "k8s-node" },
+        },
+    },
+    etcd:: self.instanceGroup + {
+        config+:: {
+            instanceLabel:: { app: "etcd-cluster" },
         },
     },
     network+:: {

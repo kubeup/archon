@@ -78,6 +78,54 @@ it.
 jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON k8s-node.jsonnet | kubectl create -f - --namespace=ucloud-centos
 ```
 
+etcd HA and Master HA
+---------------------
+
+You can setup a HA cluster for production use. Just follow these steps:
+
+Create three vip and one internal loadbalancer in the web console. The name for the lb should be `kube-system.kube-apiserver`.
+
+Fill the vips in `config.libsonnet`. Put them in the `etcd1IP`, `etcd2IP`, `etcd3IP` fields.
+
+Create a HA etcd cluster with:
+
+```
+jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON etcd1.jsonnet | kubectl create -f - --namespace=ucloud-centos
+jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON etcd2.jsonnet | kubectl create -f - --namespace=ucloud-centos
+jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON etcd3.jsonnet | kubectl create -f - --namespace=ucloud-centos
+```
+
+Create certificates:
+
+```
+kubectl create -f k8s-ca.yaml --namespace=ucloud-centos
+kubectl create -f k8s-serviceaccount.yaml --namespace=ucloud-centos
+```
+
+Change the `k8sMasterHA` config to `true` and fill the `k8sMasterIP` with the ip address of the lb.
+Also you have to fill in the `ucloudPublicKey`, `ucloudPrivateKey`, `ucloudProject` configs with your ucloud settings.
+
+Then create your fist master:
+
+```
+jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON k8s-master1.jsonnet | kubectl create -f - --namespace=ucloud-centos
+```
+
+When the master is ready, set `k8sMasterState` to `existing` and create the second master:
+
+```
+jsonnet -J PATH_TO_KSONNET_LIB -J PATH_TO_ARCHON k8s-master2.jsonnet | kubectl create -f - --namespace=ucloud-centos
+```
+
+Now you have a HA cluster. Try add some nodes to the cluster.
+
+Let's do some rolling updates.
+
+First set `etcdInitialClusterState` to `existing` and replace all etcd nodes one by one.
+
+Then replace `k8s-master1` and `k8s-master2` one by one.
+
+During the whole rolling updates process, your cluster should be working properly without service interruption.
 
 [installation guide]: https://github.com/kubeup/archon/blob/master/docs/installation_ucloud.md
 [okdc]: https://github.com/kubeup/okdc
